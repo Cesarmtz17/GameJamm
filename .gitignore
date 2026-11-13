@@ -1,0 +1,51 @@
+# ---- Unreal Engine generated ----
+Binaries/
+Build/
+!Build/**/*.ico
+DerivedDataCache/
+Intermediate/
+Saved/
+Plugins/**/Binaries/
+Plugins/**/Intermediate/
+
+# ---- IDE / project files (regenerate with "Generate Visual Studio project files") ----
+.vs/
+.vscode/
+.idea/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+*.vcxproj*
+*.xcodeproj
+*.xcworkspace
+
+# ---- Compiled ----
+*.pdb
+*.o
+*.dll
+*.exe
+*.lib
+*.exp
+*.ilk
+
+# ---- Packaged builds (se suben a itch, no al repo) ----
+Packaged/
+Dist/
+*.zip
+
+# ---- Secrets (API keys de LLM, etc.) ----
+.env
+*.env
+Config/Secrets*.ini
+Config/DefaultSecrets.ini
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Claude Code local ----
+.claude/settings.local.json
