@@ -17,7 +17,7 @@ Compartido: `Content/Game/Shared/` (lock obligatorio). Pruebas: `Content/Develop
 - Cada quien tiene un mapa de pruebas: `Content/Developers/<nombre>/L_Test_<nombre>`.
 
 ## Contratos entre roles (acordar temprano, no romper)
-- **Daño:** todo lo que recibe daño usa `UHealthComponent` y el `ApplyDamage` de UE. Equipo vía `ETeam` (`Red`/`Blue`/`Neutral`).
+- **Daño:** todo lo que recibe daño usa `UHealthComponent` y el `ApplyDamage` de UE. Equipo vía `EJamTeam` (`Red`/`Blue`/`Neutral`) en `UHealthComponent::Team`; helpers en `UJamStatics`.
 - **Inventario:** `UInventoryComponent` en el personaje (materiales + piezas) — lo hace Core, lo usan Combate/Construcción/IA.
 - **Receta de construcción:** JSON en [GDD.md](GDD.md#formato-de-receta-contrato-entre-ia-y-sistema-de-construcción).
 
