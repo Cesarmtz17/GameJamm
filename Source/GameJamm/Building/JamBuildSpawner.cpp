@@ -70,7 +70,7 @@ void AJamBuildSpawner::BuildNow()
 		UE_LOG(LogJamBuild, Warning, TEXT("%s"), *LastStatus);
 		return;
 	}
-	if (bUseDecisionModel && !FJamDecisionClient::GetApiKey().IsEmpty())
+	if (bUseDecisionModel && (!FJamDecisionClient::GetApiKey().IsEmpty() || !FJamDecisionClient::GetFalKey().IsEmpty()))
 	{
 		LastStatus = TEXT("waiting for decision model...");
 		const FString PromptCopy = Prompt;

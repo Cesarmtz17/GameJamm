@@ -16,6 +16,12 @@ public:
 	/** Vacío si no hay clave configurada (entonces se usa el respaldo por palabras clave). */
 	static FString GetApiKey();
 
+	/** Clave de fal (env FAL_KEY o [Jam] FalApiKey): respaldo de decisión vía fal.run/openrouter/router (LLM que elige en JSON). */
+	static FString GetFalKey();
+
+	/** Respuesta de fal -> decisiones (el texto del modelo trae un JSON, a veces con ```). */
+	static bool ParseFalResponse(const FString& ResponseJson, FJamBuildChoice& OutChoice, FString& OutNote);
+
 	/** Cuerpo JSON de la petición para un prompt (público para pruebas). */
 	static FString BuildRequestBody(const FString& Prompt);
 

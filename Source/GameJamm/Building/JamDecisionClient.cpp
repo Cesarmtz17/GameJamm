@@ -42,6 +42,55 @@ FString FJamDecisionClient::GetApiKey()
 	return Key;
 }
 
+FString FJamDecisionClient::GetFalKey()
+{
+	FString Key = FPlatformMisc::GetEnvironmentVariable(TEXT("FAL_KEY"));
+	if (!Key.IsEmpty())
+	{
+		return Key;
+	}
+	FConfigFile Secrets;
+	Secrets.Read(FPaths::ProjectConfigDir() / TEXT("DefaultSecrets.ini"));
+	Secrets.GetString(TEXT("Jam"), TEXT("FalApiKey"), Key);
+	return Key;
+}
+
+bool FJamDecisionClient::ParseFalResponse(const FString& ResponseJson, FJamBuildChoice& OutChoice, FString& OutNote)
+{
+	TSharedPtr<FJsonObject> Root;
+	FString Text;
+	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(ResponseJson), Root) || !Root.IsValid() || !Root->TryGetStringField(TEXT("output"), Text))
+	{
+		OutNote = TEXT("fal: no 'output'");
+		return false;
+	}
+	// Quita ```json ... ``` y toma de la primera { a la ultima }.
+	int32 A = INDEX_NONE, B = INDEX_NONE;
+	Text.FindChar(TEXT('{'), A);
+	Text.FindLastChar(TEXT('}'), B);
+	TSharedPtr<FJsonObject> D;
+	if (A == INDEX_NONE || B <= A || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text.Mid(A, B - A + 1)), D) || !D.IsValid())
+	{
+		OutNote = TEXT("fal: output is not JSON");
+		return false;
+	}
+	FString Arch;
+	if (!D->TryGetStringField(TEXT("archetype"), Arch))
+	{
+		OutNote = TEXT("fal: archetype missing");
+		return false;
+	}
+	OutChoice = FJamBuildChoice();
+	OutChoice.Archetype = FName(*Arch);
+	D->TryGetBoolField(TEXT("fan"), OutChoice.bFan);
+	D->TryGetBoolField(TEXT("rocket"), OutChoice.bRocket);
+	D->TryGetBoolField(TEXT("flame"), OutChoice.bFlame);
+	D->TryGetBoolField(TEXT("cannon"), OutChoice.bCannon);
+	D->TryGetBoolField(TEXT("balloon"), OutChoice.bBalloon);
+	OutNote = FString::Printf(TEXT("fal-llm archetype=%s"), *Arch);
+	return true;
+}
+
 FString FJamDecisionClient::BuildRequestBody(const FString& Prompt)
 {
 	TSharedRef<FJsonObject> Root = Obj();
@@ -134,7 +183,41 @@ void FJamDecisionClient::RequestChoice(const FString& Prompt, TFunction<void(boo
 	const FString Key = GetApiKey();
 	if (Key.IsEmpty())
 	{
-		Done(false, FJamBuildChoice(), TEXT("no OPENROUTER_API_KEY"));
+		const FString FalKey = GetFalKey();
+		if (FalKey.IsEmpty())
+		{
+			Done(false, FJamBuildChoice(), TEXT("no OPENROUTER_API_KEY ni FAL_KEY"));
+			return;
+		}
+		// Respaldo: LLM de fal elige arquetipo y extras en JSON (no es Jev; misma interfaz de decision).
+		TSharedRef<FJsonObject> Body = Obj();
+		Body->SetStringField(TEXT("model"), TEXT("google/gemini-2.5-flash"));
+		Body->SetNumberField(TEXT("temperature"), 0.0);
+		Body->SetStringField(TEXT("system_prompt"), TEXT("Eres el modelo de decision de un juego de construccion. Responde SOLO un JSON sin markdown con: archetype (Car|Flyer|Turret|Rocket) y booleanos fan, rocket, flame, cannon, balloon segun lo que pida el jugador."));
+		Body->SetStringField(TEXT("prompt"), Prompt);
+		FString BodyStr;
+		FJsonSerializer::Serialize(Body, TJsonWriterFactory<>::Create(&BodyStr));
+
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> FReq = FHttpModule::Get().CreateRequest();
+		FReq->SetURL(TEXT("https://fal.run/openrouter/router"));
+		FReq->SetVerb(TEXT("POST"));
+		FReq->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+		FReq->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Key %s"), *FalKey));
+		FReq->SetContentAsString(BodyStr);
+		FReq->SetTimeout(15.f);
+		FReq->OnProcessRequestComplete().BindLambda([Done](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+		{
+			FJamBuildChoice C;
+			FString Note;
+			if (!bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200)
+			{
+				Done(false, C, Resp.IsValid() ? FString::Printf(TEXT("fal http %d"), Resp->GetResponseCode()) : FString(TEXT("fal http failure/timeout")));
+				return;
+			}
+			const bool bParsed = ParseFalResponse(Resp->GetContentAsString(), C, Note);
+			Done(bParsed, C, Note);
+		});
+		FReq->ProcessRequest();
 		return;
 	}
 
