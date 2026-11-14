@@ -20,7 +20,7 @@
 
 ## Tareas (en orden de prioridad)
 
-### [ ] 0. Probar el brillo al prender
+### [~] (PC, 14 nov 01:20) 0. Probar el brillo al prender
 `git checkout build/brillo-encendido`, compilar y en PIE correr `Jam.Say un carro` y luego **C**: la malla debe brillar
 (parámetro `Emissive` de `M_Part_Master`; si el material no lo tiene, agrégalo: Scalar 0–1 × `#E7B65A` a Emissive Color).
 Si funciona, haz merge a `main` y push. Si no compila, pon aquí el primer error.
