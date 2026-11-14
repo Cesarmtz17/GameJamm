@@ -223,6 +223,7 @@ y **clic derecho** quita la última. **R** gira la pieza 45° y **Shift+R** gira
 
 ### 8.2 Cómo se fusiona
 
+- **MVP: 5 materiales** (Roca, Fuego, Hielo, Rayo, Bomba; los 5 ya tienen asset en `SourceArt/Fusion/`). Púa queda para Stretch.
 - **F** pega **un material** al arma en mano. Un arma lleva **un solo material** a la vez; fusionar otro reemplaza el anterior
   (el anterior se pierde). El material **se gasta con el uso**: dura **20 golpes** (o 1 flecha) y se cae. El arma base no se rompe.
 - Las **flechas** se fusionan al tensar: cada flecha gasta 1 material.
@@ -231,7 +232,7 @@ y **clic derecho** quita la última. **R** gira la pieza 45° y **Shift+R** gira
 | Material | Qué le hace a la espada | Qué le hace a la flecha |
 |---|---|---|
 | **Roca** | +12 daño, ×2 empuje, **golpeas 30 % más lento** (pesa) | +8 daño, derriba |
-| **Púa / colmillo** | +8 daño, sin penalización | **×2 el bono** (+16): la flecha más fuerte |
+| **Púa / colmillo** *(Stretch: aún sin asset)* | +8 daño, sin penalización | **×2 el bono** (+16): la flecha más fuerte |
 | **Fuego** | Quema: +5/s por 3 s; prende pasto y madera | Incendia el punto de impacto |
 | **Hielo** | Ralentiza 50 % por 2 s; 3 golpes seguidos congelan 1 s | Congela al blanco; sobre agua hace plataforma |
 | **Rayo** | Aturde 0.5 s; se propaga a quien esté mojado | Descarga en área de 2 m |
@@ -265,6 +266,86 @@ con un ariete es una combinación válida.
 | Base | 3000 | Solo recibe daño cuando cayeron las 2 torres de ese equipo |
 | Piezas de construcción | Plank 60 · Block 150 · Wall 300 · Wheel 80 · dispositivos 80 | Las armas de los jugadores y los minions las rompen; si se rompe una pieza, lo pegado a ella se suelta |
 | Contra torres | Las construcciones hacen **50 % de daño a torres y bases** | Ayudan a empujar, pero no derriban una torre solas |
+
+## 10. Una partida de Asalto, minuto a minuto — Propuesta
+
+| Tiempo | Qué pasa | Qué debería sentir el jugador |
+|---|---|---|
+| 0:00 | Aparecen los 3 de cada equipo en su base. Mensaje: *"Lootea la isla cercana y pídele algo al Asistente (B)"* | Sé qué hacer |
+| 0:00–1:30 | Todos lootean su isla cercana (piezas comunes) | Primera construcción en menos de un minuto |
+| 0:30 | Primera oleada de minions | El carril se mueve aunque yo no |
+| ~2:00 | Primeras peleas en la pradera central, junto a las torres 1 | Mi construcción contra la suya |
+| 3:00–5:00 | Se pelean las islas de media distancia (dispositivos) | Arriesgarse da mejores piezas |
+| 5:00 | **Cofre raro** en la pradera central (se anuncia 30 s antes); reaparece cada 3 min | Momento de pelea grande |
+| 8:00 | Salen minions pesados | Hay que cerrar la partida |
+| 12:00 | **Muerte súbita**: las torres hacen la mitad de daño y los jugadores reaparecen en 15 s | Se acelera el final |
+| 15:00 | Si nadie destruyó la base: gana el equipo con más vida total en torres y base | Siempre hay ganador |
+
+## 11. Bots y enemigos — Propuesta
+
+**Bots héroe** (llenan los lugares sin humano). Usan **el mismo Asistente** que el jugador, con pedidos fijos según su rol, así
+que el sistema de construcción también se luce cuando juegas solo.
+
+| Rol | Qué hace | Pedidos al Asistente (rotan) |
+|---|---|---|
+| **Constructor** | Lootea la isla cercana y empuja con un vehículo junto a la oleada | "un carro con lanzallamas", "un ariete", "un tanque" |
+| **Peleador** | Va a pie con espada fusionada, pelea en la pradera y defiende torres | "una torreta que dispare sola" junto a su torre |
+| **Tirador** | Arco con fusión desde atrás, va por los cofres de media distancia | "algo que vuele con cañón" |
+
+Estados (StateTree): **Lootear** → **Construir** → **Empujar con la oleada** → **Retirarse** (vida < 30 %) → **Defender** (si atacan su
+torre). Dificultad Fácil, Normal o Difícil: cambia la puntería, cada cuánto construyen y si pelean el cofre raro.
+
+**Enemigos de campamento (neutrales):**
+
+| Enemigo | Vida | Qué hace | Suelta |
+|---|---|---|---|
+| Guardia | 80 | Cuerpo a cuerpo; persigue hasta 20 m y vuelve | Energía +10 |
+| Lanzador | 50 | Lanza piedras desde 15 m | Energía +10 y un material de fusión |
+| Jefe de isla (solo en media distancia) | 300 | Golpe en área que empuja | El cofre de la isla se abre al matarlo |
+
+Atacan a cualquier equipo que entre a su isla, así que llegar al mismo tiempo que el rival se vuelve una pelea de tres bandos.
+
+## 12. Los primeros 2 minutos (para los jueces) — Propuesta
+
+Los jueces juegan solos y poco tiempo. Antes del minuto 2 tienen que haber **construido algo que funcione**:
+1. **Cofre garantizado** junto al spawn: 1 Plank, 4 Wheel, 1 Flamethrower, 1 Fan y 1 material Fuego.
+2. Al abrirlo: *"Presiona B y escribe lo que quieras construir. Prueba: un carro que queme todo"*.
+3. La primera construcción **siempre sale completa** (el cofre trae justo lo necesario) y el mensaje explica: *"C para encender,
+   E para subirte"*.
+4. Pistas de una sola línea la primera vez que pasa algo: primera fusión (F), primera vez sin energía, primera torre a la vista.
+5. Menú **Cómo jugar** de una pantalla con los controles de §7 y 3 ejemplos de pedidos.
+
+## 13. HUD y pantallas — Propuesta
+
+**HUD en partida:**
+
+| Zona | Qué muestra |
+|---|---|
+| Abajo a la izquierda | Vida (150) y **barra de energía** (§5); al encender, el gasto por segundo |
+| Abajo al centro | Arma en mano, material fusionado y golpes restantes (20) |
+| Abajo a la derecha | Mochila resumida: piezas (x/40) y materiales |
+| Arriba al centro | Torres y base de cada equipo (iconos que se apagan), timer y avisos (cofre raro, muerte súbita) |
+| Centro, al pedir | Panel del Asistente: lo que dijiste o escribiste, una línea de respuesta y la tarjeta de piezas, energía y lo que falta (§6.1) |
+| Sobre la construcción | Vida de cada pieza al dañarse y un icono de encendida o apagada |
+
+**Pantallas:**
+- **Inicio:** Jugar Asalto, Jugar Choque en la isla, Cómo jugar, Opciones (volumen, sensibilidad, dificultad de bots), Salir.
+- **Muerte:** cuenta atrás para reaparecer y quién te eliminó y con qué construcción.
+- **Final — tu corte final** (guiño al tema): Victoria o Derrota, stats (eliminaciones, daño a torres, energía juntada) y la
+  **construcción de la partida**: la que más daño hizo, con su nombre, sus piezas y el pedido que la creó. Botones: Revancha y Menú.
+
+## 14. Choque en la isla, en detalle — Propuesta (Stretch)
+
+| Regla | Valor |
+|---|---|
+| Jugadores | 4 (2 vs 2 o todos contra todos), con bots en los lugares vacíos |
+| Mapa | Una isla del blockout, sin barandal; afuera está el mar de nubes |
+| Arranque | Mochila vacía, energía mínima (50) y espada |
+| Loot | Una caja cae del cielo cada **20 s** en un punto marcado 5 s antes (2–4 piezas al azar, a veces energía o un material) |
+| Eliminación | Bajarle la vida a 0 o **tirarlo de la isla** (cuenta para quien lo empujó en los últimos 5 s) |
+| Reaparecer | 3 s, en el punto más lejos de los rivales; pierdes la mochila (cae como bolsa) |
+| Ganar | Primero a 10 eliminaciones, o el que más tenga a los 5 min |
+| Lo que más sirve | Arietes, resortes, ventiladores que empujan y bombas: **sacar del mapa** vale más que hacer daño |
 
 ---
 
@@ -344,4 +425,5 @@ No va en el repo. Para la build de los jueces: key con límite de gasto bajo en 
 | [ ] | Construcción (Jesús Daniel) | `BuildKnowledge.json → energy`: mínimo 50, máximo 150, recarga +3/s solo hasta 50 con la construcción apagada; orbe al morir con 50 % de lo que pasa del mínimo (hoy dice máximo 100, inicio 60, sin mínimo) | Jugabilidad §5 |
 | [ ] | Construcción (Jesús Daniel) | Asistente: armar **al instante la mejor opción de Jev** (o su versión reducida) con una línea de lo que falta; R = volver a pedir; N = 2.ª opción (P1) | Jugabilidad §6.1 |
 | [ ] | Construcción (Jesús Daniel) | Mochila: tope por tipo (8 común, 4 dispositivo, 2 rara; campo nuevo tipo `stack_max` en `BuildKnowledge.json`), 40 en total, 1 construcción activa, máximo 4 armas y 6 propulsores por construcción; que el solver lo respete | Jugabilidad §4 |
-| [ ] | Core / Combate (sin dueño) | Items de inventario `Mat.Spike`, `Mat.Shock`, `Mat.Bomb` (hoy solo existen `Mat.Fire`, `Mat.Rock`, `Mat.Ice`) | Jugabilidad §8 |
+| [ ] | Combate (Javier) | Items de inventario `Mat.Shock` y `Mat.Bomb` para el MVP (hoy solo existen `Mat.Fire`, `Mat.Rock`, `Mat.Ice`); `Mat.Spike` es Stretch | Jugabilidad §8 |
+| [ ] | Arte (Emilio) | Material de fusión **Púa/colmillo** (`SM_FUSE_SPIKE`), solo si da tiempo: los otros 5 ya están | Jugabilidad §8 |
