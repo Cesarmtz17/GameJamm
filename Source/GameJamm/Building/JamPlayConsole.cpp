@@ -221,6 +221,7 @@ namespace
 		// metricas de las pruebas aisladas
 		double AimErrSum = 0, AimYawMin = 0, AimYawMax = 0, HingeMax = 0, HingeSep = 0, HingeDist0 = -1, MinUpZ = 1, LastUpZ = 1, Energy0 = -1, EnergyEnd = -1, PlayerEnergyMin = 100;
 		int32 AimN = 0, Frames = 0;
+		float Wall = 0.f;                  // segundos de reloj del caso (para los cuadros por segundo reales)
 		bool bLightOn = false, bRootWheel = false;
 		// "utilizable": fases con entrada simulada (mando -> quieta -> disparar -> soltar -> acelerar -> girar -> turbo)
 		double BuiltAt = -1, IdleDisp = 0, DriveFwd = 0, SteerDeg = 0;
@@ -418,7 +419,7 @@ namespace
 		if (T.bFrozen) { Seen.Add(TEXT("objetivo congelado")); }
 		if (T.DummyMoved > 30) { Seen.Add(FString::Printf(TEXT("objetivo empujado %.0f cm"), T.DummyMoved)); }
 		if (T.MaxBalls > 0) { Seen.Add(FString::Printf(TEXT("%d bolas"), T.MaxBalls)); }
-		if (T.Parts >= 25 && T.Timer > 1.f) { Seen.Add(FString::Printf(TEXT("%d piezas a %.0f fps"), T.Parts, T.Frames / T.Timer)); }
+		if (T.Wall > 1.f && (T.Parts >= 25 || T.Frames / T.Wall < 25.f)) { Seen.Add(FString::Printf(TEXT("%d piezas a %.0f fps"), T.Parts, T.Frames / T.Wall)); }
 		if (FMath::Abs(T.LastUpZ) < 0.5 && !T.bRootWheel) { Seen.Add(TEXT("termino volcada")); }
 		const bool bPassAll = bBuilt && bDecision && bCoh && bUsable;
 		++T.PhraseCount;
@@ -541,12 +542,12 @@ namespace
 					}
 					if (t >= 2.0 && Enter(2)) { T.P0 = L; }                                          // quieta: sin entrada
 					if (T.Phase == 2 && t >= 2.3) { T.IdleWeapons = FMath::Max(T.IdleWeapons, WeaponsOn); }
-					if (t >= 3.5 && Enter(3)) { T.IdleDisp = FVector::Dist2D(L, T.P0); T.Fx0 = Fx; GFireUntil = NowS + 2.5 * K; }   // clic
+					if (t >= 3.5 && Enter(3)) { T.IdleDisp = FVector::Dist2D(L, T.P0); T.Fx0 = Fx; GFireUntil = NowS + 600.0; }   // clic (se suelta en la fase siguiente)
 					if (T.Phase == 3) { T.FireOn = FMath::Max(T.FireOn, WeaponsOn); }
 					if (t >= 6.0 && Enter(4)) { T.FireFx = Fx - T.Fx0; GFireUntil = 0.0; }           // soltar
-					if (t >= 6.5 && Enter(5)) { T.WeaponsAfter = WeaponsOn; T.P0 = L; T.Fwd0 = Fwd; GDriveThrottle = 1.f; GDriveSteer = 0.f; GDriveUntil = NowS + 4.0 * K; GLiftUntil = NowS + 4.0 * K; } // W (+ Espacio mantenido: subir)
+					if (t >= 6.5 && Enter(5)) { T.WeaponsAfter = WeaponsOn; T.P0 = L; T.Fwd0 = Fwd; GDriveThrottle = 1.f; GDriveSteer = 0.f; GDriveUntil = NowS + 600.0; GLiftUntil = NowS + 600.0; } // W (+ Espacio mantenido: subir); se sueltan en la fase 7
 					if (t >= 9.0 && Enter(6)) { T.DriveFwd = FVector::DotProduct(L - T.P0, T.Fwd0); T.Fwd0 = Fwd; GDriveSteer = 1.f; }          // W + D
-					if (t >= 10.5 && Enter(7)) { T.SteerDeg = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(Fwd, T.Fwd0), -1.0, 1.0))); GDriveUntil = 0.0; GBoostOnce = true; } // Espacio
+					if (t >= 10.5 && Enter(7)) { T.SteerDeg = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(Fwd, T.Fwd0), -1.0, 1.0))); GDriveUntil = 0.0; GLiftUntil = 0.0; GBoostOnce = true; } // Espacio
 					if (T.Phase == 7)
 					{
 						bool bBombArmed = false; // la bomba responde a Espacio armandose (mecha de 4 s): cuenta aunque explote despues
@@ -627,7 +628,10 @@ namespace
 		{
 			return false;
 		}
-		T.Timer += Dt;
+		// Tiempo de JUEGO, no de reloj: con el editor en segundo plano o con muchas piezas el juego va a 7-10 cuadros por segundo
+		// y la fisica avanza mas despacio que el reloj; midiendo con reloj, un carro normal "avanzaba" 82 cm en vez de 270.
+		T.Timer += World->GetDeltaSeconds();
+		T.Wall += Dt;
 		// Las frases se miden Duration segundos desde que APARECE la construccion (Jev tarda); 10 s de espera como mucho.
 		const bool bWaitBuild = T.Index >= 0 && !GCases[T.Index].IsIso();
 		if (T.Index >= 0 && T.Timer < (bWaitBuild ? (T.BuiltAt >= 0 ? T.BuiltAt + T.Duration : T.Duration + 10.0) : T.Duration))
@@ -1194,17 +1198,24 @@ void AJamTestCharacter::DriveMount(AJamBuildPart* Seat, float Throttle, float St
 	}
 	if (!bWheels || FMath::Abs(SmoothSteer) > 0.05f)
 	{
-		// Guiñada asistida (sin ruedas, o para ayudar al giro): aceleracion angular, independiente de la masa.
-		// Torque proporcional a la masa de toda la construccion (la raiz sola es muy ligera): ~4 rad/s2, con freno al soltar.
-		const double Wz = Root->Mesh->GetPhysicsAngularVelocityInRadians().Z;
-		// Una construccion larga tiene mucha mas inercia de giro que masa x 80 cm^2: se usa la mayor de las dos.
-		double Inertia = 0.0;
+		// Giro garantizado al mando: se controla la VELOCIDAD de guiñada (objetivo 1.5 rad/s con A/D, 0 al soltar) con un par
+		// limitado que incluye lo que hace falta para vencer el arrastre lateral de las llantas (crece con el peso y con lo
+		// lejos que estan las ruedas) y el de las alas. Medido: con par proporcional solo a la masa, lo largo giraba 2-14 grados.
+		double Inertia = 0.0, WheelArm = 0.0;
+		int32 WheelN = 0;
 		for (const TWeakObjectPtr<AJamBuildPart>& P : Seat->Build->Parts)
 		{
-			if (P.IsValid()) { Inertia += P->Mesh->CalculateMass() * FVector::DistSquared2D(P->GetActorLocation(), Root->GetActorLocation()); }
+			if (!P.IsValid()) { continue; }
+			const double D2 = FVector::DistSquared2D(P->GetActorLocation(), Root->GetActorLocation());
+			Inertia += P->Mesh->CalculateMass() * D2;
+			if (P->Kind == EJamPartKind::Wheel) { WheelArm += FMath::Sqrt(D2); ++WheelN; }
 		}
-		const double Mass = FMath::Max3((double)Seat->Build->MassKg, 1.0, Inertia / 6400.0);
-		Root->Mesh->AddTorqueInRadians(FVector(0, 0, Mass * 6400.0 * ((bWheels ? 6.0 : 4.0) * SmoothSteer - 1.5 * Wz * (bWheels ? 0.3 : 1.0))));
+		const double BuildMass = FMath::Max((double)Seat->Build->MassKg, 1.0);
+		Inertia = FMath::Max(Inertia, BuildMass * 6400.0);
+		const double ScrubArm = FMath::Max(WheelN > 0 ? WheelArm / WheelN : 0.0, 100.0);
+		const double MaxTorque = Inertia * 6.0 + BuildMass * 980.0 * 0.8 * ScrubArm;
+		const double Wz = Root->Mesh->GetPhysicsAngularVelocityInRadians().Z;
+		Root->Mesh->AddTorqueInRadians(FVector(0, 0, FMath::Clamp(Inertia * 20.0 * (1.5 * SmoothSteer - Wz), -MaxTorque, MaxTorque)));
 	}
 }
 
