@@ -138,7 +138,7 @@ Sí, en Asalto hay minions. Le dan ritmo al carril, son blanco para las construc
 | Por pieza rara (Jet, Turbine, Beam, HoverStone, Rocket, BigWheel) | 2 de cada una | La pradera central vale la pena pelearla |
 | Materiales de fusión | 10 de cada uno, aparte de las piezas | — |
 | Asiento | Infinito, no ocupa espacio | Decidido |
-| Construcción | **21 piezas** máximo, **1 construcción activa** por jugador (hacer otra desarma la anterior y devuelve sus piezas) | Rendimiento y claridad en PvP |
+| Construcción | **60 piezas** máximo por ahora (lo que hay en código, `MaxParts` en `bbdbbd0`; **temporal mientras se prueba**, se revisa antes del freeze: la propuesta es que en partida el límite sea lo que cabe en la mochila, máx. 40), **1 construcción activa** por jugador (hacer otra desarma la anterior y devuelve sus piezas) | Rendimiento y claridad en PvP |
 | Por construcción | Máximo 4 armas (Flamethrower, Frost, Cannon, Beam, Bomb) y 6 propulsores (Fan, Turbine, Jet, Rocket) | Balance |
 
 Al recoger algo con la mochila llena, el HUD lo marca y no se recoge. Puedes tirar piezas desde la mochila (Tab).

@@ -20,6 +20,10 @@
 
 ## Tareas (en orden de prioridad)
 
+> **Cesar (14 nov):** sigue con las tareas en orden **sin parar entre una y otra**; solo detente si algo no compila o choca
+> con lo de otro. Antes de cada tarea haz pull: Jesús sube cambios grandes de Building seguido (recompilar si trae headers).
+> El tope de piezas queda en **60** por ahora (pruebas); no lo cambies.
+
 ### [x] 0. Probar el brillo al prender
 `git checkout build/brillo-encendido`, compilar y en PIE correr `Jam.Say un carro` y luego **C**: la malla debe brillar
 (parámetro `Emissive` de `M_Part_Master`; si el material no lo tiene, agrégalo: Scalar 0–1 × `#E7B65A` a Emissive Color).
@@ -55,7 +59,8 @@ Core no tiene dueño: anota "Cesar" en la fila Core de `docs/TEAM.md` y haz push
 > `JamAssembler.cpp` y `JamBuildPart.cpp`.
 
 ### [ ] 2. Combate y fusión (GDD §8)
-Combate figura como de Jesús Daniel "por confirmar": **pregúntale a Cesar antes de empezar** y anota en `TEAM.md` quién lo hace.
+**Cesar (14 nov):** si en `main` todavía no existe `Source/GameJamm/Combat/`, hazla tú sin preguntar y anota "Cesar" en la fila
+Combate de `TEAM.md`. Si ya existe código de Jesús ahí, no lo dupliques: avisa en el Registro y pasa a la tarea 3.
 1. Espada (20 de daño cada 0.6 s, 2 m) y arco (15 de daño cada 0.8 s, 40 m, flecha física) con `SM_WPN_SWORD`, `SM_WPN_BOW` y
    `SM_WPN_ARROW`. Clic izquierdo ataca. No uses las teclas de Building (1-9, C, E, X, V, H, G, T); ver la tabla §7.
 2. `UFusionComponent`: pega 1 material al arma por 20 golpes. Valores en DataAsset o JSON:
