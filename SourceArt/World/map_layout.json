@@ -1,0 +1,134 @@
+{
+  "units": "cm",
+  "frame": "UE (X = Rojo->Azul, Y = derecha, Z = arriba)",
+  "items": [
+    {
+      "kind": "Base",
+      "team": "Red",
+      "x": -12400,
+      "y": 0,
+      "z": 0,
+      "note": "ATeamStructure base: si cae, pierde el equipo"
+    },
+    {
+      "kind": "Base",
+      "team": "Blue",
+      "x": 12400,
+      "y": 0,
+      "z": 0,
+      "note": "ATeamStructure base: si cae, pierde el equipo"
+    },
+    {
+      "kind": "PlayerStart",
+      "team": "Red",
+      "x": -10800,
+      "y": 0,
+      "z": 50,
+      "note": "spawn del jugador / aliados"
+    },
+    {
+      "kind": "PlayerStart",
+      "team": "Blue",
+      "x": 10800,
+      "y": 0,
+      "z": 50,
+      "note": "spawn de bots enemigos"
+    },
+    {
+      "kind": "Tower",
+      "team": "Red",
+      "x": -8200,
+      "y": 0,
+      "z": 0,
+      "note": "ATeamStructure: dispara a enemigos cercanos"
+    },
+    {
+      "kind": "Tower",
+      "team": "Blue",
+      "x": 8200,
+      "y": 0,
+      "z": 0,
+      "note": "ATeamStructure: dispara a enemigos cercanos"
+    },
+    {
+      "kind": "Tower",
+      "team": "Red",
+      "x": -4400,
+      "y": 0,
+      "z": 0,
+      "note": "ATeamStructure: dispara a enemigos cercanos"
+    },
+    {
+      "kind": "Tower",
+      "team": "Blue",
+      "x": 4400,
+      "y": 0,
+      "z": 0,
+      "note": "ATeamStructure: dispara a enemigos cercanos"
+    },
+    {
+      "kind": "LootCamp",
+      "team": "Neutral",
+      "x": -4000,
+      "y": 6000,
+      "z": 0,
+      "note": "campamento: enemigos + cofre"
+    },
+    {
+      "kind": "Chest",
+      "team": "Neutral",
+      "x": -4000,
+      "y": 6000,
+      "z": 0,
+      "note": "ALootChest"
+    },
+    {
+      "kind": "LootCamp",
+      "team": "Neutral",
+      "x": 4000,
+      "y": -6000,
+      "z": 0,
+      "note": "campamento: enemigos + cofre"
+    },
+    {
+      "kind": "Chest",
+      "team": "Neutral",
+      "x": 4000,
+      "y": -6000,
+      "z": 0,
+      "note": "ALootChest"
+    },
+    {
+      "kind": "LootCamp",
+      "team": "Neutral",
+      "x": -8600,
+      "y": -3600,
+      "z": 0,
+      "note": "campamento: enemigos + cofre"
+    },
+    {
+      "kind": "Chest",
+      "team": "Neutral",
+      "x": -8600,
+      "y": -3600,
+      "z": 0,
+      "note": "ALootChest"
+    },
+    {
+      "kind": "LootCamp",
+      "team": "Neutral",
+      "x": 8600,
+      "y": 3600,
+      "z": 0,
+      "note": "campamento: enemigos + cofre"
+    },
+    {
+      "kind": "Chest",
+      "team": "Neutral",
+      "x": 8600,
+      "y": 3600,
+      "z": 0,
+      "note": "ALootChest"
+    }
+  ]
+}
