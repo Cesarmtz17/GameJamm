@@ -2,7 +2,7 @@
 
 ## 0. PRIMERO DE TODO: sincronización cada 2 min (metodología para todos los agentes)
 Somos 5 personas, cada una en su compu y con su propio agente, todos sobre `main`. Para no pisarnos:
-- **Al iniciar sesión:** corre `git pull --rebase --autostash` y arranca `/loop 5m git pull --rebase --autostash` (o el equivalente: un pull cada 2 min mientras la sesión esté viva).
+- **Al iniciar sesión:** corre `git pull --rebase --autostash` y arranca `/loop 2m git pull --rebase --autostash` (o el equivalente: un pull cada 2 min mientras la sesión esté viva).
 - Un pull con cambios locales sin commitear usa `--autostash`; nunca `reset --hard` ni `--force` para "arreglar" un pull.
 - **Si hay conflicto o falla el pull:** detente, no resuelvas a ciegas, avisa al usuario. Los `.uasset`/`.umap` no se mergean: respeta los `git lfs lock`.
 - Si el pull trae cambios en `Source/` o headers, avisa: hay que recompilar. Si trae assets, el editor puede pedir recargarlos.
