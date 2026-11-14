@@ -1,4 +1,4 @@
-# GDD — Backlot Brawl (título de trabajo)
+# GDD — GameJamm (título por definir)
 
 ## Pitch
 PvP de dos equipos tipo *tower push*: avanza por el mapa destruyendo torres hasta llegar a la base enemiga y destruirla. Apareces **sin loot**; el mapa tiene **estructuras/campamentos** donde peleas y looteas materiales y piezas. Con ellos:
@@ -6,38 +6,30 @@ PvP de dos equipos tipo *tower push*: avanza por el mapa destruyendo torres hast
 - **Construyes artefactos** con piezas (llantas, tablas, lanzallamas…) — p. ej. una llanta con lanzallamas que rueda por el mapa quemando todo.
 - Un **asistente de IA** te ayuda a diseñar creaciones con las piezas que tienes.
 
-## Tema: DIRECTOR'S CUT — cerrado
-**Título de trabajo: _Backlot Brawl_** (cambiable hasta el viernes; afecta solo a la UI y a la página de itch).
+## Tema: DIRECTOR'S CUT
 
-**Ficción:** dos estudios de cine de bajo presupuesto filman en el mismo *backlot* y solo una película puede terminarse. Tú eres
-**el Director**. Todo en el mundo es utilería: armas, piezas y sets. Gana quien destruya la **Cámara A** del otro estudio:
-"¡CORTE!", y su película se queda en la sala de edición.
+Texto oficial del jam ([itch.io](https://itch.io/jam/2026-epic-ai-megajam)):
 
-**Cómo el tema toca las mecánicas** (no es solo un reskin):
-1. **Construir = rodar una toma.** Cada creación es una *toma* con su claqueta (`ESCENA n · TOMA m · nombre`). Activarla = **"¡Acción!"**.
-2. **"¡Corte!" (re-toma):** si tu creación se atora o se rompe, gritas "¡Corte!" y **la desarmas y recuperas sus piezas** en el inventario
-   para volver a intentarlo. Fomenta experimentar y es barato de implementar (destruir el build + devolver los items).
-3. **El Asistente de Dirección (la IA).** Tú das la dirección en lenguaje natural ("algo que ruede y queme todo") y la IA elige qué escena
-   montar con la utilería que tienes. **El *Director's Cut*:** puedes pedirle que re-edite tu última toma ("más rápida", "ahora con
-   fuego"), y la IA recibe la receta anterior junto con tu instrucción. *(P1: solo si el MVP del asistente ya funciona.)*
-4. **Fusión = efectos prácticos de cine:** pirotecnia (fuego), hielo seco (hielo), chispero (rayo).
-5. **Final = créditos de tu película**, con tus stats y tu mejor toma.
+> *Your vision, your edits, your final cut. Every developer has that one feature that didn't quite make it: the mechanic you
+> scoped out at 2 AM, or the idea you shelved and never found a place for. Now's your chance to finally build it. Using AI
+> agents? You're directing those too. Set the vision, delegate tasks, and decide what makes the cut.*
 
-**Glosario (solo afecta textos de UI; las clases C++ y los contratos NO se renombran):**
+El tema **no** es de cine: habla de **la función que siempre se recorta** y de **dirigir a tus agentes de IA**. El mundo no
+lleva ficción de estudio de cine (una versión anterior de este doc la tenía por error y se retiró).
 
-| Sistema / código | En pantalla |
-|---|---|
-| Torre (`ATeamStructure`) | Torre de reflector |
-| Base | Cámara A |
-| Minions | Extras |
-| Bots héroe | Dobles de riesgo |
-| Campamento de loot / cofre | Bodega de utilería / baúl de utilería |
-| Enemigos de campamento | Utileros |
-| Receta / construcción | Toma |
-| Asistente IA | Asistente de Dirección |
-| Equipos `Red` / `Blue` | Estudio Rojo (set western) / Estudio Azul (set sci-fi) |
+**Cómo lo cumplimos** (en las mecánicas, no en el decorado):
+1. **La función que siempre se recorta:** construcción libre con física de artefactos improvisados dentro de un PvP. Es la
+   típica mecánica que se saca del alcance a las 2 AM; aquí es el centro del juego. Contarlo así en el devlog y en la página.
+2. **Diriges a tu agente:** el **asistente de IA** recibe tu visión en lenguaje natural ("algo que ruede y queme todo") y arma
+   la creación con las piezas que tienes. Tú decides qué se queda.
+3. **Tus ediciones, tu corte final:** puedes pedirle que edite tu última creación ("más rápida", "ahora con fuego"); la IA
+   recibe la receta anterior junto con tu instrucción. *(P1: solo si el MVP del asistente ya funciona.)*
+4. **Desarmar y reintentar:** si tu creación se atora o se rompe, la desarmas y **recuperas sus piezas** en el inventario para
+   volver a intentarlo. Fomenta experimentar y es barato de implementar (destruir el build + devolver los items).
 
-Dirección de arte, UI y audio: **[ART.md](ART.md)**.
+Título del juego: **por definir** (afecta solo a la UI y a la página de itch).
+
+Dirección de arte, UI y audio: **[ART.md](ART.md)** (islas flotantes + campo abierto).
 
 ## Decisiones clave de alcance
 1. **Modo principal: jugador vs bots** (aliados y enemigos IA). Los jueces juegan solos. Multijugador online = stretch goal.
@@ -59,7 +51,7 @@ Dirección de arte, UI y audio: **[ART.md](ART.md)**.
 ## Stretch (solo si el MVP está listo)
 - Multijugador LAN/listen server.
 - Más piezas/materiales, vehículos manejables.
-- Pantalla de "repetición" estilo director.
+- Pantalla de repetición de la mejor jugada.
 
 ## Arquitectura técnica (C++ base + BP/DataAssets)
 | Sistema | Clases C++ (base) | Contenido BP/Data |
