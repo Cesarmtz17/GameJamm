@@ -42,6 +42,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
 	float ActivateDelay = 1.5f;
 
+	/** Muestra en pantalla (8 s) que decidio el modelo y que se construyo. Lo usa el comando Jam.Say. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
+	bool bAnnounceOnScreen = false;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	FString LastRecipeJson;
 
@@ -54,11 +58,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	void SetPromptAndBuild(const FString& NewPrompt);
 
+	/** Destruye las piezas de la construccion actual. */
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	void ClearBuild();
+
 protected:
 	virtual void BeginPlay() override;
 
 private:
 	void Realize(const FBuildRecipe& Recipe, const FString& Note);
+	void Announce(const FString& Msg, bool bGood) const;
 
 	UPROPERTY()
 	TArray<TObjectPtr<AJamBuildPart>> Parts;

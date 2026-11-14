@@ -1,13 +1,26 @@
 #include "Building/JamBuildPart.h"
 
+#include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/OverlapResult.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
-#include "Engine/OverlapResult.h"
+#include "GameFramework/Pawn.h"
+#include "HAL/IConsoleManager.h"
+#include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogJamPart, Log, All);
+
+static TAutoConsoleVariable<int32> CVarJamEnergy(TEXT("jam.Build.Energy"), 1,
+	TEXT("1 = las piezas gastan la energia de su construccion y se apagan al agotarla; 0 = energia infinita."));
+
+static TAutoConsoleVariable<int32> CVarJamDebug(TEXT("jam.Build.Debug"), 0,
+	TEXT("1 = la pieza raiz de cada construccion escribe en el log su posicion, velocidad y energia cada segundo."));
 
 namespace
 {
@@ -15,8 +28,11 @@ namespace
 	const TCHAR* CylMesh = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 	const TCHAR* SphereMesh = TEXT("/Engine/BasicShapes/Sphere.Sphere");
 	const TCHAR* ConeMesh = TEXT("/Engine/BasicShapes/Cone.Cone");
+	const FName ProjectileTag(TEXT("JamProjectile"));
 
-	FJamPartDef Make(FName Type, EJamPartKind Kind, const TCHAR* Mesh, FVector Size, float Mass, float Power, int32 Axis, FLinearColor Color)
+	typedef EJamPartKind K;
+
+	FJamPartDef Make(FName Type, EJamPartKind Kind, const TCHAR* Mesh, FVector Size, float Mass, float Power, int32 Axis, FLinearColor Color, float Energy = 0.f, bool bFace = false)
 	{
 		FJamPartDef D;
 		D.Type = Type;
@@ -27,37 +43,57 @@ namespace
 		D.Power = Power;
 		D.Axis = Axis;
 		D.Color = Color;
+		D.EnergyPerSecond = Energy;
+		D.bFaceAligned = bFace;
 		return D;
 	}
 
-	// ponytail: tabla en código para el POC; mover a DataAssets (editables por diseño) cuando lleguen los assets.
+	// ponytail: tabla en codigo; mover a DataAssets / leer Content/Game/Building/Data/BuildKnowledge.json cuando lleguen los assets.
+	// Nombres, masas y energia = BuildKnowledge.json v2. Power = fuerza (kg*cm/s^2; 980 levantan 1 kg), rad/s o capacidad segun el Kind.
 	const TArray<FJamPartDef>& Table()
 	{
 		static const TArray<FJamPartDef> T = {
-			Make("Plank", EJamPartKind::Structural, CubeMesh, FVector(200, 60, 10), 5.f, 0.f, 0, FLinearColor(0.55f, 0.38f, 0.2f)),
-			Make("Block", EJamPartKind::Structural, CubeMesh, FVector(60, 60, 60), 15.f, 0.f, 0, FLinearColor(0.5f, 0.5f, 0.55f)),
-			Make("Cylinder", EJamPartKind::Structural, CylMesh, FVector(150, 50, 50), 10.f, 0.f, 1, FLinearColor(0.6f, 0.6f, 0.65f)),
-			Make("Wheel", EJamPartKind::Wheel, CylMesh, FVector(50, 20, 50), 4.f, 10.f, 2, FLinearColor(0.1f, 0.1f, 0.1f)),
-			Make("BigWheel", EJamPartKind::Wheel, CylMesh, FVector(80, 30, 80), 8.f, 8.f, 2, FLinearColor(0.05f, 0.05f, 0.05f)),
-			Make("Fan", EJamPartKind::Fan, CylMesh, FVector(15, 50, 50), 3.f, 25000.f, 1, FLinearColor(0.2f, 0.6f, 0.9f)),
-			Make("Rocket", EJamPartKind::Rocket, ConeMesh, FVector(60, 20, 20), 4.f, 80000.f, 1, FLinearColor(0.9f, 0.2f, 0.1f)),
-			Make("Balloon", EJamPartKind::Balloon, SphereMesh, FVector(90, 90, 90), 1.f, 12000.f, 0, FLinearColor(0.9f, 0.8f, 0.2f)),
-			Make("Cannon", EJamPartKind::Cannon, CylMesh, FVector(70, 20, 20), 8.f, 0.f, 1, FLinearColor(0.25f, 0.25f, 0.3f)),
-			Make("Seat", EJamPartKind::Seat, CubeMesh, FVector(40, 40, 30), 5.f, 0.f, 0, FLinearColor(0.2f, 0.7f, 0.3f)),
-			Make("Battery", EJamPartKind::Battery, CubeMesh, FVector(20, 20, 20), 3.f, 0.f, 0, FLinearColor(0.9f, 0.9f, 0.1f)),
-			Make("Flamethrower", EJamPartKind::Flame, ConeMesh, FVector(40, 20, 20), 3.f, 0.f, 1, FLinearColor(1.f, 0.45f, 0.f)),
-			// --- ampliacion: elementos de construccion por piezas (ver docs/assets/CATALOGO-ELEMENTOS.md) ---
-			Make("Wall", EJamPartKind::Structural, CubeMesh, FVector(200, 30, 150), 30.f, 0.f, 0, FLinearColor(0.45f, 0.45f, 0.5f)),
-			Make("Panel", EJamPartKind::Structural, CubeMesh, FVector(100, 10, 100), 6.f, 0.f, 0, FLinearColor(0.7f, 0.75f, 0.8f)),
-			Make("Jet", EJamPartKind::Fan, CylMesh, FVector(60, 40, 40), 6.f, 90000.f, 1, FLinearColor(0.9f, 0.5f, 0.15f)),
-			Make("Turbine", EJamPartKind::Fan, CylMesh, FVector(25, 90, 90), 6.f, 60000.f, 1, FLinearColor(0.3f, 0.8f, 0.7f)),
-			Make("HoverStone", EJamPartKind::Balloon, SphereMesh, FVector(45, 45, 45), 2.f, 18000.f, 0, FLinearColor(0.6f, 0.4f, 0.9f)),
-			Make("Wing", EJamPartKind::Wing, CubeMesh, FVector(80, 160, 6), 3.f, 45.f, 0, FLinearColor(0.85f, 0.85f, 0.9f)),
-			Make("Frost", EJamPartKind::Frost, ConeMesh, FVector(40, 25, 25), 3.f, 0.f, 1, FLinearColor(0.5f, 0.9f, 1.f)),
-			Make("Beam", EJamPartKind::Beam, CylMesh, FVector(50, 12, 12), 3.f, 400000.f, 1, FLinearColor(1.f, 0.1f, 0.4f)),
-			Make("Bomb", EJamPartKind::Bomb, SphereMesh, FVector(30, 30, 30), 2.f, 2500.f, 0, FLinearColor(0.1f, 0.1f, 0.1f)),
-			Make("Spring", EJamPartKind::Spring, CylMesh, FVector(30, 30, 40), 2.f, 700.f, 0, FLinearColor(0.2f, 0.9f, 0.2f)),
-			Make("Sail", EJamPartKind::Sail, CubeMesh, FVector(10, 120, 100), 2.f, 6000.f, 0, FLinearColor(0.95f, 0.95f, 0.85f)),
+			// --- estructura ---
+			Make("Plank", K::Structural, CubeMesh, FVector(200, 60, 10), 5.f, 0.f, 0, FLinearColor(0.55f, 0.38f, 0.2f)),
+			Make("Block", K::Structural, CubeMesh, FVector(60, 60, 60), 15.f, 0.f, 0, FLinearColor(0.5f, 0.5f, 0.55f)),
+			Make("Cylinder", K::Structural, CylMesh, FVector(150, 50, 50), 10.f, 0.f, 1, FLinearColor(0.6f, 0.6f, 0.65f)),
+			Make("Wall", K::Structural, CubeMesh, FVector(30, 200, 150), 30.f, 0.f, 0, FLinearColor(0.45f, 0.45f, 0.5f), 0.f, true),
+			Make("Panel", K::Structural, CubeMesh, FVector(10, 100, 100), 8.f, 0.f, 0, FLinearColor(0.7f, 0.75f, 0.8f), 0.f, true),
+			Make("Girder", K::Structural, CubeMesh, FVector(300, 20, 20), 6.f, 0.f, 0, FLinearColor(0.4f, 0.3f, 0.25f)),
+			Make("Ball", K::Structural, SphereMesh, FVector(60, 60, 60), 10.f, 0.f, 0, FLinearColor(0.35f, 0.35f, 0.35f)),
+			Make("Sled", K::Slide, CubeMesh, FVector(160, 70, 15), 4.f, 0.f, 0, FLinearColor(0.3f, 0.5f, 0.8f)),
+			// --- uniones y anclas ---
+			Make("Hinge", K::Hinge, CylMesh, FVector(20, 60, 20), 2.f, 60.f, 2, FLinearColor(0.8f, 0.6f, 0.2f)),
+			Make("Turntable", K::Turntable, CylMesh, FVector(40, 40, 30), 4.f, 4.f, 0, FLinearColor(0.8f, 0.3f, 0.6f), 0.3f),
+			Make("Stake", K::Stake, ConeMesh, FVector(15, 15, 20), 2.f, 0.f, 0, FLinearColor(0.3f, 0.2f, 0.1f)),
+			// --- movilidad ---
+			Make("Wheel", K::Wheel, CylMesh, FVector(50, 20, 50), 4.f, 10.f, 2, FLinearColor(0.1f, 0.1f, 0.1f), 0.2f),
+			Make("BigWheel", K::Wheel, CylMesh, FVector(80, 30, 80), 8.f, 8.f, 2, FLinearColor(0.05f, 0.05f, 0.05f), 0.2f),
+			Make("Spring", K::Spring, CylMesh, FVector(30, 30, 18), 3.f, 450.f, 0, FLinearColor(0.2f, 0.9f, 0.2f)),
+			// --- propulsion y vuelo ---
+			Make("Fan", K::Fan, CylMesh, FVector(15, 50, 50), 3.f, 25000.f, 1, FLinearColor(0.2f, 0.6f, 0.9f), 1.5f),
+			Make("Jet", K::Fan, CylMesh, FVector(60, 40, 40), 6.f, 90000.f, 1, FLinearColor(0.9f, 0.5f, 0.15f), 2.5f),
+			Make("Turbine", K::Fan, CylMesh, FVector(25, 90, 90), 6.f, 60000.f, 1, FLinearColor(0.3f, 0.8f, 0.7f), 2.5f),
+			Make("Rocket", K::Rocket, ConeMesh, FVector(60, 20, 20), 4.f, 80000.f, 1, FLinearColor(0.9f, 0.2f, 0.1f)),
+			Make("Balloon", K::Balloon, SphereMesh, FVector(90, 90, 90), 1.f, 14000.f, 0, FLinearColor(0.9f, 0.8f, 0.2f)),
+			Make("HoverStone", K::Hover, SphereMesh, FVector(45, 45, 45), 4.f, 60000.f, 0, FLinearColor(0.6f, 0.4f, 0.9f), 0.5f),
+			Make("Wing", K::Wing, CubeMesh, FVector(80, 160, 6), 3.f, 45.f, 0, FLinearColor(0.85f, 0.85f, 0.9f)),
+			Make("Sail", K::Sail, CubeMesh, FVector(10, 120, 100), 2.f, 6000.f, 0, FLinearColor(0.95f, 0.95f, 0.85f)),
+			Make("Stabilizer", K::Stabilizer, CubeMesh, FVector(30, 30, 20), 2.f, 120.f, 0, FLinearColor(0.1f, 0.8f, 0.8f), 0.3f),
+			// --- control y energia (Battery: Power = capacidad) ---
+			Make("Seat", K::Seat, CubeMesh, FVector(40, 40, 30), 5.f, 0.f, 0, FLinearColor(0.2f, 0.7f, 0.3f)),
+			Make("Head", K::Head, CubeMesh, FVector(40, 40, 40), 3.f, 150.f, 0, FLinearColor(0.9f, 0.9f, 0.9f), 0.3f),
+			Make("Battery", K::Battery, CubeMesh, FVector(20, 20, 20), 3.f, 30.f, 0, FLinearColor(0.9f, 0.9f, 0.1f)),
+			Make("BigBattery", K::Battery, CubeMesh, FVector(35, 35, 35), 6.f, 80.f, 0, FLinearColor(1.f, 0.8f, 0.f)),
+			// --- armas y emisores ---
+			Make("Cannon", K::Cannon, CylMesh, FVector(70, 20, 20), 8.f, 2500.f, 1, FLinearColor(0.25f, 0.25f, 0.3f), 3.f),
+			Make("Flamethrower", K::Flame, ConeMesh, FVector(40, 20, 20), 3.f, 10.f, 1, FLinearColor(1.f, 0.45f, 0.f), 2.f),
+			Make("Frost", K::Frost, ConeMesh, FVector(40, 25, 25), 3.f, 0.f, 1, FLinearColor(0.5f, 0.9f, 1.f), 2.f),
+			Make("Beam", K::Beam, CylMesh, FVector(50, 12, 12), 3.f, 400000.f, 1, FLinearColor(1.f, 0.1f, 0.4f), 2.f),
+			Make("Shock", K::Shock, ConeMesh, FVector(40, 25, 25), 3.f, 8.f, 1, FLinearColor(1.f, 1.f, 0.3f), 2.f),
+			Make("Bomb", K::Bomb, SphereMesh, FVector(30, 30, 30), 2.f, 1500.f, 0, FLinearColor(0.1f, 0.1f, 0.1f)),
+			Make("Hydrant", K::Hydrant, CylMesh, FVector(40, 30, 30), 3.f, 15000.f, 1, FLinearColor(0.1f, 0.3f, 1.f), 0.3f),
+			Make("Light", K::Light, SphereMesh, FVector(25, 25, 25), 2.f, 50000.f, 0, FLinearColor(1.f, 1.f, 0.8f), 0.2f),
 		};
 		return T;
 	}
@@ -95,11 +131,12 @@ AJamBuildPart::AJamBuildPart()
 	Mesh->SetCollisionProfileName(TEXT("PhysicsActor"));
 }
 
-void AJamBuildPart::InitFromDef(const FJamPartDef& Def)
+void AJamBuildPart::InitFromDef(const FJamPartDef& Def, const FVector& BoxSize)
 {
 	PartType = Def.Type;
 	Kind = Def.Kind;
 	Power = Def.Power;
+	EnergyPerSecond = Def.EnergyPerSecond;
 	Length = FMath::Max(Def.Size.X, 1.0);
 
 	if (UStaticMesh* SM = LoadObject<UStaticMesh>(nullptr, *Def.MeshPath))
@@ -107,13 +144,13 @@ void AJamBuildPart::InitFromDef(const FJamPartDef& Def)
 		Mesh->SetStaticMesh(SM);
 	}
 
-	// Escala nativa (mesh básico 100 cm) según el eje del cilindro/cono.
+	// Escala nativa (mesh basico 100 cm). Axis 1/2: el eje Z del mesh ya viene rotado por el ensamblador.
 	FVector Scale;
 	switch (Def.Axis)
 	{
-	case 1: Scale = FVector(Def.Size.Y, Def.Size.Y, Def.Size.X) / 100.0; break; // eje largo = X del vehículo
+	case 1: Scale = FVector(Def.Size.Y, Def.Size.Y, Def.Size.X) / 100.0; break; // eje largo = hacia donde mira
 	case 2: Scale = FVector(Def.Size.X, Def.Size.X, Def.Size.Y) / 100.0; break;  // eje = Y (ruedas)
-	default: Scale = Def.Size / 100.0; break;
+	default: Scale = BoxSize / 100.0; break;
 	}
 	Mesh->SetRelativeScale3D(Scale);
 
@@ -125,13 +162,72 @@ void AJamBuildPart::InitFromDef(const FJamPartDef& Def)
 		MID->SetVectorParameterValue(TEXT("Color"), Def.Color);
 	}
 
+	if (Kind == EJamPartKind::Slide)
+	{
+		// ponytail: clase por nombre para no depender del modulo PhysicsCore en GameJamm.Build.cs (archivo de otro rol);
+		// si se agrega "PhysicsCore" a las dependencias, usar NewObject<UPhysicalMaterial>(this).
+		if (UClass* PMClass = FindObject<UClass>(nullptr, TEXT("/Script/PhysicsCore.PhysicalMaterial")))
+		{
+			UPhysicalMaterial* PM = static_cast<UPhysicalMaterial*>(NewObject<UObject>(this, PMClass));
+			PM->Friction = 0.05f;
+			PM->bOverrideFrictionCombineMode = true;
+			PM->FrictionCombineMode = EFrictionCombineMode::Min;
+			Mesh->SetPhysMaterialOverride(PM);
+		}
+	}
+
 	Mesh->SetMassOverrideInKg(NAME_None, Def.MassKg, true);
 	Mesh->SetSimulatePhysics(true);
 	Mesh->SetEnableGravity(true);
 }
 
+bool AJamBuildPart::IsMine(const AActor* Other) const
+{
+	const AJamBuildPart* P = Cast<AJamBuildPart>(Other);
+	return P && (P == this || (Build.IsValid() && P->Build == Build));
+}
+
+void AJamBuildPart::Nearby(const FVector& Center, float Radius, TArray<UPrimitiveComponent*>& Out) const
+{
+	FCollisionObjectQueryParams Obj;
+	Obj.AddObjectTypesToQuery(ECC_PhysicsBody);
+	Obj.AddObjectTypesToQuery(ECC_WorldDynamic);
+	Obj.AddObjectTypesToQuery(ECC_Pawn);
+	TArray<FOverlapResult> Hits;
+	GetWorld()->OverlapMultiByObjectType(Hits, Center, FQuat::Identity, Obj, FCollisionShape::MakeSphere(Radius), FCollisionQueryParams(NAME_None, false, this));
+	for (const FOverlapResult& H : Hits)
+	{
+		if (UPrimitiveComponent* C = H.GetComponent())
+		{
+			Out.AddUnique(C);
+		}
+	}
+}
+
+void AJamBuildPart::SpawnBall(const FVector& At, const FVector& Velocity)
+{
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	if (AStaticMeshActor* Ball = GetWorld()->SpawnActor<AStaticMeshActor>(At, FRotator::ZeroRotator, P))
+	{
+		Ball->Tags.Add(ProjectileTag);
+		UStaticMeshComponent* C = Ball->GetStaticMeshComponent();
+		C->SetMobility(EComponentMobility::Movable);
+		C->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, SphereMesh));
+		C->SetWorldScale3D(FVector(0.2));
+		C->SetSimulatePhysics(true);
+		C->SetMassOverrideInKg(NAME_None, 2.f, true);
+		C->AddImpulse(Velocity, NAME_None, true);
+		Ball->SetLifeSpan(5.f);
+	}
+}
+
 void AJamBuildPart::SetActive(bool bNewActive)
 {
+	if (bNewActive && Build.IsValid() && Build->Energy <= 0.f && EnergyPerSecond > 0.f && CVarJamEnergy.GetValueOnGameThread() != 0)
+	{
+		bNewActive = false; // sin energia no enciende
+	}
 	bActive = bNewActive;
 	if (Kind == EJamPartKind::Rocket && bNewActive)
 	{
@@ -141,24 +237,146 @@ void AJamBuildPart::SetActive(bool bNewActive)
 	{
 		BurnLeft = 4.f; // mecha de 4 s
 	}
+	if (Kind == EJamPartKind::Hover && bNewActive)
+	{
+		HoldZ = GetActorLocation().Z;
+	}
 	if (DriveConstraint)
 	{
 		DriveConstraint->SetAngularVelocityTarget(FVector(bNewActive ? Power : 0.f, 0.f, 0.f) / (2.0 * PI));
+	}
+	if (Kind == EJamPartKind::Stake)
+	{
+		// Ancla: constraint fijo entre la pieza y el mundo.
+		if (bNewActive && !WorldLock)
+		{
+			WorldLock = NewObject<UPhysicsConstraintComponent>(this);
+			WorldLock->RegisterComponent();
+			WorldLock->SetWorldLocation(GetActorLocation());
+			WorldLock->SetLinearXLimit(LCM_Locked, 0);
+			WorldLock->SetLinearYLimit(LCM_Locked, 0);
+			WorldLock->SetLinearZLimit(LCM_Locked, 0);
+			WorldLock->SetAngularSwing1Limit(ACM_Locked, 0);
+			WorldLock->SetAngularSwing2Limit(ACM_Locked, 0);
+			WorldLock->SetAngularTwistLimit(ACM_Locked, 0);
+			WorldLock->SetConstrainedComponents(Mesh, NAME_None, nullptr, NAME_None);
+		}
+		else if (!bNewActive && WorldLock)
+		{
+			WorldLock->BreakConstraint();
+			WorldLock->DestroyComponent();
+			WorldLock = nullptr;
+		}
+	}
+	if (Kind == EJamPartKind::Light)
+	{
+		if (bNewActive && !LightComp)
+		{
+			USpotLightComponent* L = NewObject<USpotLightComponent>(this);
+			L->SetupAttachment(Mesh);
+			L->RegisterComponent();
+			L->SetWorldRotation(GetActorQuat().RotateVector(LocalDirection).Rotation());
+			L->SetIntensityUnits(ELightUnits::Candelas);
+			L->SetIntensity(Power);
+			L->SetOuterConeAngle(35.f);
+			L->SetAttenuationRadius(3000.f);
+			LightComp = L;
+		}
+		if (LightComp)
+		{
+			LightComp->SetVisibility(bNewActive);
+		}
 	}
 }
 
 void AJamBuildPart::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	if (!bActive || !Mesh)
+	if (!Mesh)
+	{
+		return;
+	}
+	UWorld* World = GetWorld();
+	const float Now = World->GetTimeSeconds();
+
+	// Hielo: descongelar lo que ya cumplio su tiempo (aunque el emisor este apagado).
+	for (auto It = Frozen.CreateIterator(); It; ++It)
+	{
+		if (Now >= It.Value())
+		{
+			if (UPrimitiveComponent* C = It.Key().Get())
+			{
+				// ponytail: se restaura al damping por defecto de UE, no al valor previo del cuerpo.
+				C->SetLinearDamping(0.01f);
+				C->SetAngularDamping(0.f);
+			}
+			It.RemoveCurrent();
+		}
+	}
+
+	if (CVarJamDebug.GetValueOnGameThread() != 0 && Build.IsValid() && Build->Parts.Num() > 0 && Build->Parts[0] == this && (DebugTimer += DeltaSeconds) >= 1.f)
+	{
+		DebugTimer = 0.f;
+		int32 On = 0;
+		double MaxSpin = 0.0;
+		for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts)
+		{
+			if (P.IsValid())
+			{
+				On += P->bActive ? 1 : 0;
+				MaxSpin = FMath::Max(MaxSpin, P->Mesh->GetPhysicsAngularVelocityInRadians().Size());
+			}
+		}
+		UE_LOG(LogJamPart, Log, TEXT("state t=%.1f root=%s pos=(%s) vel=(%s) up.z=%.2f spin=%.1f energy=%.1f on=%d/%d"), Now, *PartType.ToString(),
+			*GetActorLocation().ToCompactString(), *Mesh->GetPhysicsLinearVelocity().ToCompactString(), GetActorUpVector().Z, MaxSpin, Build->Energy, On, Build->Parts.Num());
+	}
+
+	if (!bActive)
 	{
 		return;
 	}
 
+	// Energia: cada pieza encendida gasta de la reserva de su construccion; a cero se apaga todo.
+	if (Build.IsValid() && EnergyPerSecond > 0.f && CVarJamEnergy.GetValueOnGameThread() != 0)
+	{
+		Build->Energy -= EnergyPerSecond * DeltaSeconds;
+		if (Build->Energy <= 0.f)
+		{
+			UE_LOG(LogJamPart, Log, TEXT("build out of energy: devices off"));
+			for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts)
+			{
+				if (P.IsValid() && P->EnergyPerSecond > 0.f)
+				{
+					P->SetActive(false);
+				}
+			}
+			return;
+		}
+	}
+
 	const FVector WorldDir = GetActorQuat().RotateVector(LocalDirection);
+	const FVector Nozzle = GetActorLocation() + WorldDir * (Length * 0.5f + 10.f);
+	const float BuildMass = Build.IsValid() ? FMath::Max(Build->MassKg, 1.f) : Mesh->GetMass();
+	UStaticMeshComponent* RootMesh = (Build.IsValid() && Build->Parts.Num() > 0 && Build->Parts[0].IsValid()) ? Build->Parts[0]->Mesh.Get() : Mesh.Get();
 
 	switch (Kind)
 	{
+	case EJamPartKind::Wheel:
+		// Rueda con padre: la mueve el motor del constraint. Rueda raiz (sin padre): torque directo -> rueda sola.
+		if (!DriveConstraint)
+		{
+			const FVector Axle = GetActorUpVector(); // eje nativo del cilindro
+			const FVector W = Mesh->GetPhysicsAngularVelocityInRadians();
+			const double Spin = FVector::DotProduct(W, Axle);
+			// Gira hasta su velocidad y se mantiene de pie (eje horizontal), como una rueda que ya va rodando.
+			FVector Torque = FVector::CrossProduct(Axle, FVector(Axle.X, Axle.Y, 0).GetSafeNormal()) * 60.f - (W - Axle * Spin) * 8.f;
+			if (Spin < Power)
+			{
+				Torque += Axle * 30.f;
+			}
+			Mesh->AddTorqueInRadians(Torque, NAME_None, true);
+		}
+		break;
 	case EJamPartKind::Fan:
 		Mesh->AddForce(WorldDir * Power);
 		break;
@@ -171,11 +389,64 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		}
 		break;
 	case EJamPartKind::Balloon:
-		Mesh->AddForce(FVector(0, 0, Power));
+		// Fuego cerca (cualquier lanzallamas) = sube el doble. El globo frena con el aire: sube y avanza despacio.
+		Mesh->AddForce(FVector(0, 0, Power * (Now < HeatedUntil ? 2.f : 1.f)) - Mesh->GetPhysicsLinearVelocity() * 50.f);
 		break;
+	case EJamPartKind::Hover:
+	{
+		// Mantiene ~80 cm sobre el suelo (o la altura de encendido si no hay suelo): PD repartido entre las piedras.
+		int32 Stones = 0;
+		FCollisionQueryParams Q(NAME_None, false, this);
+		if (Build.IsValid())
+		{
+			for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts)
+			{
+				if (P.IsValid())
+				{
+					Q.AddIgnoredActor(P.Get());
+					Stones += (P->Kind == EJamPartKind::Hover && P->bActive) ? 1 : 0;
+				}
+			}
+		}
+		const FVector At = GetActorLocation();
+		FHitResult Hit;
+		const double TargetZ = World->LineTraceSingleByChannel(Hit, At, At - FVector(0, 0, 1000), ECC_Visibility, Q) ? Hit.ImpactPoint.Z + 80.0 : HoldZ;
+		const double Vz = Mesh->GetPhysicsLinearVelocity().Z;
+		const double F = BuildMass * (980.0 + (TargetZ - At.Z) * 20.0 - Vz * 8.0) / FMath::Max(Stones, 1);
+		RootMesh->AddForce(FVector(0, 0, FMath::Clamp(F, 0.0, (double)Power))); // en la raiz: empujar desde abajo del centro de masa la voltea
+		break;
+	}
+	case EJamPartKind::Stabilizer:
+	{
+		// Endereza: torque hacia "arriba = +Z" y amortigua cabeceo/alabeo (no el giro en Z).
+		FVector W = RootMesh->GetPhysicsAngularVelocityInRadians();
+		W.Z = 0;
+		// Como aceleracion (no depende de la inercia): estable aunque la construccion sea muy ligera o el frame rate bajo.
+		RootMesh->AddTorqueInRadians(FVector::CrossProduct(GetActorUpVector(), FVector::UpVector) * Power - W * Power * 0.2f, NAME_None, true);
+		break;
+	}
 	case EJamPartKind::Flame:
-		DrawDebugSphere(GetWorld(), GetActorLocation() + WorldDir * (Length * 0.5f + 25.f), 22.f, 8, FColor::Orange, false, 0.f);
+	{
+		// Fuego: daña lo ajeno y calienta globos (de cualquier construccion) dentro de la llama.
+		const FVector C = Nozzle + WorldDir * 100.f;
+		DrawDebugSphere(World, Nozzle + WorldDir * 15.f, 22.f, 8, FColor::Orange, false, 0.f);
+		DrawDebugLine(World, Nozzle, C + WorldDir * 100.f, FColor::Orange, false, 0.f, 0, 6.f);
+		TArray<UPrimitiveComponent*> Hits;
+		Nearby(C, 150.f, Hits);
+		for (UPrimitiveComponent* H : Hits)
+		{
+			AJamBuildPart* P = Cast<AJamBuildPart>(H->GetOwner());
+			if (P && P->Kind == EJamPartKind::Balloon)
+			{
+				P->HeatedUntil = Now + 0.5f;
+			}
+			if (!IsMine(H->GetOwner()))
+			{
+				UGameplayStatics::ApplyDamage(H->GetOwner(), Power * DeltaSeconds, nullptr, this, nullptr);
+			}
+		}
 		break;
+	}
 	case EJamPartKind::Wing:
 	{
 		// Sustentacion: crece con la velocidad hacia adelante (el ala no se rota: su X = frente del vehiculo).
@@ -184,84 +455,220 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		break;
 	}
 	case EJamPartKind::Sail:
-		Mesh->AddForce(FVector(Power, 0, 0)); // viento constante hacia +X del mundo
+	{
+		// Viento global hacia +X del mundo (600 cm/s): empuja segun cuanto lo encara la vela y nunca mas rapido que el viento.
+		const FVector Wind(1, 0, 0);
+		const double Rel = FMath::Clamp(1.0 - FVector::DotProduct(Mesh->GetPhysicsLinearVelocity(), Wind) / 600.0, 0.0, 1.0);
+		Mesh->AddForce(Wind * Power * Rel * FMath::Abs(FVector::DotProduct(Wind, GetActorForwardVector())));
 		break;
+	}
 	case EJamPartKind::Spring:
 		FireTimer += DeltaSeconds;
 		if (FireTimer >= 1.5f)
 		{
 			FireTimer = 0.f;
-			Mesh->AddImpulse(FVector(0, 0, Power), NAME_None, true); // salto periodico
+			if (WorldDir.Z < -0.5)
+			{
+				// Mira al suelo: si lo toca, hace saltar a toda la construccion.
+				FCollisionQueryParams Q(NAME_None, false, this);
+				FHitResult Hit;
+				if (World->LineTraceSingleByChannel(Hit, GetActorLocation(), GetActorLocation() + WorldDir * 70.f, ECC_Visibility, Q) && !IsMine(Hit.GetActor()))
+				{
+					RootMesh->AddImpulse(FVector(0, 0, Power * BuildMass));
+				}
+			}
+			else
+			{
+				// Mira hacia otro lado: lanza lo que tenga encima; si mira arriba y no hay nada, se carga una bola.
+				const FVector Throw = (WorldDir + RootMesh->GetForwardVector() * 0.7f).GetSafeNormal() * 1100.f;
+				TArray<UPrimitiveComponent*> Hits;
+				Nearby(Nozzle + WorldDir * 30.f, 45.f, Hits);
+				bool bThrew = false;
+				for (UPrimitiveComponent* H : Hits)
+				{
+					if (H->IsSimulatingPhysics() && !IsMine(H->GetOwner()))
+					{
+						H->AddImpulse(Throw, NAME_None, true);
+						bThrew = true;
+					}
+				}
+				if (!bThrew && WorldDir.Z > 0.5)
+				{
+					SpawnBall(Nozzle + WorldDir * 30.f, Throw);
+				}
+			}
 		}
 		break;
 	case EJamPartKind::Bomb:
 		BurnLeft -= DeltaSeconds;
 		if (BurnLeft <= 0.f)
 		{
+			// Explosion: empuja y daña todo lo cercano, y su onda enciende los dispositivos que alcanza.
 			bActive = false;
 			const FVector At = GetActorLocation();
-			DrawDebugSphere(GetWorld(), At, 300.f, 16, FColor::Red, false, 0.6f);
-			Mesh->AddRadialImpulse(At, 500.f, Power, ERadialImpulseFalloff::RIF_Linear, true);
+			DrawDebugSphere(World, At, 500.f, 16, FColor::Red, false, 0.6f);
+			TArray<UPrimitiveComponent*> Hits;
+			Nearby(At, 500.f, Hits);
+			for (UPrimitiveComponent* H : Hits)
+			{
+				if (H->IsSimulatingPhysics())
+				{
+					H->AddRadialImpulse(At, 500.f, Power, ERadialImpulseFalloff::RIF_Linear, true);
+				}
+				if (AJamBuildPart* P = Cast<AJamBuildPart>(H->GetOwner()))
+				{
+					if (!P->bActive && P->Kind != EJamPartKind::Bomb)
+					{
+						P->SetActive(true);
+					}
+				}
+				UGameplayStatics::ApplyDamage(H->GetOwner(), 30.f, nullptr, this, nullptr);
+			}
 			Destroy();
 		}
 		break;
 	case EJamPartKind::Frost:
-	case EJamPartKind::Beam:
 	{
-		const FVector Start = GetActorLocation() + WorldDir * (Length * 0.5f + 10.f);
-		if (Kind == EJamPartKind::Frost)
+		// Cono de hielo: frena 3 s (amortigua) cuerpos simulados que no son de esta construccion.
+		const FVector C = Nozzle + WorldDir * 150.f;
+		DrawDebugSphere(World, C, 150.f, 10, FColor::Cyan, false, 0.f);
+		TArray<UPrimitiveComponent*> Hits;
+		Nearby(C, 150.f, Hits);
+		for (UPrimitiveComponent* H : Hits)
 		{
-			// Cono de hielo: frena (amortigua) cuerpos simulados que no son de esta construccion.
-			DrawDebugSphere(GetWorld(), Start + WorldDir * 150.f, 150.f, 10, FColor::Cyan, false, 0.f);
-			TArray<FOverlapResult> Hits;
-			GetWorld()->OverlapMultiByChannel(Hits, Start + WorldDir * 150.f, FQuat::Identity, ECC_PhysicsBody, FCollisionShape::MakeSphere(150.f));
-			for (const FOverlapResult& H : Hits)
+			if (H->IsSimulatingPhysics() && !IsMine(H->GetOwner()))
 			{
-				UPrimitiveComponent* C = H.GetComponent();
-				if (C && C->IsSimulatingPhysics() && !Cast<AJamBuildPart>(C->GetOwner()))
-				{
-					C->SetLinearDamping(8.f);
-					C->SetAngularDamping(8.f);
-				}
+				H->SetLinearDamping(8.f);
+				H->SetAngularDamping(8.f);
+				Frozen.Add(H, Now + 3.f);
 			}
 		}
-		else
+		break;
+	}
+	case EJamPartKind::Beam:
+	{
+		// Rayo: linea hacia delante que empuja y daña lo que toca (ignora la propia construccion).
+		FHitResult Hit;
+		const FVector End = Nozzle + WorldDir * 1500.f;
+		FCollisionQueryParams Q(NAME_None, false, this);
+		if (Build.IsValid())
 		{
-			// Rayo: linea hacia delante que empuja lo que toca.
-			FHitResult Hit;
-			const FVector End = Start + WorldDir * 1500.f;
-			FCollisionQueryParams Q(NAME_None, false, this);
-			const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_PhysicsBody, Q);
-			DrawDebugLine(GetWorld(), Start, bHit ? Hit.ImpactPoint : End, FColor::Magenta, false, 0.f, 0, 3.f);
-			if (bHit && Hit.GetComponent() && Hit.GetComponent()->IsSimulatingPhysics() && !Cast<AJamBuildPart>(Hit.GetActor()))
+			for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts)
+			{
+				if (P.IsValid()) { Q.AddIgnoredActor(P.Get()); }
+			}
+		}
+		const bool bHit = World->LineTraceSingleByChannel(Hit, Nozzle, End, ECC_PhysicsBody, Q);
+		DrawDebugLine(World, Nozzle, bHit ? Hit.ImpactPoint : End, FColor::Magenta, false, 0.f, 0, 3.f);
+		if (bHit && Hit.GetComponent())
+		{
+			if (Hit.GetComponent()->IsSimulatingPhysics())
 			{
 				Hit.GetComponent()->AddForceAtLocation(WorldDir * Power, Hit.ImpactPoint);
 			}
+			UGameplayStatics::ApplyDamage(Hit.GetActor(), 12.f * DeltaSeconds, nullptr, this, nullptr);
+		}
+		break;
+	}
+	case EJamPartKind::Shock:
+		// Descarga cada 1 s al cuerpo ajeno mas cercano: daño, lo detiene y, si es una construccion, la apaga entera.
+		FireTimer += DeltaSeconds;
+		DrawDebugSphere(World, Nozzle, 12.f, 6, FColor::Yellow, false, 0.f);
+		if (FireTimer >= 1.f)
+		{
+			FireTimer = 0.f;
+			TArray<UPrimitiveComponent*> Hits;
+			Nearby(Nozzle, 300.f, Hits);
+			UPrimitiveComponent* Best = nullptr;
+			for (UPrimitiveComponent* H : Hits)
+			{
+				if (!IsMine(H->GetOwner()) && (!Best || FVector::DistSquared(H->GetComponentLocation(), Nozzle) < FVector::DistSquared(Best->GetComponentLocation(), Nozzle)))
+				{
+					Best = H;
+				}
+			}
+			if (Best)
+			{
+				DrawDebugLine(World, Nozzle, Best->GetComponentLocation(), FColor::Yellow, false, 0.3f, 0, 5.f);
+				UGameplayStatics::ApplyDamage(Best->GetOwner(), Power, nullptr, this, nullptr);
+				if (Best->IsSimulatingPhysics())
+				{
+					Best->SetPhysicsLinearVelocity(FVector::ZeroVector);
+				}
+				const AJamBuildPart* P = Cast<AJamBuildPart>(Best->GetOwner());
+				if (P && P->Build.IsValid())
+				{
+					for (const TWeakObjectPtr<AJamBuildPart>& O : P->Build->Parts)
+					{
+						if (O.IsValid()) { O->SetActive(false); }
+					}
+				}
+			}
+		}
+		break;
+	case EJamPartKind::Hydrant:
+	{
+		// Chorro: empuja cuerpos ajenos y apaga cualquier lanzallamas que moje.
+		const FVector C = Nozzle + WorldDir * 150.f;
+		DrawDebugLine(World, Nozzle, C + WorldDir * 100.f, FColor::Blue, false, 0.f, 0, 8.f);
+		TArray<UPrimitiveComponent*> Hits;
+		Nearby(C, 100.f, Hits);
+		for (UPrimitiveComponent* H : Hits)
+		{
+			AJamBuildPart* P = Cast<AJamBuildPart>(H->GetOwner());
+			if (P && P->Kind == EJamPartKind::Flame && P->bActive)
+			{
+				P->SetActive(false);
+			}
+			if (H->IsSimulatingPhysics() && !IsMine(H->GetOwner()))
+			{
+				H->AddForce(WorldDir * Power);
+			}
+		}
+		break;
+	}
+	case EJamPartKind::Head:
+	{
+		// Cabeza: busca el objetivo ajeno mas cercano (peon, cuerpo fisico u otra construccion) y gira hacia el.
+		FireTimer += DeltaSeconds;
+		if (FireTimer >= 0.25f || !Target.IsValid())
+		{
+			FireTimer = 0.f;
+			Target = nullptr;
+			TArray<UPrimitiveComponent*> Hits;
+			Nearby(GetActorLocation(), 2500.f, Hits);
+			double BestD = TNumericLimits<double>::Max();
+			for (UPrimitiveComponent* H : Hits)
+			{
+				AActor* A = H->GetOwner();
+				const double D = FVector::DistSquared(H->GetComponentLocation(), GetActorLocation());
+				if (A && D < BestD && !IsMine(A) && !A->ActorHasTag(ProjectileTag) && (A->IsA<APawn>() || H->IsSimulatingPhysics()))
+				{
+					BestD = D;
+					Target = A;
+				}
+			}
+		}
+		if (Target.IsValid())
+		{
+			const FVector Axis = GetActorUpVector();
+			const FVector To = FVector::VectorPlaneProject(Target->GetActorLocation() - GetActorLocation(), Axis).GetSafeNormal();
+			const FVector Fwd = FVector::VectorPlaneProject(WorldDir, Axis).GetSafeNormal();
+			const double Err = FMath::Atan2(FVector::DotProduct(FVector::CrossProduct(Fwd, To), Axis), FVector::DotProduct(Fwd, To));
+			const double Spin = FVector::DotProduct(Mesh->GetPhysicsAngularVelocityInRadians(), Axis);
+			Mesh->AddTorqueInRadians(Axis * (Err * Power - Spin * Power * 0.17), NAME_None, true);
+			DrawDebugLine(World, GetActorLocation(), Target->GetActorLocation(), FColor::White, false, 0.f, 0, 1.f);
 		}
 		break;
 	}
 	case EJamPartKind::Cannon:
-	{
 		FireTimer += DeltaSeconds;
 		if (FireTimer >= 1.5f)
 		{
 			FireTimer = 0.f;
-			FActorSpawnParameters P;
-			P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-			if (AStaticMeshActor* Ball = GetWorld()->SpawnActor<AStaticMeshActor>(GetActorLocation() + WorldDir * (Length * 0.5f + 25.f), FRotator::ZeroRotator, P))
-			{
-				UStaticMeshComponent* C = Ball->GetStaticMeshComponent();
-				C->SetMobility(EComponentMobility::Movable);
-				C->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, SphereMesh));
-				C->SetWorldScale3D(FVector(0.2));
-				C->SetSimulatePhysics(true);
-				C->SetMassOverrideInKg(NAME_None, 2.f, true);
-				C->AddImpulse(WorldDir * 2500.f, NAME_None, true);
-				Ball->SetLifeSpan(5.f);
-			}
+			SpawnBall(Nozzle + WorldDir * 15.f, WorldDir * Power);
 		}
 		break;
-	}
 	default:
 		break;
 	}

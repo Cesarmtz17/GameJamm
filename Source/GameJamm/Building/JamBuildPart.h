@@ -25,7 +25,28 @@ enum class EJamPartKind : uint8
 	Beam,
 	Bomb,
 	Spring,
-	Sail
+	Sail,
+	// --- capacidades nuevas (docs/building/README-DECISION.md) ---
+	Hover,      // mantiene altura sobre el suelo
+	Stabilizer, // endereza la construccion
+	Shock,      // descarga: aturde y apaga construcciones ajenas
+	Hydrant,    // chorro: empuja y apaga fuego
+	Light,      // foco
+	Head,       // gira sola hacia el objetivo mas cercano; lo montado apunta con ella
+	Turntable,  // gira lo montado a velocidad constante
+	Hinge,      // union con giro libre limitado
+	Stake,      // ancla la construccion al mundo
+	Slide       // base de friccion baja (trineo)
+};
+
+class AJamBuildPart;
+
+/** Estado compartido por todas las piezas de una construccion (energia, masa, miembros). */
+struct FJamBuildState
+{
+	TArray<TWeakObjectPtr<AJamBuildPart>> Parts;
+	float Energy = 0.f;
+	float MassKg = 0.f;
 };
 
 /** Definición de un tipo de pieza (POC: tabla en C++, después DataAsset). */
@@ -61,6 +82,14 @@ struct GAMEJAMM_API FJamPartDef
 
 	UPROPERTY(BlueprintReadOnly, Category = "Build")
 	FLinearColor Color = FLinearColor::White;
+
+	/** Energia que gasta por segundo encendida (BuildKnowledge.json: energy_cost_per_s). */
+	UPROPERTY(BlueprintReadOnly, Category = "Build")
+	float EnergyPerSecond = 0.f;
+
+	/** Placa: Size = (grosor, ancho, alto) y el grosor se alinea con la cara donde se pega. */
+	UPROPERTY(BlueprintReadOnly, Category = "Build")
+	bool bFaceAligned = false;
 };
 
 UCLASS()
@@ -110,7 +139,11 @@ public:
 	UPROPERTY()
 	FVector LocalDirection = FVector::ForwardVector;
 
-	void InitFromDef(const FJamPartDef& Def);
+	/** Estado compartido de la construccion; lo asigna el ensamblador. */
+	TSharedPtr<FJamBuildState> Build;
+
+	/** BoxSize = caja ya orientada segun la cara (ver UJamAssembler). */
+	void InitFromDef(const FJamPartDef& Def, const FVector& BoxSize);
 
 	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
 	void SetActive(bool bNewActive);
@@ -118,8 +151,24 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 private:
+	bool IsMine(const AActor* Other) const;
+	/** Componentes fisicos/peones dentro de una esfera (sin esta pieza). */
+	void Nearby(const FVector& Center, float Radius, TArray<UPrimitiveComponent*>& Out) const;
+	void SpawnBall(const FVector& At, const FVector& Velocity);
+
 	float Power = 0.f;
+	float EnergyPerSecond = 0.f;
 	float BurnLeft = 3.f;
 	float FireTimer = 0.f;
 	float Length = 50.f;
+	float HeatedUntil = 0.f;   // globo calentado por fuego cercano
+	float DebugTimer = 0.f;
+	float HoldZ = 0.f;         // altura objetivo de la piedra flotante sin suelo debajo
+	TWeakObjectPtr<AActor> Target;                                  // cabeza
+	TMap<TWeakObjectPtr<UPrimitiveComponent>, float> Frozen;        // hielo: componente -> hora de descongelar
+
+	UPROPERTY()
+	TObjectPtr<UPhysicsConstraintComponent> WorldLock;              // estaca
+	UPROPERTY()
+	TObjectPtr<USceneComponent> LightComp;                          // foco
 };

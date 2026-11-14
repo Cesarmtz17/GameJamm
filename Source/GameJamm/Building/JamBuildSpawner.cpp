@@ -5,6 +5,7 @@
 #include "Building/JamBuildPart.h"
 #include "Building/JamDecisionClient.h"
 #include "Components/BillboardComponent.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
@@ -23,6 +24,26 @@ void AJamBuildSpawner::BeginPlay()
 	{
 		BuildNow();
 	}
+}
+
+void AJamBuildSpawner::Announce(const FString& Msg, bool bGood) const
+{
+	if (bAnnounceOnScreen && GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 8.f, bGood ? FColor::Green : FColor::Orange, Msg);
+	}
+}
+
+void AJamBuildSpawner::ClearBuild()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ActivateTimer);
+	}
+	TArray<AJamBuildPart*> Old;
+	for (AJamBuildPart* P : Parts) { Old.Add(P); }
+	UJamAssembler::DestroyBuild(Old);
+	Parts.Reset();
 }
 
 void AJamBuildSpawner::SetPromptAndBuild(const FString& NewPrompt)
@@ -73,6 +94,7 @@ void AJamBuildSpawner::BuildNow()
 	if (bUseDecisionModel && (!FJamDecisionClient::GetTypeSafeKey().IsEmpty() || !FJamDecisionClient::GetApiKey().IsEmpty() || !FJamDecisionClient::GetFalKey().IsEmpty()))
 	{
 		LastStatus = TEXT("waiting for decision model...");
+		Announce(FString::Printf(TEXT("Jam: \"%s\" -> preguntando al modelo de decision (Jev)..."), *Prompt), true);
 		const FString PromptCopy = Prompt;
 		TWeakObjectPtr<AJamBuildSpawner> Weak(this);
 		FJamDecisionClient::RequestChoice(PromptCopy, [Weak, PromptCopy](bool bOk, const FJamBuildChoice& C, const FString& N)
@@ -91,6 +113,7 @@ void AJamBuildSpawner::BuildNow()
 			}
 			// Respaldo: palabras clave.
 			UE_LOG(LogJamBuild, Warning, TEXT("decision model failed (%s); using keyword fallback"), *N);
+			Self->Announce(FString::Printf(TEXT("Jam: el modelo de decision fallo (%s). Uso el respaldo por palabras clave."), *N.Left(120)), false);
 			FString Note3;
 			UJamBuildGenerator::GenerateRecipe(PromptCopy, R, Note3);
 			Self->Realize(R, TEXT("fallback-keywords ") + Note3);
@@ -105,6 +128,7 @@ void AJamBuildSpawner::BuildNow()
 		UE_LOG(LogJamBuild, Warning, TEXT("%s"), *LastStatus);
 		return;
 	}
+	Announce(TEXT("Jam: sin clave del modelo de decision (o desactivado). Uso el respaldo por palabras clave."), false);
 	Realize(Recipe, TEXT("keywords ") + Note);
 }
 
@@ -115,10 +139,7 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& Recipe, const FString& Note)
 	{
 		return;
 	}
-	TArray<AJamBuildPart*> Old;
-	for (AJamBuildPart* P : Parts) { Old.Add(P); }
-	UJamAssembler::DestroyBuild(Old);
-	Parts.Reset();
+	ClearBuild();
 
 	LastRecipeJson = UBuildRecipeLibrary::RecipeToJson(Recipe);
 
@@ -128,12 +149,26 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& Recipe, const FString& Note)
 	{
 		LastStatus = FString::Printf(TEXT("FAIL assemble: %s"), *Err);
 		UE_LOG(LogJamBuild, Warning, TEXT("%s"), *LastStatus);
+		Announce(TEXT("Jam: ") + LastStatus, false);
 		return;
 	}
 	for (AJamBuildPart* P : Built) { Parts.Add(P); }
 	ActivateIds = Recipe.Activate;
 	LastStatus = FString::Printf(TEXT("OK %d parts (%s) '%s'"), Built.Num(), *Note, *Recipe.Name);
 	UE_LOG(LogJamBuild, Log, TEXT("%s %s"), *LastStatus, *LastRecipeJson);
+	if (bAnnounceOnScreen)
+	{
+		// Mecanicas = capacidades (Kind) de las piezas que se van a encender.
+		TArray<FString> Mechs;
+		for (const AJamBuildPart* P : Built)
+		{
+			if (ActivateIds.Contains(P->RecipeId))
+			{
+				Mechs.AddUnique(StaticEnum<EJamPartKind>()->GetNameStringByValue((int64)P->Kind));
+			}
+		}
+		Announce(FString::Printf(TEXT("Jam: \"%s\"\n  decision: %s\n  %d piezas | mecanicas activas: %s"), *Prompt, *Note, Built.Num(), *FString::Join(Mechs, TEXT(", "))), true);
+	}
 
 	World->GetTimerManager().SetTimer(ActivateTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
 	{
