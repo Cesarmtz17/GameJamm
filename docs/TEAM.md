@@ -3,13 +3,14 @@
 Un dueño por carpeta: solo esa persona edita sus assets (o pide permiso / lock). No hay roles ni jerarquía. Si vas a trabajar en
 una carpeta sin dueño, escribe tu nombre en la tabla y haz push; si ya tiene dueño, pregunta antes de tocarla.
 
-| Área | Carpetas Content | Código C++ | Dueño |
+| Área | Carpetas | Código C++ | Dueño |
 |---|---|---|---|
 | **1 · Core** — partida, torres, base, equipos, respawn, victoria, inventario | `Content/Game/Core/`, `Content/Game/Maps/` (persistent level) | `Source/GameJamm/Core/` | — |
 | **2 · Combate + Fusión** — armas, arco, materiales, efectos | `Content/Game/Combat/` | `Source/GameJamm/Combat/` | — |
 | **3 · Construcción** — piezas, anclajes, física, ensamblado, recetas JSON y su integración con la IA | `Content/Game/Building/` | `Source/GameJamm/Building/` | Jesús Daniel Martínez García (LoGebo) |
 | **4 · IA** — bots (StateTree) + asistente LLM | `Content/Game/AI/` | `Source/GameJamm/AI/` | — |
 | **5 · Mundo / Arte / Audio / UI** — mapa, look, SFX/música, HUD, video y devlog | `Content/Game/Art/`, `Content/Game/Audio/`, `Content/Game/UI/`, actores del mapa | — | Emilio — arte 3D (`Content/Game/Art/`, con Blender MCP) |
+| **6 · Docs / research** — research de mecánicas y su documentación | `docs/mechanics-research/` | — | Javier Fernández |
 
 El número de área es solo una etiqueta: algunos docs (research 12, `ART.md`, `PROMPTS-ASSETS.md`) dicen "rol 3" para referirse a Construcción.
 
