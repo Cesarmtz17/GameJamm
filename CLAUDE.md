@@ -8,7 +8,8 @@ Proyecto: entrada de 5 personas para la Epic AI MegaJam 2026 (Unreal Engine 5.8,
 - **Solo toca la carpeta del rol del usuario** (ver TEAM.md). Para tocar código/asset de otro rol, pregunta primero.
 - **No rompas contratos compartidos** (`UHealthComponent`, `EJamTeam`, `UInventoryComponent`, formato JSON de recetas) sin avisar al usuario; esos cambios afectan a todo el equipo.
 - **Nunca commitees API keys** ni archivos de `Saved/`, `Intermediate/`, `Binaries/`.
-- Antes de editar un asset binario existente: `git lfs lock <ruta>`. Siempre `git pull --rebase` antes de `git push`.
+- Antes de editar un asset binario existente: `git lfs lock <ruta>`.
+- **`git pull --rebase` cada ~10 min mientras trabajas, y SIEMPRE antes de mover, renombrar o borrar cualquier archivo/carpeta** (equipo de 5 pusheando a la vez: trabajar desactualizado genera conflictos y puede pisar trabajo de otros). Nunca `git push` sin `git pull --rebase` antes.
 
 ## Sincronización (obligatoria, cada 5 min)
 Somos 5 personas, cada una en su compu y con su propio agente, todos sobre `main`. Para no pisarnos:
