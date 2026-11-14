@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Building/BuildRecipe.h"
 #include "JamBuildSpawner.generated.h"
 
 class AJamBuildPart;
@@ -26,6 +27,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build", meta = (MultiLine = "true"))
 	FString RecipeJsonOverride;
 
+	/** Para pruebas/demos sin red: respuesta de Jev ya hecha (JSON). Si no está vacía, se usa en vez de llamar a la API. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build", meta = (MultiLine = "true"))
+	FString DecisionResponseOverride;
+
+	/** Usar el modelo de decisión (Jev) si hay API key; si no, respaldo por palabras clave. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
+	bool bUseDecisionModel = true;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
 	bool bBuildOnBeginPlay = true;
 
@@ -49,6 +58,8 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
+	void Realize(const FBuildRecipe& Recipe, const FString& Note);
+
 	UPROPERTY()
 	TArray<TObjectPtr<AJamBuildPart>> Parts;
 

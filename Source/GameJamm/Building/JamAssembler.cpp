@@ -282,11 +282,22 @@ namespace
 	}
 }
 
-bool UJamBuildGenerator::GenerateRecipe(const FString& Prompt, FBuildRecipe& OutRecipe, FString& OutNote)
+void UJamBuildGenerator::ChoiceFromKeywords(const FString& Prompt, FJamBuildChoice& OutChoice)
+{
+	const FString L = Prompt.ToLower();
+	OutChoice = FJamBuildChoice();
+	OutChoice.Archetype = ChooseArchetype(L);
+	OutChoice.bFan = Has(L, {TEXT("ventilador"), TEXT("fan"), TEXT("turbo"), TEXT("helice"), TEXT("hélice")});
+	OutChoice.bRocket = Has(L, {TEXT("cohete"), TEXT("rocket"), TEXT("nitro")});
+	OutChoice.bFlame = Has(L, {TEXT("fuego"), TEXT("llama"), TEXT("flame"), TEXT("fire")});
+	OutChoice.bCannon = Has(L, {TEXT("cañon"), TEXT("cañón"), TEXT("canon"), TEXT("cannon")});
+	OutChoice.bBalloon = Has(L, {TEXT("globo"), TEXT("balloon")});
+}
+
+bool UJamBuildGenerator::ComposeRecipe(const FJamBuildChoice& C, FBuildRecipe& OutRecipe, FString& OutNote)
 {
 	OutRecipe = FBuildRecipe();
-	const FString L = Prompt.ToLower();
-	const FName Archetype = ChooseArchetype(L);
+	const FName Archetype = C.Archetype;
 	OutNote = FString::Printf(TEXT("archetype=%s"), *Archetype.ToString());
 
 	if (Archetype == "Car")
@@ -314,32 +325,37 @@ bool UJamBuildGenerator::GenerateRecipe(const FString& Prompt, FBuildRecipe& Out
 		Add(OutRecipe, TEXT("gun"), TEXT("Cannon"), TEXT("body"), TEXT("Front"));
 		Add(OutRecipe, TEXT("bat"), TEXT("Battery"), TEXT("body"), TEXT("Back"));
 	}
-	else // Rocket
+	else if (Archetype == "Rocket")
 	{
 		OutRecipe.Name = TEXT("Cohete");
 		Add(OutRecipe, TEXT("body"), TEXT("Cylinder"));
 		Add(OutRecipe, TEXT("r0"), TEXT("Rocket"), TEXT("body"), TEXT("Bottom"));
 	}
+	else
+	{
+		OutNote += TEXT(" invalid: unknown archetype");
+		return false;
+	}
 
-	// Extras por palabras clave (solo donde tiene sentido).
+	// Extras (solo donde tienen sentido para el arquetipo).
 	const bool bGround = Archetype == "Car";
-	if (bGround && Has(L, {TEXT("ventilador"), TEXT("fan"), TEXT("turbo"), TEXT("helice"), TEXT("hélice")}))
+	if (bGround && C.bFan)
 	{
 		Add(OutRecipe, TEXT("fanx"), TEXT("Fan"), TEXT("body"), TEXT("Back"));
 	}
-	if ((bGround || Archetype == "Flyer") && Has(L, {TEXT("cohete"), TEXT("rocket"), TEXT("nitro")}))
+	if ((bGround || Archetype == "Flyer") && C.bRocket)
 	{
 		Add(OutRecipe, TEXT("rx"), TEXT("Rocket"), TEXT("body"), TEXT("Back"));
 	}
-	if (Archetype != "Rocket" && Has(L, {TEXT("fuego"), TEXT("llama"), TEXT("flame"), TEXT("fire")}))
+	if (Archetype != "Rocket" && C.bFlame)
 	{
 		Add(OutRecipe, TEXT("flame"), TEXT("Flamethrower"), TEXT("body"), TEXT("Front"));
 	}
-	if (Archetype != "Turret" && Has(L, {TEXT("cañon"), TEXT("cañón"), TEXT("canon"), TEXT("cannon")}))
+	if (Archetype != "Turret" && C.bCannon)
 	{
 		Add(OutRecipe, TEXT("gunx"), TEXT("Cannon"), TEXT("body"), Archetype == "Flyer" ? TEXT("Bottom") : TEXT("Top"));
 	}
-	if (Archetype != "Rocket" && Has(L, {TEXT("globo"), TEXT("balloon")}))
+	if (Archetype != "Rocket" && C.bBalloon)
 	{
 		Add(OutRecipe, TEXT("ball"), TEXT("Balloon"), TEXT("body"), TEXT("Top"));
 	}
@@ -361,4 +377,11 @@ bool UJamBuildGenerator::GenerateRecipe(const FString& Prompt, FBuildRecipe& Out
 		return false;
 	}
 	return true;
+}
+
+bool UJamBuildGenerator::GenerateRecipe(const FString& Prompt, FBuildRecipe& OutRecipe, FString& OutNote)
+{
+	FJamBuildChoice C;
+	ChoiceFromKeywords(Prompt, C);
+	return ComposeRecipe(C, OutRecipe, OutNote);
 }
