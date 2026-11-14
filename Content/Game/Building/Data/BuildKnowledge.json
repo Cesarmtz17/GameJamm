@@ -330,7 +330,7 @@
    "id": "JOINT_TURNTABLE",
    "type": "Turntable",
    "category": "union",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 4,
    "energy_per_s": 0.015,
    "provides": [
@@ -392,7 +392,7 @@
    "id": "ANCHOR_STAKE",
    "type": "Stake",
    "category": "ancla",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 2,
    "energy_per_s": 0,
    "provides": [
@@ -959,7 +959,7 @@
    "id": "CTRL_HEAD",
    "type": "Head",
    "category": "control",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 3,
    "energy_per_s": 0.03,
    "provides": [
