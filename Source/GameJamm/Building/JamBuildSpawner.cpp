@@ -34,6 +34,22 @@ void AJamBuildSpawner::Announce(const FString& Msg, bool bGood) const
 	}
 }
 
+void AJamBuildSpawner::SetBuildActive(bool bOn)
+{
+	TArray<AJamBuildPart*> Raw;
+	for (AJamBuildPart* P : Parts) { Raw.Add(P); }
+	UJamAssembler::SetBuildActive(Raw, ActivateIds, bOn);
+}
+
+bool AJamBuildSpawner::IsBuildActive() const
+{
+	for (const AJamBuildPart* P : Parts)
+	{
+		if (IsValid(P) && P->bActive) { return true; }
+	}
+	return false;
+}
+
 void AJamBuildSpawner::ClearBuild()
 {
 	if (UWorld* World = GetWorld())
@@ -158,6 +174,7 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& Recipe, const FString& Note)
 		return;
 	}
 	for (AJamBuildPart* P : Built) { Parts.Add(P); }
+	if (Built.Num() > 0 && Built[0]->Build.IsValid()) { Built[0]->Build->Team = Team; }
 	ActivateIds = Recipe.Activate;
 	LastStatus = FString::Printf(TEXT("OK %d parts (%s) '%s'"), Built.Num(), *Note, *Recipe.Name);
 	UE_LOG(LogJamBuild, Log, TEXT("%s %s"), *LastStatus, *LastRecipeJson);
@@ -175,6 +192,10 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& Recipe, const FString& Note)
 		Announce(FString::Printf(TEXT("Jam: \"%s\"\n  decision: %s\n  %d piezas | mecanicas activas: %s"), *Prompt, *Note, Built.Num(), *FString::Join(Mechs, TEXT(", "))), true);
 	}
 
+	if (!bAutoActivate)
+	{
+		return;
+	}
 	World->GetTimerManager().SetTimer(ActivateTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
 	{
 		TArray<AJamBuildPart*> Raw;

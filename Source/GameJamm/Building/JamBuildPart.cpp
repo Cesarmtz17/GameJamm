@@ -1,6 +1,10 @@
 #include "Building/JamBuildPart.h"
 
+#include "Building/JamPlayConsole.h"
+
+#include "Components/AudioComponent.h"
 #include "Components/SpotLightComponent.h"
+#include "Core/JamStatics.h"
 #include "Components/StaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
@@ -11,6 +15,7 @@
 #include "GameFramework/Pawn.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/PackageName.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
@@ -23,6 +28,12 @@ static TAutoConsoleVariable<int32> CVarJamEnergy(TEXT("jam.Build.Energy"), 2,
 
 static TAutoConsoleVariable<int32> CVarJamRealMeshes(TEXT("jam.Build.RealMeshes"), 1,
 	TEXT("1 = usar las mallas de Content/Game/Building/Parts cuando existan; 0 = siempre formas basicas."));
+
+static TAutoConsoleVariable<int32> CVarJamSfx(TEXT("jam.Build.Sfx"), 1, TEXT("1 = sonidos de las piezas (Content/Game/Building/Audio, si estan importados); 0 = sin sonido."));
+
+static TAutoConsoleVariable<float> CVarJamDrag(TEXT("jam.Build.AirDrag"), 0.0009f, TEXT("Arrastre del aire de las piezas (1/cm): frenado = valor * velocidad^2. 0 = sin arrastre."));
+
+static TAutoConsoleVariable<float> CVarJamCeiling(TEXT("jam.Build.FanCeiling"), 800.f, TEXT("Altura (cm sobre el suelo) a la que una helice que empuja hacia arriba deja de sustentar. 0 = sin tope."));
 
 static TAutoConsoleVariable<int32> CVarJamFx(TEXT("jam.Build.Fx"), 1, TEXT("1 = efectos visuales simples (fuego, hielo, agua, humo); 0 = sin efectos."));
 
@@ -113,7 +124,7 @@ namespace
 	struct FJamPlayerEnergy
 	{
 		TWeakObjectPtr<const UWorld> World;
-		float Energy = 60.f;      // energy.start
+		float Energy = 50.f;      // GDD 5: minimo garantizado
 		float LastDrain = -100.f;
 		float LastUpdate = 0.f;
 	};
@@ -127,10 +138,12 @@ namespace
 			P.World = World;
 		}
 		const float Now = World ? World->GetTimeSeconds() : 0.f;
-		const float From = FMath::Max(P.LastUpdate, P.LastDrain + 3.f); // energy.regen_delay_s
-		if (Now > From)
+		// GDD 5: por debajo del minimo (50) se recarga sola +3/s con la construccion apagada (1 s sin gastar).
+		// Lo que pase de 50 solo llega por loot (SetPlayerEnergy); maximo 150.
+		const float From = FMath::Max(P.LastUpdate, P.LastDrain + 1.f);
+		if (Now > From && P.Energy < 50.f)
 		{
-			P.Energy = FMath::Min(100.f, P.Energy + 2.f * (Now - From)); // energy.regen_per_s, energy.max
+			P.Energy = FMath::Min(50.f, P.Energy + 3.f * (Now - From));
 		}
 		P.LastUpdate = Now;
 		return P;
@@ -149,6 +162,120 @@ namespace
 			{"Beam", "SM_DEV_BEAM"}, {"Shock", "SM_DEV_SHOCK"}, {"Bomb", "SM_CTRL_TIMEBOMB"}, {"Hydrant", "SM_DEV_HYDRANT"}, {"Light", "SM_DEV_LIGHT"},
 		};
 		return M;
+	}
+}
+
+namespace
+{
+	/** Sonido de SourceArt/Audio importado a Content/Game/Building/Audio; null si no esta (no suena, no falla). */
+	USoundBase* FindSfx(const TCHAR* Name)
+	{
+		if (CVarJamSfx.GetValueOnGameThread() == 0)
+		{
+			return nullptr;
+		}
+		static TMap<FString, TWeakObjectPtr<USoundBase>> Cache;
+		if (const TWeakObjectPtr<USoundBase>* Hit = Cache.Find(Name))
+		{
+			if (Hit->IsValid()) { return Hit->Get(); }
+		}
+		const FString Pkg = FString(TEXT("/Game/Game/Building/Audio/")) + Name;
+		USoundBase* S = FPackageName::DoesPackageExist(Pkg) ? LoadObject<USoundBase>(nullptr, *(Pkg + TEXT(".") + Name)) : nullptr;
+		if (S)
+		{
+			Cache.Add(Name, S);
+		}
+		return S;
+	}
+
+	/**
+	 * Sistema Niagara de las plantillas del motor en un punto. Por reflexion, para no depender del modulo Niagara en
+	 * GameJamm.Build.cs (archivo de otro rol). Devuelve false si Niagara no esta disponible.
+	 */
+	bool SpawnNiagara(UWorld* World, const TCHAR* SystemPath, const FVector& At, float Scale)
+	{
+		UClass* ActorClass = FindObject<UClass>(nullptr, TEXT("/Script/Niagara.NiagaraActor"));
+		UObject* System = ActorClass ? StaticLoadObject(UObject::StaticClass(), nullptr, SystemPath) : nullptr;
+		AActor* A = System ? World->SpawnActor<AActor>(ActorClass, At, FRotator::ZeroRotator) : nullptr;
+		UActorComponent* C = A ? A->FindComponentByClass(FindObject<UClass>(nullptr, TEXT("/Script/Niagara.NiagaraComponent"))) : nullptr;
+		UFunction* SetAsset = C ? C->FindFunction(TEXT("SetAsset")) : nullptr;
+		if (!SetAsset)
+		{
+			if (A) { A->Destroy(); }
+			return false;
+		}
+		struct { UObject* Asset; bool bReset; } Params = { System, true };
+		C->ProcessEvent(SetAsset, &Params);
+		A->SetActorScale3D(FVector(Scale));
+		C->Activate(true);
+		A->SetLifeSpan(4.f);
+		return true;
+	}
+}
+
+FString AJamBuildPart::GetStatusText() const
+{
+	if (Build.IsValid() && Build->StunUntil > 0.f)
+	{
+		return TEXT("aturdida por descarga");
+	}
+	if (Kind == EJamPartKind::Bomb)
+	{
+		return bActive ? FString::Printf(TEXT("explota en %.0f s"), FMath::Max(BurnLeft, 0.f)) : FString(TEXT("sin encender"));
+	}
+	if (Kind == EJamPartKind::Rocket)
+	{
+		return bActive ? FString::Printf(TEXT("encendido, %.1f s de combustible"), FMath::Max(BurnLeft, 0.f)) : FString(TEXT("agotado / apagado"));
+	}
+	if (Kind == EJamPartKind::Battery)
+	{
+		return FString::Printf(TEXT("reserva %.0f"), Build.IsValid() ? Build->Energy : 0.f);
+	}
+	if (Kind == EJamPartKind::Balloon && bActive && GetWorld() && GetWorld()->GetTimeSeconds() < HeatedUntil)
+	{
+		return TEXT("subiendo el doble (fuego cerca)");
+	}
+	return bActive ? TEXT("encendido") : TEXT("apagado");
+}
+
+void AJamBuildPart::PlaySfx(const TCHAR* Name, float Volume) const
+{
+	if (USoundBase* S = FindSfx(Name))
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, S, GetActorLocation(), Volume);
+	}
+}
+
+void AJamBuildPart::Explode(const FVector& At, float Radius, float Speed, float Damage)
+{
+	if (CVarJamFx.GetValueOnGameThread() != 0 && !SpawnNiagara(GetWorld(), TEXT("/Niagara/DefaultAssets/Templates/Systems/SimpleExplosion.SimpleExplosion"), At, Radius / 250.f))
+	{
+		Puff(At, Radius, FLinearColor(1.f, 0.25f, 0.f), 0.25f);
+	}
+	Puff(At, Radius * 0.5f, FLinearColor(1.f, 0.9f, 0.3f), 0.3f);
+	PlaySfx(TEXT("SFX_Explosion"));
+	AJamTestCharacter::AddTrauma(GetWorld(), At, Radius > 300.f ? 0.6f : 0.25f, Radius, Radius * 5.f);
+	TArray<UPrimitiveComponent*> Hits;
+	Nearby(At, Radius, Hits);
+	for (UPrimitiveComponent* H : Hits)
+	{
+		if (H->IsSimulatingPhysics())
+		{
+			H->AddRadialImpulse(At, Radius, Speed, ERadialImpulseFalloff::RIF_Linear, true);
+		}
+		if (AJamBuildPart* P = Cast<AJamBuildPart>(H->GetOwner()))
+		{
+			// La onda enciende los dispositivos apagados que alcanza.
+			if (!P->bActive && P->Kind != EJamPartKind::Bomb && P != this)
+			{
+				P->SetActive(true);
+			}
+		}
+		if (!IsMine(H->GetOwner()) || Kind == EJamPartKind::Bomb)
+		{
+			EffectHits += IsMine(H->GetOwner()) ? 0 : 1;
+			UGameplayStatics::ApplyDamage(H->GetOwner(), Damage, nullptr, this, nullptr);
+		}
 	}
 }
 
@@ -189,7 +316,7 @@ float AJamBuildPart::GetPlayerEnergy(const UWorld* World)
 
 void AJamBuildPart::SetPlayerEnergy(const UWorld* World, float Value)
 {
-	PlayerPool(World).Energy = FMath::Clamp(Value, 0.f, 100.f);
+	PlayerPool(World).Energy = FMath::Clamp(Value, 0.f, 150.f);
 }
 
 bool UJamPartCatalog::Find(FName Type, FJamPartDef& OutDef)
@@ -284,6 +411,7 @@ void AJamBuildPart::InitFromDef(const FJamPartDef& Def, const FVector& BoxSize, 
 		}
 	}
 
+	Mesh->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore); // que la camara en tercera persona no salte cuando una pieza pasa por detras
 	Mesh->SetMassOverrideInKg(NAME_None, Def.MassKg, true);
 	Mesh->SetSimulatePhysics(true);
 	Mesh->SetEnableGravity(true);
@@ -312,7 +440,7 @@ void AJamBuildPart::Nearby(const FVector& Center, float Radius, TArray<UPrimitiv
 	}
 }
 
-void AJamBuildPart::SpawnBall(const FVector& At, const FVector& Velocity)
+AActor* AJamBuildPart::SpawnBall(const FVector& At, const FVector& Velocity)
 {
 	FActorSpawnParameters P;
 	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -324,11 +452,14 @@ void AJamBuildPart::SpawnBall(const FVector& At, const FVector& Velocity)
 		C->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, SphereMesh));
 		C->SetWorldScale3D(FVector(0.2));
 		C->SetCollisionProfileName(TEXT("PhysicsActor"));
+		C->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 		C->SetSimulatePhysics(true);
 		C->SetMassOverrideInKg(NAME_None, 2.f, true);
 		C->AddImpulse(Velocity, NAME_None, true);
 		Ball->SetLifeSpan(5.f);
+		return Ball;
 	}
+	return nullptr;
 }
 
 void AJamBuildPart::Puff(const FVector& At, float SizeCm, const FLinearColor& Color, float Life)
@@ -337,7 +468,8 @@ void AJamBuildPart::Puff(const FVector& At, float SizeCm, const FLinearColor& Co
 	{
 		return;
 	}
-	// ponytail: un actor-esfera por bocanada; sustituir por Niagara (NS_flame, NS_frost...) cuando arte los entregue.
+	// ponytail: un actor-esfera emisiva por bocanada; sustituir por Niagara (NS_flame, NS_frost...) cuando arte los entregue.
+	// Las explosiones ya usan Niagara (plantilla del motor, ver Explode).
 	FActorSpawnParameters P;
 	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	if (AStaticMeshActor* A = GetWorld()->SpawnActor<AStaticMeshActor>(At, FRotator::ZeroRotator, P))
@@ -348,11 +480,11 @@ void AJamBuildPart::Puff(const FVector& At, float SizeCm, const FLinearColor& Co
 		C->SetCastShadow(false);
 		C->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, SphereMesh));
 		C->SetWorldScale3D(FVector(SizeCm / 100.f));
-		UMaterialInterface* Mat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineDebugMaterials/DebugMeshMaterial.DebugMeshMaterial"));
+		UMaterialInterface* Mat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/EmissiveMeshMaterial.EmissiveMeshMaterial"));
 		if (UMaterialInstanceDynamic* MID = Mat ? UMaterialInstanceDynamic::Create(Mat, A) : nullptr)
 		{
 			C->SetMaterial(0, MID);
-			MID->SetVectorParameterValue(TEXT("Color"), Color);
+			MID->SetVectorParameterValue(TEXT("Color"), Color * 4.f); // emisivo: brilla (bloom)
 		}
 		A->SetLifeSpan(Life);
 	}
@@ -426,6 +558,54 @@ void AJamBuildPart::SetActive(bool bNewActive)
 			LightComp->SetVisibility(bNewActive);
 		}
 	}
+	// Sonido: encendido (una vez por construccion), bucle de motor o fuego mientras la pieza esta encendida.
+	UWorld* World = GetWorld();
+	if (bNewActive && World && Build.IsValid() && World->GetTimeSeconds() - Build->LastPowerSound > 1.f)
+	{
+		Build->LastPowerSound = World->GetTimeSeconds();
+		PlaySfx(TEXT("SFX_Power_On"), 0.7f);
+	}
+	if (bNewActive && Kind == EJamPartKind::Frost)
+	{
+		PlaySfx(TEXT("SFX_Ice"));
+	}
+	const TCHAR* Loop = nullptr;
+	if (Kind == EJamPartKind::Flame || Kind == EJamPartKind::Rocket) { Loop = TEXT("SFX_Fire_Loop"); }
+	if (Kind == EJamPartKind::Fan || Kind == EJamPartKind::Turntable) { Loop = TEXT("SFX_Motor_Loop"); }
+	if (Kind == EJamPartKind::Wheel && Build.IsValid())
+	{
+		// Un solo motor por construccion: la primera rueda.
+		for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts)
+		{
+			if (P.IsValid() && P->Kind == EJamPartKind::Wheel)
+			{
+				if (P.Get() == this) { Loop = TEXT("SFX_Motor_Loop"); }
+				break;
+			}
+		}
+	}
+	if (bNewActive && Loop && !LoopSound)
+	{
+		if (USoundBase* S = FindSfx(Loop))
+		{
+			LoopSound = UGameplayStatics::SpawnSoundAttached(S, Mesh, NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true, 0.5f);
+		}
+	}
+	else if (!bNewActive && LoopSound)
+	{
+		LoopSound->Stop();
+		LoopSound = nullptr;
+	}
+}
+
+void AJamBuildPart::SetDrive(float Scale)
+{
+	if (DriveConstraint && bActive)
+	{
+		const float Dir = Kind == EJamPartKind::Wheel ? -1.f : 1.f;
+		DriveConstraint->SetAngularVelocityTarget(FVector(Dir * Power * FMath::Clamp(Scale, -1.f, 1.f), 0.f, 0.f) / (2.0 * PI));
+		Mesh->WakeAllRigidBodies();
+	}
 }
 
 void AJamBuildPart::Tick(float DeltaSeconds)
@@ -450,6 +630,46 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 				C->SetAngularDamping(0.f);
 			}
 			It.RemoveCurrent();
+		}
+	}
+
+	// Arrastre del aire en toda pieza: frena con el cuadrado de la velocidad (da velocidad tope a cohetes y planeadores).
+	const float Drag = CVarJamDrag.GetValueOnGameThread();
+	if (Drag > 0.f && Mesh->IsSimulatingPhysics())
+	{
+		const FVector V = Mesh->GetPhysicsLinearVelocity();
+		if (V.SizeSquared() > 100.0 * 100.0)
+		{
+			Mesh->AddForce(-V * V.Size() * FMath::Min(Drag, 0.5f / (V.Size() * DeltaSeconds)), NAME_None, true);
+		}
+	}
+
+	// Descarga electrica: pasado el aturdimiento, la construccion vuelve a encender lo que tenia encendido.
+	if (Build.IsValid() && Build->StunUntil > 0.f && Now >= Build->StunUntil)
+	{
+		Build->StunUntil = 0.f;
+		const TArray<TWeakObjectPtr<AJamBuildPart>> Wake = MoveTemp(Build->Stunned);
+		Build->Stunned.Reset();
+		for (const TWeakObjectPtr<AJamBuildPart>& P : Wake)
+		{
+			if (P.IsValid()) { P->SetActive(true); }
+		}
+	}
+
+	// Cañon: sus bolas explotan al impactar (pierden de golpe la velocidad de salida), aunque el cañon ya este apagado.
+	for (int32 i = Balls.Num() - 1; i >= 0; --i)
+	{
+		AActor* B = Balls[i].Get();
+		if (!B)
+		{
+			Balls.RemoveAtSwap(i);
+		}
+		else if (B->GetGameTimeSinceCreation() > 0.15f && B->GetVelocity().Size() < Power * 0.6f)
+		{
+			const FVector At = B->GetActorLocation();
+			B->Destroy();
+			Balls.RemoveAtSwap(i);
+			Explode(At, 180.f, 500.f, 12.f);
 		}
 	}
 
@@ -501,9 +721,10 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		if (!bPaid)
 		{
 			UE_LOG(LogJamPart, Log, TEXT("build out of energy: devices off"));
+			PlaySfx(TEXT("SFX_Energy_Empty"));
 			if (GEngine)
 			{
-				GEngine->AddOnScreenDebugMessage(7001, 6.f, FColor::Orange, TEXT("Sin energia: los dispositivos se apagaron. La barra del jugador se recarga sola tras 3 s sin gastar (Jam.Energy 100 la llena)."));
+				GEngine->AddOnScreenDebugMessage(7001, 6.f, FColor::Orange, TEXT("Sin energia: los dispositivos se apagaron. Apagada, la barra se recarga sola hasta 50; C para volver a encender."));
 			}
 			for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts)
 			{
@@ -547,7 +768,29 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		// Una helice no empuja mas rapido que el aire que mueve: el empuje cae a cero al llegar a su velocidad tope.
 		const double TopSpeed = Power > 50000.f ? 2000.0 : 800.0;
 		const double Along = FVector::DotProduct(Mesh->GetPhysicsLinearVelocity(), WorldDir);
-		Mesh->AddForce(WorldDir * Power * FMath::Clamp(1.0 - Along / TopSpeed, 0.0, 1.0));
+		double Thrust = FMath::Clamp(1.0 - Along / TopSpeed, 0.0, 1.0);
+		// Helice que sustenta (empuja hacia arriba): pierde fuerza con la altura sobre el suelo -> el dron se queda flotando.
+		const float Ceiling = CVarJamCeiling.GetValueOnGameThread();
+		if (Ceiling > 0.f && WorldDir.Z > 0.7)
+		{
+			FCollisionQueryParams Q(NAME_None, false, this);
+			if (Build.IsValid())
+			{
+				for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts) { if (P.IsValid()) { Q.AddIgnoredActor(P.Get()); } }
+			}
+			FHitResult Hit;
+			const FVector At = GetActorLocation();
+			if (World->LineTraceSingleByChannel(Hit, At, At - FVector(0, 0, 6000), ECC_Visibility, Q))
+			{
+				Thrust *= FMath::Clamp((Ceiling - (At.Z - Hit.ImpactPoint.Z)) / (Ceiling * 0.5), 0.0, 1.0);
+			}
+			else
+			{
+				// Sobre el vacio no hay altimetro: sostiene sin acelerar hacia arriba.
+				Thrust *= Mesh->GetPhysicsLinearVelocity().Z > 0.0 ? 0.3 : 1.0;
+			}
+		}
+		Mesh->AddForce(WorldDir * Power * Thrust);
 		if (bFx && Power > 50000.f) { Puff(GetActorLocation() - WorldDir * (Length * 0.5f + FMath::FRandRange(10.f, 50.f)), 18.f, FLinearColor(0.3f, 0.6f, 1.f)); } // jet/turbina
 		break;
 	}
@@ -557,7 +800,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		BurnLeft -= DeltaSeconds;
 		if (BurnLeft <= 0.f)
 		{
-			bActive = false;
+			SetActive(false);
 		}
 		break;
 	case EJamPartKind::Balloon:
@@ -628,8 +871,8 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 	{
 		// Sustentacion: crece con la velocidad hacia adelante (el ala no se rota: su X = frente del vehiculo).
 		const double Fwd = FVector::DotProduct(Mesh->GetPhysicsLinearVelocity(), GetActorForwardVector());
-		// Con tope y con freno de aire, para que planee en vez de salir disparada.
-		Mesh->AddForce(FVector(0, 0, FMath::Clamp(Fwd, 0.0, 900.0) * Power) - Mesh->GetPhysicsLinearVelocity() * 12.f);
+		// Con tope (y el arrastre general del aire), para que planee en vez de salir disparada.
+		Mesh->AddForce(FVector(0, 0, FMath::Clamp(Fwd, 0.0, 900.0) * Power));
 		break;
 	}
 	case EJamPartKind::Sail:
@@ -685,26 +928,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		{
 			// Explosion: empuja y daña todo lo cercano, y su onda enciende los dispositivos que alcanza.
 			bActive = false;
-			const FVector At = GetActorLocation();
-			Puff(At, 500.f, FLinearColor(1.f, 0.25f, 0.f), 0.25f);
-			Puff(At, 250.f, FLinearColor(1.f, 0.9f, 0.3f), 0.4f);
-			TArray<UPrimitiveComponent*> Hits;
-			Nearby(At, 500.f, Hits);
-			for (UPrimitiveComponent* H : Hits)
-			{
-				if (H->IsSimulatingPhysics())
-				{
-					H->AddRadialImpulse(At, 500.f, Power, ERadialImpulseFalloff::RIF_Linear, true);
-				}
-				if (AJamBuildPart* P = Cast<AJamBuildPart>(H->GetOwner()))
-				{
-					if (!P->bActive && P->Kind != EJamPartKind::Bomb)
-					{
-						P->SetActive(true);
-					}
-				}
-				UGameplayStatics::ApplyDamage(H->GetOwner(), 30.f, nullptr, this, nullptr);
-			}
+			Explode(GetActorLocation(), 500.f, Power, 30.f);
 			Destroy();
 		}
 		break;
@@ -789,13 +1013,21 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 				{
 					Best->SetPhysicsLinearVelocity(FVector::ZeroVector);
 				}
+				PlaySfx(TEXT("SFX_Shock"));
+				// Construccion ajena: se apaga entera 3 s y luego vuelve a encender lo que tenia encendido.
 				const AJamBuildPart* P = Cast<AJamBuildPart>(Best->GetOwner());
 				if (P && P->Build.IsValid())
 				{
-					for (const TWeakObjectPtr<AJamBuildPart>& O : P->Build->Parts)
+					FJamBuildState& Other = *P->Build;
+					for (const TWeakObjectPtr<AJamBuildPart>& O : Other.Parts)
 					{
-						if (O.IsValid()) { O->SetActive(false); }
+						if (O.IsValid() && O->bActive)
+						{
+							Other.Stunned.AddUnique(O);
+							O->SetActive(false);
+						}
 					}
+					Other.StunUntil = Now + 3.f;
 				}
 			}
 		}
@@ -841,7 +1073,12 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			{
 				AActor* A = H->GetOwner();
 				const double D = FVector::DistSquared(H->GetComponentLocation(), GetActorLocation());
-				if (A && D < BestD && !IsMine(A) && !A->ActorHasTag(ProjectileTag) && (A->IsA<APawn>() || H->IsSimulatingPhysics()))
+				// Equipo: con equipo asignado (no Neutral) nunca apunta a los suyos; lo demas (enemigos y cosas sin equipo) si.
+				const AJamBuildPart* OtherPart = Cast<AJamBuildPart>(A);
+				const EJamTeam Mine = Build.IsValid() ? Build->Team : EJamTeam::Neutral;
+				const EJamTeam Theirs = (OtherPart && OtherPart->Build.IsValid()) ? OtherPart->Build->Team : UJamStatics::GetActorTeam(A);
+				const bool bFriend = Mine != EJamTeam::Neutral && Theirs == Mine;
+				if (A && D < BestD && !bFriend && !IsMine(A) && !A->ActorHasTag(ProjectileTag) && (A->IsA<APawn>() || H->IsSimulatingPhysics()))
 				{
 					BestD = D;
 					Target = A;
@@ -865,7 +1102,9 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		if (FireTimer >= 1.5f)
 		{
 			FireTimer = 0.f;
-			SpawnBall(Nozzle + WorldDir * 15.f, WorldDir * Power);
+			Balls.Add(SpawnBall(Nozzle + WorldDir * 15.f, WorldDir * Power));
+			PlaySfx(TEXT("SFX_Cannon"));
+			Puff(Nozzle + WorldDir * 10.f, 30.f, FLinearColor(0.6f, 0.6f, 0.6f), 0.2f);
 		}
 		break;
 	default:

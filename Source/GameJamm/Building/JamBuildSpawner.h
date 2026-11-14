@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Building/BuildRecipe.h"
+#include "Core/JamTypes.h"
 #include "JamBuildSpawner.generated.h"
 
 class AJamBuildPart;
@@ -38,9 +39,24 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
 	bool bBuildOnBeginPlay = true;
 
+	/** true = se enciende sola tras ActivateDelay (pruebas, consola). false = sale apagada y se enciende con SetBuildActive (tecla C). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
+	bool bAutoActivate = true;
+
+	/** Prende o apaga todos los dispositivos de la construccion (GDD 6.3). */
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	void SetBuildActive(bool bOn);
+
+	UFUNCTION(BlueprintPure, Category = "Build")
+	bool IsBuildActive() const;
+
 	/** Segundos antes de encender motores/ventiladores/cañones. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
 	float ActivateDelay = 1.5f;
+
+	/** Equipo del dueño: las cabezas de esta construccion no apuntan a los de su equipo. Neutral = apunta a todo. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
+	EJamTeam Team = EJamTeam::Neutral;
 
 	/** Muestra en pantalla (8 s) que decidio el modelo y que se construyo. Lo usa el comando Jam.Say. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")

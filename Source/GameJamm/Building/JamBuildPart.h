@@ -3,10 +3,13 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Core/JamTypes.h"
 #include "JamBuildPart.generated.h"
 
 class UStaticMeshComponent;
 class UPhysicsConstraintComponent;
+class UAudioComponent;
+class USoundBase;
 
 UENUM(BlueprintType)
 enum class EJamPartKind : uint8
@@ -47,6 +50,10 @@ struct FJamBuildState
 	TArray<TWeakObjectPtr<AJamBuildPart>> Parts;
 	float Energy = 0.f;
 	float MassKg = 0.f;
+	EJamTeam Team = EJamTeam::Neutral;                      // equipo del dueño; la cabeza no apunta a los suyos
+	float StunUntil = 0.f;                                  // descarga electrica: apagada hasta esta hora
+	TArray<TWeakObjectPtr<AJamBuildPart>> Stunned;          // piezas que estaban encendidas y hay que reencender
+	float LastPowerSound = -100.f;
 };
 
 /** Definición de un tipo de pieza (POC: tabla en C++, después DataAsset). */
@@ -149,9 +156,15 @@ public:
 	/** jam.Build.Energy: 0 = sin energia, 1 = reserva por construccion, 2 = barra del jugador (por defecto). */
 	static int32 EnergyMode();
 
-	/** Barra de energia del jugador (tipo mana): 0..100, se recarga sola tras 3 s sin gastar. */
+	/** Barra de energia del jugador (tipo mana, GDD 5): 0..150; por debajo de 50 se recarga sola +3/s sin gastar. */
 	static float GetPlayerEnergy(const UWorld* World);
 	static void SetPlayerEnergy(const UWorld* World, float Value);
+
+	/** Texto corto del estado de la pieza para el HUD ("encendido", "explota en 3 s", "apagado"...). */
+	FString GetStatusText() const;
+
+	/** Energia por segundo que esta gastando ahora (0 si esta apagada). */
+	float GetEnergyDrain() const { return bActive ? EnergyPerSecond : 0.f; }
 
 	/** Estado compartido de la construccion; lo asigna el ensamblador. */
 	TSharedPtr<FJamBuildState> Build;
@@ -165,13 +178,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
 	void SetActive(bool bNewActive);
 
+	/** Conduccion: escala -1..1 de la velocidad del motor de eje (ruedas). Solo tiene efecto si la pieza esta encendida. */
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
+	void SetDrive(float Scale);
+
 	virtual void Tick(float DeltaSeconds) override;
 
 private:
 	bool IsMine(const AActor* Other) const;
 	/** Componentes fisicos/peones dentro de una esfera (sin esta pieza). */
 	void Nearby(const FVector& Center, float Radius, TArray<UPrimitiveComponent*>& Out) const;
-	void SpawnBall(const FVector& At, const FVector& Velocity);
+	AActor* SpawnBall(const FVector& At, const FVector& Velocity);
+	/** Explosion: empuja, daña y enciende dispositivos apagados dentro del radio. */
+	void Explode(const FVector& At, float Radius, float Speed, float Damage);
+	void PlaySfx(const TCHAR* Name, float Volume = 1.f) const;
 	/** Efecto visual barato: esfera de color que desaparece sola (hasta que haya Niagara). */
 	void Puff(const FVector& At, float SizeCm, const FLinearColor& Color, float Life = 0.25f);
 
@@ -185,10 +205,13 @@ private:
 	float FxTimer = 0.f;
 	float HoldZ = 0.f;         // altura objetivo de la piedra flotante sin suelo debajo
 	TWeakObjectPtr<AActor> Target;                                  // cabeza
+	TArray<TWeakObjectPtr<AActor>> Balls;                           // cañon: bolas en vuelo (explotan al impactar)
 	TMap<TWeakObjectPtr<UPrimitiveComponent>, float> Frozen;        // hielo: componente -> hora de descongelar
 
 	UPROPERTY()
 	TObjectPtr<UPhysicsConstraintComponent> WorldLock;              // estaca
 	UPROPERTY()
 	TObjectPtr<USceneComponent> LightComp;                          // foco
+	UPROPERTY()
+	TObjectPtr<UAudioComponent> LoopSound;                          // motor / fuego mientras esta encendida
 };

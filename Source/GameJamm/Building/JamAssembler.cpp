@@ -2,6 +2,8 @@
 
 #include "Building/JamBuildPart.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshSocket.h"
 #include "Engine/World.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 
@@ -40,6 +42,7 @@ namespace
 		FVector Facing = FVector::ForwardVector;    // hacia donde mira (empuje/disparo)
 		FName Parent;
 		AJamBuildPart* Actor = nullptr;
+		bool bOriented = false;                     // la malla va girada segun la cara (los sockets del mesh ya no coinciden con los ejes)
 	};
 
 	/**
@@ -75,6 +78,25 @@ namespace
 		if (FMath::Abs(Facing.Z) > 0.5) { return FVector(S.Z, S.Y, S.X); }
 		if (FMath::Abs(Facing.Y) > 0.5) { return FVector(S.Y, S.X, S.Z); }
 		return S;
+	}
+
+	/**
+	 * Distancia del centro del padre a su cara Dir. Si la malla de arte del padre tiene el socket Attach_<Cara>
+	 * (contrato de uniones), manda el socket; si no (o si la pieza va girada), la mitad de la caja.
+	 */
+	double FaceDistance(const FPlaced& P, const FVector& Dir)
+	{
+		const double Box = FVector::DotProduct(Abs(Dir), P.Size * 0.5);
+		if (P.bOriented)
+		{
+			return Box;
+		}
+		const TCHAR* Name = Dir.Z > 0.5 ? TEXT("Attach_Top") : Dir.Z < -0.5 ? TEXT("Attach_Bottom") : Dir.X > 0.5 ? TEXT("Attach_Front")
+			: Dir.X < -0.5 ? TEXT("Attach_Back") : Dir.Y > 0.5 ? TEXT("Attach_Right") : TEXT("Attach_Left");
+		const UStaticMesh* M = AJamBuildPart::FindRealMesh(P.Def.Type);
+		const UStaticMeshSocket* S = M ? M->FindSocket(Name) : nullptr;
+		const double D = S ? FVector::DotProduct(S->RelativeLocation, Dir) : 0.0;
+		return D > 1.0 ? D : Box;
 	}
 
 	/** Layout en el marco del vehículo (el padre debe existir antes; se repite hasta resolver). */
@@ -113,9 +135,10 @@ namespace
 						return false;
 					}
 					Item.Size = OrientedSize(Item.Def, Item.Facing);
+					Item.bOriented = Item.Def.Axis == 1 || Item.Def.bFaceAligned;
 					const FVector PH = Parent->Size * 0.5;
 					const FVector CH = Item.Size * 0.5;
-					Item.Center = Parent->Center + Dir * (FVector::DotProduct(Abs(Dir), PH) + FVector::DotProduct(Abs(Dir), CH));
+					Item.Center = Parent->Center + Dir * (FaceDistance(*Parent, Dir) + FVector::DotProduct(Abs(Dir), CH));
 					Item.Center += Shift * (FVector::DotProduct(Abs(Shift), PH) - FVector::DotProduct(Abs(Shift), CH));
 				}
 				Placed.Add(P.Id, Item);
