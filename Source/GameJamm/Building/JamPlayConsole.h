@@ -54,7 +54,7 @@ public:
 	TObjectPtr<class UJamSayWidget> SayWidget;
 
 private:
-	void DriveMount(class AJamBuildPart* Seat, float Throttle, float Steer, float DeltaSeconds);
+	void DriveMount(class AJamBuildPart* Seat, float Throttle, float Steer, bool bFire, bool bBoost, float DeltaSeconds);
 
 	bool bFirstPerson = false;
 	float Trauma = 0.f;

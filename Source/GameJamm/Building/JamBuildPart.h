@@ -54,6 +54,7 @@ struct FJamBuildState
 	float StunUntil = 0.f;                                  // descarga electrica: apagada hasta esta hora
 	TArray<TWeakObjectPtr<AJamBuildPart>> Stunned;          // piezas que estaban encendidas y hay que reencender
 	float LastPowerSound = -100.f;
+	TWeakObjectPtr<AActor> Owner;                           // quien la pidio: la cabeza nunca le apunta
 };
 
 /** Definición de un tipo de pieza (POC: tabla en C++, después DataAsset). */
@@ -138,6 +139,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	bool bActive = false;
 
+	/** Soldada a su padre: comparte cuerpo fisico con el (ver UJamAssembler, jam.Build.Weld). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	bool bWelded = false;
+
 	/** Motor del eje (solo ruedas), lo asigna el ensamblador. */
 	UPROPERTY()
 	TObjectPtr<UPhysicsConstraintComponent> DriveConstraint;
@@ -198,6 +203,8 @@ private:
 	float Power = 0.f;
 	float EnergyPerSecond = 0.f;
 	float BurnLeft = 3.f;
+	float ReadyAt = 0.f;       // cohete: hora a la que se puede volver a encender (recarga)
+	TArray<FVector> BallVel;   // cañon: velocidad de cada bola en el cuadro anterior (para detectar el impacto)
 	float FireTimer = 0.f;
 	float Length = 50.f;
 	float HeatedUntil = 0.f;   // globo calentado por fuego cercano

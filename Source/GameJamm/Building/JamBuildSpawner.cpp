@@ -122,14 +122,34 @@ void AJamBuildSpawner::BuildNow()
 			}
 			FBuildRecipe R;
 			FString Note2 = N;
-			if (bOk && UJamBuildGenerator::ComposeRecipe(C, R, Note2))
+			bool bComposed = false;
+			if (bOk && C.Pieces.Num() > 0)
 			{
-				// N = "jev archetype=... conf=..." (o "fal-llm ..."): se conserva el backend y la confianza delante de la nota de la receta.
+				// Ruta principal: el modelo decidio piezas y cantidades. Los numerales del texto ("25 llantas") mandan sobre
+				// la cantidad, y una decision muy pobre (menos de 3 tipos de pieza) se completa con el concepto del respaldo.
+				TArray<FJamPieceCount> Bag = C.Pieces;
+				if (Bag.Num() < 3)
+				{
+					TArray<FJamPieceCount> Seed;
+					UJamBuildGenerator::BagFromKeywords(PromptCopy, Seed);
+					for (const FJamPieceCount& S : Seed)
+					{
+						if (!Bag.ContainsByPredicate([&S](const FJamPieceCount& X) { return X.Type == S.Type; })) { Bag.Add(S); }
+					}
+				}
+				UJamBuildGenerator::ApplyNumerals(PromptCopy, Bag, true);
+				bComposed = UJamBuildGenerator::ComposeFromBag(Bag, R, Note2);
+			}
+			else if (bOk)
+			{
+				bComposed = UJamBuildGenerator::ComposeRecipe(C, R, Note2); // formato viejo (plantilla + extras): respuestas simuladas, fal
+			}
+			if (bComposed)
+			{
+				// N = "jev ... conf=..." (o "fal-llm ..."): se conserva el backend delante de la nota de la receta.
 				FString Backend = N, Rest;
-				N.Split(TEXT(" archetype="), &Backend, &Rest);
-				FString Conf;
-				Rest.Split(TEXT(" "), nullptr, &Conf);
-				Self->Realize(R, (Backend + TEXT(" ") + Conf).TrimEnd() + TEXT(" ") + Note2);
+				N.Split(TEXT(" "), &Backend, &Rest);
+				Self->Realize(R, Backend + TEXT(" ") + Note2);
 				return;
 			}
 			// Respaldo: palabras clave.
@@ -174,7 +194,7 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& Recipe, const FString& Note)
 		return;
 	}
 	for (AJamBuildPart* P : Built) { Parts.Add(P); }
-	if (Built.Num() > 0 && Built[0]->Build.IsValid()) { Built[0]->Build->Team = Team; }
+	if (Built.Num() > 0 && Built[0]->Build.IsValid()) { Built[0]->Build->Team = Team; Built[0]->Build->Owner = GetOwner(); }
 	ActivateIds = Recipe.Activate;
 	LastStatus = FString::Printf(TEXT("OK %d parts (%s) '%s'"), Built.Num(), *Note, *Recipe.Name);
 	UE_LOG(LogJamBuild, Log, TEXT("%s %s"), *LastStatus, *LastRecipeJson);

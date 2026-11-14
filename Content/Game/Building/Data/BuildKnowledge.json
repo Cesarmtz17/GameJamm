@@ -1,7 +1,7 @@
 {
  "_doc": "Base de conocimiento del asistente de construcción. Diseño: docs/mechanics-research/13-conocimiento-ia-construccion.md. Valores iniciales de diseño (tunables). Tipos = los de UJamPartCatalog (JamBuildPart.cpp); code_archetype = ArchetypeTable (JamAssembler.cpp).",
- "version": 2,
- "max_parts": 21,
+ "version": 3,
+ "max_parts": 60,
  "use_energy": true,
  "elements": [
   {
@@ -108,7 +108,7 @@
    "id": "PART_BEAM",
    "type": "Girder",
    "category": "estructura",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 6,
    "energy_per_s": 0,
    "provides": [
@@ -210,7 +210,7 @@
    "id": "PART_BALL",
    "type": "Ball",
    "category": "estructura",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 10,
    "energy_per_s": 0,
    "provides": [
@@ -305,7 +305,7 @@
    "id": "JOINT_HINGE",
    "type": "Hinge",
    "category": "union",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 2,
    "energy_per_s": 0,
    "provides": [
@@ -330,7 +330,7 @@
    "id": "JOINT_TURNTABLE",
    "type": "Turntable",
    "category": "union",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 4,
    "energy_per_s": 0.015,
    "provides": [
@@ -392,7 +392,7 @@
    "id": "ANCHOR_STAKE",
    "type": "Stake",
    "category": "ancla",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 2,
    "energy_per_s": 0,
    "provides": [
@@ -557,7 +557,7 @@
    "id": "DEV_SLED",
    "type": "Sled",
    "category": "movilidad",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 4,
    "energy_per_s": 0,
    "provides": [
@@ -894,7 +894,7 @@
    "id": "DEV_STABILIZER",
    "type": "Stabilizer",
    "category": "control",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 2,
    "energy_per_s": 0.03,
    "provides": [
@@ -959,7 +959,7 @@
    "id": "CTRL_HEAD",
    "type": "Head",
    "category": "control",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 3,
    "energy_per_s": 0.03,
    "provides": [
@@ -1055,7 +1055,7 @@
    "id": "PWR_BATTERY_L",
    "type": "BigBattery",
    "category": "energia",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 6,
    "energy_per_s": 0,
    "provides": [
@@ -1158,7 +1158,7 @@
    "id": "DEV_SHOCK",
    "type": "Shock",
    "category": "arma",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 3,
    "energy_per_s": 0.18,
    "provides": [
@@ -1264,7 +1264,7 @@
    "id": "DEV_HYDRANT",
    "type": "Hydrant",
    "category": "utilidad",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 3,
    "energy_per_s": 0.03,
    "provides": [
@@ -1294,7 +1294,7 @@
    "id": "DEV_LIGHT",
    "type": "Light",
    "category": "utilidad",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 2,
    "energy_per_s": 0.03,
    "provides": [
@@ -1844,10 +1844,10 @@
  ],
  "energy": {
   "_doc": "Barra de energía del jugador (tipo maná). Ver research 13 §6. Valores iniciales, tunables.",
-  "max": 100,
-  "start": 60,
-  "regen_per_s": 2.0,
-  "regen_delay_s": 3.0,
+  "max": 150,
+  "start": 50,
+  "regen_per_s": 3.0,
+  "regen_delay_s": 1.0,
   "regen_only_when_idle": true,
   "pickups": {
    "Energy.Small": 15,
@@ -1855,6 +1855,9 @@
   },
   "seat_free": true,
   "rocket_single_use": true,
-  "on_empty": "apaga todos los dispositivos de la construcción; el Seat sigue funcionando (dirige pero sin empuje)"
+  "on_empty": "apaga todos los dispositivos de la construcción; el Seat sigue funcionando (dirige pero sin empuje)",
+  "min_guaranteed": 50,
+  "rocket_cost_per_ignite": 6,
+  "rocket_cooldown_s": 8
  }
 }

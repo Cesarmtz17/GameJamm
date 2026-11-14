@@ -15,7 +15,10 @@ class GAMEJAMM_API UJamAssembler : public UBlueprintFunctionLibrary
 
 public:
 	/** Límite de piezas por construcción (valor de diseño). */
-	static constexpr int32 MaxParts = 21;
+	static constexpr int32 MaxParts = 60;
+
+	/** Limite vigente: jam.Build.MaxParts (por defecto MaxParts, hasta 100). */
+	static int32 GetMaxParts();
 
 	/** Reserva propia de una construccion cuando jam.Build.Energy = 1; cada Battery suma su capacidad en cualquier modo. */
 	static constexpr float BaseEnergy = 100.f;
@@ -71,6 +74,33 @@ struct FJamExtraDef
 	FName ChildSocket;
 };
 
+/** Una entrada de la bolsa de piezas que decide el modelo: que pieza, cuantas y en que modo. */
+struct FJamPieceCount
+{
+	FName Type;
+	int32 Count = 1;
+	FName Mode;   // None, "lift" (helice/cohete hacia abajo: sustenta) o "launch" (resorte hacia arriba: lanza)
+};
+
+/**
+ * Regla de colocacion de un tipo de pieza: la funcion sale de la capacidad de la pieza (EJamPartKind);
+ * aqui solo esta DONDE va y como preguntarle por ella al modelo.
+ */
+struct FJamPieceRule
+{
+	FName Type;
+	TArray<FString> Slots;      // caras candidatas; la pieza i usa Slots[i % Num] (dos listas = pares espejados)
+	TArray<FString> LiftSlots;  // caras en modo "lift"/"launch"
+	FName Chain;                // si no es None: las repetidas se encadenan por esa cara (fila, pila)
+	int32 DefaultCount = 1;     // cuantas van si se pide sin numero
+	bool bCountable = false;    // se le pregunta al modelo cuantas
+	bool bWeapon = false;
+	FString Ask, NotAsk;        // criterios si/no para el modelo de decision
+	TArray<FString> Words;      // palabras (raices) para numerales y respaldo sin red
+	FName ChildType, ChildSocket;
+	FString MountSockets;
+};
+
 /** Resultado de las "decisiones" sobre un prompt: un arquetipo + extras elegidos. */
 USTRUCT(BlueprintType)
 struct GAMEJAMM_API FJamBuildChoice
@@ -84,6 +114,9 @@ struct GAMEJAMM_API FJamBuildChoice
 	/** Claves de FJamExtraDef elegidas (fan, jet, wing, wall, ...). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
 	TArray<FName> Extras;
+
+	/** Ruta principal: bolsa de piezas (tipo, cantidad, modo). Si no esta vacia manda sobre Archetype/Extras. */
+	TArray<FJamPieceCount> Pieces;
 };
 
 /**
@@ -107,6 +140,22 @@ public:
 	/** Decisiones -> receta válida (el código arma las piezas; el modelo solo elige). */
 	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
 	static bool ComposeRecipe(const FJamBuildChoice& Choice, FBuildRecipe& OutRecipe, FString& OutNote);
+
+	/** Reglas por pieza (donde va, como preguntar por ella, palabras). Orden = orden de colocacion. */
+	static const TArray<FJamPieceRule>& PieceTable();
+
+	/** Sin red: conceptos (bolsas con nombre: carro, catapulta...) + palabras de piezas + numerales ("25 llantas"). */
+	static void BagFromKeywords(const FString& Prompt, TArray<FJamPieceCount>& OutBag);
+
+	/**
+	 * Numerales del texto ("25 llantas", "cuatro cañones") mandan sobre la cantidad que haya en la bolsa.
+	 * bResetCounts: si el texto trae algun numero, las cantidades que dio el modelo se descartan primero (Jev
+	 * "contagia" el numero dicho a otras piezas) y solo cuentan los numerales leidos por codigo.
+	 */
+	static void ApplyNumerals(const FString& Prompt, TArray<FJamPieceCount>& InOutBag, bool bResetCounts = false);
+
+	/** Bolsa de piezas -> receta: elige chasis, lo alarga si hace falta y coloca cada pieza en una cara libre. */
+	static bool ComposeFromBag(const TArray<FJamPieceCount>& Bag, FBuildRecipe& OutRecipe, FString& OutNote);
 
 	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
 	static bool GenerateRecipe(const FString& Prompt, FBuildRecipe& OutRecipe, FString& OutNote);

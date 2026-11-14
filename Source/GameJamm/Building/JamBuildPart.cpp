@@ -247,7 +247,9 @@ FString AJamBuildPart::GetStatusText() const
 	}
 	if (Kind == EJamPartKind::Rocket)
 	{
-		return bActive ? FString::Printf(TEXT("encendido, %.1f s de combustible"), FMath::Max(BurnLeft, 0.f)) : FString(TEXT("agotado / apagado"));
+		const float Wait = GetWorld() ? ReadyAt - GetWorld()->GetTimeSeconds() : 0.f;
+		return bActive ? FString::Printf(TEXT("encendido, %.1f s de combustible"), FMath::Max(BurnLeft, 0.f))
+			: Wait > 0.f ? FString::Printf(TEXT("recargando, %.0f s"), Wait) : FString(TEXT("listo (6 de energia por encendido)"));
 	}
 	if (Kind == EJamPartKind::Battery)
 	{
@@ -442,8 +444,18 @@ void AJamBuildPart::InitFromDef(const FJamPartDef& Def, const FVector& BoxSize, 
 
 bool AJamBuildPart::IsMine(const AActor* Other) const
 {
+	// "Mio" = de esta construccion o de mi equipo: fuego, hielo, rayo, agua y cabeza no afectan a aliados.
 	const AJamBuildPart* P = Cast<AJamBuildPart>(Other);
-	return P && (P == this || (Build.IsValid() && P->Build == Build));
+	if (P && (P == this || (Build.IsValid() && P->Build == Build)))
+	{
+		return true;
+	}
+	const EJamTeam Mine = Build.IsValid() ? Build->Team : EJamTeam::Neutral;
+	if (Mine == EJamTeam::Neutral || !Other)
+	{
+		return false;
+	}
+	return ((P && P->Build.IsValid()) ? P->Build->Team : UJamStatics::GetActorTeam(Other)) == Mine;
 }
 
 void AJamBuildPart::Nearby(const FVector& Center, float Radius, TArray<UPrimitiveComponent*>& Out) const
@@ -520,12 +532,25 @@ void AJamBuildPart::SetActive(bool bNewActive)
 	{
 		bNewActive = false; // sin energia no enciende
 	}
-	bActive = bNewActive;
-	SetGlow(this, bNewActive);
-	if (Kind == EJamPartKind::Rocket && bNewActive)
+	if (Kind == EJamPartKind::Rocket && bNewActive && !bActive)
 	{
-		BurnLeft = 3.f;
+		// Cohete: cada encendido cuesta 6 de energia y tras quemarse tarda 8 s en recargar (no es empuje gratis).
+		UWorld* W = GetWorld();
+		const float Cost = 6.f;
+		if (W && W->GetTimeSeconds() < ReadyAt)
+		{
+			bNewActive = false;
+		}
+		else if (Mode != 0 && Build.IsValid())
+		{
+			if (Build->Energy >= Cost) { Build->Energy -= Cost; }
+			else if (Mode == 2 && GetPlayerEnergy(W) >= Cost) { SetPlayerEnergy(W, GetPlayerEnergy(W) - Cost); }
+			else { bNewActive = false; }
+		}
+		if (bNewActive) { BurnLeft = 3.f; }
 	}
+	bActive = bNewActive;
+	SetGlow(this, bNewActive); // brillo al prender/apagar (estado final, ya con energia/recarga del cohete)
 	if (Kind == EJamPartKind::Bomb && bNewActive)
 	{
 		BurnLeft = 4.f; // mecha de 4 s
@@ -659,7 +684,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 
 	// Arrastre del aire en toda pieza: frena con el cuadrado de la velocidad (da velocidad tope a cohetes y planeadores).
 	const float Drag = CVarJamDrag.GetValueOnGameThread();
-	if (Drag > 0.f && Mesh->IsSimulatingPhysics())
+	if (Drag > 0.f && !bWelded && Mesh->IsSimulatingPhysics()) // las soldadas comparten cuerpo: el arrastre lo pone su raiz
 	{
 		const FVector V = Mesh->GetPhysicsLinearVelocity();
 		if (V.SizeSquared() > 100.0 * 100.0)
@@ -680,19 +705,26 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		}
 	}
 
-	// Cañon: sus bolas explotan al impactar (pierden de golpe la velocidad de salida), aunque el cañon ya este apagado.
+	// Cañon: sus bolas explotan al IMPACTAR (cambio brusco de velocidad entre dos cuadros), no por ir lentas en el aire.
+	BallVel.SetNum(Balls.Num());
 	for (int32 i = Balls.Num() - 1; i >= 0; --i)
 	{
 		AActor* B = Balls[i].Get();
 		if (!B)
 		{
 			Balls.RemoveAtSwap(i);
+			BallVel.RemoveAtSwap(i);
+			continue;
 		}
-		else if (B->GetGameTimeSinceCreation() > 0.15f && B->GetVelocity().Size() < Power * 0.6f)
+		const FVector V = B->GetVelocity();
+		const FVector Prev = BallVel[i];
+		BallVel[i] = V;
+		if (B->GetGameTimeSinceCreation() > 0.02f && !Prev.IsNearlyZero() && (V - Prev).Size() > FMath::Max(300.0, Prev.Size() * 0.3))
 		{
 			const FVector At = B->GetActorLocation();
 			B->Destroy();
 			Balls.RemoveAtSwap(i);
+			BallVel.RemoveAtSwap(i);
 			Explode(At, 180.f, 500.f, 12.f);
 		}
 	}
@@ -714,6 +746,12 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			*GetActorLocation().ToCompactString(), *Mesh->GetPhysicsLinearVelocity().ToCompactString(), GetActorUpVector().Z, MaxSpin, Build->Energy + (EnergyMode() == 2 ? GetPlayerEnergy(World) : 0.f), On, Build->Parts.Num());
 	}
 
+	if (Kind == EJamPartKind::Wing && !bActive && !bWelded)
+	{
+		// El ala es pasiva: sustenta con la velocidad aunque la construccion este apagada.
+		const double Fwd = FVector::DotProduct(Mesh->GetPhysicsLinearVelocity(), GetActorForwardVector());
+		Mesh->AddForce(FVector(0, 0, FMath::Clamp(Fwd, 0.0, 900.0) * Power));
+	}
 	if (!bActive)
 	{
 		return;
@@ -824,6 +862,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		BurnLeft -= DeltaSeconds;
 		if (BurnLeft <= 0.f)
 		{
+			ReadyAt = Now + 8.f;
 			SetActive(false);
 		}
 		break;
@@ -1101,7 +1140,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 				const AJamBuildPart* OtherPart = Cast<AJamBuildPart>(A);
 				const EJamTeam Mine = Build.IsValid() ? Build->Team : EJamTeam::Neutral;
 				const EJamTeam Theirs = (OtherPart && OtherPart->Build.IsValid()) ? OtherPart->Build->Team : UJamStatics::GetActorTeam(A);
-				const bool bFriend = Mine != EJamTeam::Neutral && Theirs == Mine;
+				const bool bFriend = (Mine != EJamTeam::Neutral && Theirs == Mine) || (Build.IsValid() && A == Build->Owner.Get());
 				if (A && D < BestD && !bFriend && !IsMine(A) && !A->ActorHasTag(ProjectileTag) && (A->IsA<APawn>() || H->IsSimulatingPhysics()))
 				{
 					BestD = D;

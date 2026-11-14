@@ -121,28 +121,48 @@ FString FJamDecisionClient::BuildRequestBody(const FString& Prompt, const TCHAR*
 
 	TSharedRef<FJsonObject> Questions = Obj();
 
-	TSharedRef<FJsonObject> Arch = Obj();
-	Arch->SetStringField(TEXT("type"), TEXT("choice"));
-	Arch->SetStringField(TEXT("instructions"), TEXT("Pick the kind of machine the user wants to build from their request."));
-	TSharedRef<FJsonObject> ArchCriteria = Obj();
-	for (const FJamArchetypeDef& A : UJamBuildGenerator::ArchetypeTable())
-	{
-		ArchCriteria->SetStringField(A.Name.ToString(), A.Description);
-	}
-	Arch->SetObjectField(TEXT("criteria"), ArchCriteria);
-	Questions->SetObjectField(TEXT("archetype"), Arch);
-
-	for (const FJamExtraDef& E : UJamBuildGenerator::ExtraTable())
+	// El modelo NO elige una plantilla: decide pieza por pieza si hace falta, cuantas y en que modo.
+	// (Orden fijo = orden de PieceTable: las probabilidades de Jev dependen del orden.)
+	for (const FJamPieceRule& R : UJamBuildGenerator::PieceTable())
 	{
 		TSharedRef<FJsonObject> Q = Obj();
 		Q->SetStringField(TEXT("type"), TEXT("noul"));
-		Q->SetStringField(TEXT("instructions"), TEXT("Decide whether the user's request asks for this extra part."));
+		Q->SetStringField(TEXT("instructions"), TEXT("Decide whether this building piece is needed to build what the user asks for."));
 		TSharedRef<FJsonObject> Crit = Obj();
-		Crit->SetStringField(TEXT("true"), E.TrueText);
-		Crit->SetStringField(TEXT("false"), E.FalseText);
+		Crit->SetStringField(TEXT("true"), R.Ask);
+		Crit->SetStringField(TEXT("false"), R.NotAsk);
 		Q->SetObjectField(TEXT("criteria"), Crit);
-		Questions->SetObjectField(E.Key.ToString(), Q);
+		Questions->SetObjectField(TEXT("use_") + R.Type.ToString(), Q);
+		if (R.bCountable)
+		{
+			TSharedRef<FJsonObject> N = Obj();
+			N->SetStringField(TEXT("type"), TEXT("choice"));
+			N->SetStringField(TEXT("instructions"), FString::Printf(TEXT("How many pieces of this kind does the user ask for? Piece: %s"), *R.Ask));
+			TSharedRef<FJsonObject> NC = Obj();
+			NC->SetStringField(TEXT("default"), TEXT("The user gives no number for this piece."));
+			for (const TCHAR* Num : { TEXT("1"), TEXT("2"), TEXT("3"), TEXT("4"), TEXT("6"), TEXT("8"), TEXT("10"), TEXT("12"), TEXT("16"), TEXT("20"), TEXT("25") })
+			{
+				NC->SetStringField(Num, FString::Printf(TEXT("The user asks for %s of them (or the closest number to %s)."), Num, Num));
+			}
+			N->SetObjectField(TEXT("criteria"), NC);
+			Questions->SetObjectField(TEXT("n_") + R.Type.ToString(), N);
+		}
 	}
+	auto Flag = [&Questions](const TCHAR* Key, const TCHAR* True, const TCHAR* False)
+	{
+		TSharedRef<FJsonObject> Q = Obj();
+		Q->SetStringField(TEXT("type"), TEXT("noul"));
+		Q->SetStringField(TEXT("instructions"), TEXT("Decide how the thing the user asks for must behave."));
+		TSharedRef<FJsonObject> Crit = Obj();
+		Crit->SetStringField(TEXT("true"), True);
+		Crit->SetStringField(TEXT("false"), False);
+		Q->SetObjectField(TEXT("criteria"), Crit);
+		Questions->SetObjectField(Key, Q);
+	};
+	Flag(TEXT("mode_lift"), TEXT("It must lift off the ground with propellers or rockets pointing down: drone, helicopter, quadcopter, rocket ship, missile."),
+		TEXT("Its propellers or rockets push it forward along the ground, or it has none."));
+	Flag(TEXT("mode_launch"), TEXT("It must throw or launch things through the air: catapult, launcher, trampoline, trebuchet."),
+		TEXT("It does not throw things; a spring would only make it jump."));
 	Root->SetObjectField(TEXT("questions"), Questions);
 
 	FString Out;
@@ -170,6 +190,44 @@ bool FJamDecisionClient::ParseResponse(const FString& ResponseJson, FJamBuildCho
 	}
 
 	OutChoice = FJamBuildChoice();
+	if ((*Answers)->HasField(TEXT("mode_lift")) || !(*Answers)->HasField(TEXT("archetype")))
+	{
+		// Formato por piezas: use_<Tipo> (noul), n_<Tipo> (choice), mode_lift / mode_launch (noul).
+		auto Noul = [&Answers](const FString& Key)
+		{
+			const TSharedPtr<FJsonObject>* A = nullptr;
+			double P = 0.0;
+			return (*Answers)->TryGetObjectField(Key, A) && A && (*A)->TryGetNumberField(TEXT("noul"), P) ? P : 0.0;
+		};
+		const bool bLift = Noul(TEXT("mode_lift")) > 0.5, bLaunch = Noul(TEXT("mode_launch")) > 0.5;
+		TArray<FString> Txt;
+		for (const FJamPieceRule& R : UJamBuildGenerator::PieceTable())
+		{
+			if (Noul(TEXT("use_") + R.Type.ToString()) <= 0.5) { continue; }
+			FJamPieceCount I;
+			I.Type = R.Type;
+			I.Count = R.DefaultCount;
+			const TSharedPtr<FJsonObject>* N = nullptr;
+			FString NumStr;
+			double NumConf = 0.0;
+			if ((*Answers)->TryGetObjectField(TEXT("n_") + R.Type.ToString(), N) && N && (*N)->TryGetStringField(TEXT("choice"), NumStr) && NumStr.IsNumeric()
+				&& (*N)->TryGetNumberField(TEXT("confidence"), NumConf) && NumConf >= 0.8 && FCString::Atoi(*NumStr) >= 2)
+			{
+				I.Count = FCString::Atoi(*NumStr); // solo si el modelo esta seguro y dice 2 o mas ("1" lo contesta de mas); los numerales del texto mandan
+			}
+			if (R.LiftSlots.Num() > 0)
+			{
+				const bool bSpring = R.Type == "Spring";
+				if (bSpring ? bLaunch : bLift) { I.Mode = bSpring ? FName("launch") : FName("lift"); }
+				if (I.Mode == "lift" && R.Type == "Fan") { I.Count = FMath::Max(I.Count, 2); } // para sustentar hacen falta al menos dos helices
+			}
+			OutChoice.Pieces.Add(I);
+			Txt.Add(FString::Printf(TEXT("%s x%d"), *I.Type.ToString(), I.Count));
+		}
+		OutChoice.Archetype = "Pieces";
+		OutNote = FString::Printf(TEXT("jev pieces=%d conf=1.00 [%s]"), OutChoice.Pieces.Num(), *FString::Join(Txt, TEXT(", ")));
+		return OutChoice.Pieces.Num() > 0;
+	}
 	const TSharedPtr<FJsonObject>* Arch = nullptr;
 	FString Picked;
 	if (!(*Answers)->TryGetObjectField(TEXT("archetype"), Arch) || !Arch || !(*Arch)->TryGetStringField(TEXT("choice"), Picked))
@@ -270,6 +328,7 @@ void FJamDecisionClient::RequestChoice(const FString& Prompt, TFunction<void(boo
 		}
 		const bool bParsed = ParseResponse(Resp->GetContentAsString(), C, Note);
 		UE_LOG(LogJamDecision, Log, TEXT("backend=%s ok=%d %s extras=[%s]"), bDirect ? TEXT("typesafe-jev") : TEXT("openrouter-jev"), bParsed, *Note, *ExtrasStr(C));
+		if (!bParsed) { UE_LOG(LogJamDecision, Warning, TEXT("respuesta: %s"), *Resp->GetContentAsString().Left(400)); }
 		Done(bParsed, C, Note);
 	});
 	Req->ProcessRequest();

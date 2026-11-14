@@ -94,12 +94,37 @@ bool FJamBuildTableTest::RunTest(const FString& Parameters)
 		FBuildRecipe R;
 		FString Note;
 		TestTrue(*FString::Printf(TEXT("%s + todos los extras: compone (%s)"), *A.Name.ToString(), *Note), UJamBuildGenerator::ComposeRecipe(C, R, Note));
-		TestTrue(*FString::Printf(TEXT("%s + todos: %d piezas <= MaxParts"), *A.Name.ToString(), R.Parts.Num()), R.Parts.Num() <= UJamAssembler::MaxParts);
+		TestTrue(*FString::Printf(TEXT("%s + todos: %d piezas <= MaxParts"), *A.Name.ToString(), R.Parts.Num()), R.Parts.Num() <= UJamAssembler::GetMaxParts());
 		Info.Reset();
 		const bool bOverlap = UJamAssembler::HasOverlap(R, NAME_None, Info);
 		TestFalse(*FString::Printf(TEXT("%s + todos: sin solapes (%s)"), *A.Name.ToString(), *Info), bOverlap);
 		UE_LOG(LogTemp, Display, TEXT("JamTables: %s + todos -> %d piezas, %s"), *A.Name.ToString(), R.Parts.Num(), *Note);
 		AddInfo(FString::Printf(TEXT("%s + todos -> %d piezas, %s"), *A.Name.ToString(), R.Parts.Num(), *Note));
+	}
+
+	// 3b) Composer por piezas (sin red): cantidades exactas, sin solapes, dentro del limite.
+	{
+		struct FCase { const TCHAR* Prompt; const TCHAR* Type; int32 Count; };
+		const FCase Cases[] = {
+			{ TEXT("arma un carro con 25 llantas"), TEXT("Wheel"), 25 }, { TEXT("un puente con 10 tablas"), TEXT("Plank"), 10 },
+			{ TEXT("un tanque con 4 cañones"), TEXT("Cannon"), 4 }, { TEXT("un cohete con 3 propulsores"), TEXT("Rocket"), 3 },
+			{ TEXT("una torre de 12 bloques"), TEXT("Block"), 12 }, { TEXT("una catapulta"), TEXT("Spring"), 1 },
+			{ TEXT("un carro con seis ruedas y dos lanzallamas"), TEXT("Flamethrower"), 2 },
+		};
+		for (const FCase& Cs : Cases)
+		{
+			FBuildRecipe R;
+			FString Note;
+			TestTrue(*FString::Printf(TEXT("composer '%s': compone (%s)"), Cs.Prompt, *Note), UJamBuildGenerator::GenerateRecipe(Cs.Prompt, R, Note));
+			int32 N = 0;
+			for (const FBuildRecipePart& P : R.Parts) { N += P.Type == FName(Cs.Type) ? 1 : 0; }
+			TestEqual(*FString::Printf(TEXT("composer '%s': %s (%s)"), Cs.Prompt, Cs.Type, *Note), N, Cs.Count);
+			TestTrue(*FString::Printf(TEXT("composer '%s': %d piezas <= limite"), Cs.Prompt, R.Parts.Num()), R.Parts.Num() <= UJamAssembler::GetMaxParts());
+			Info.Reset();
+			const bool bOver = UJamAssembler::HasOverlap(R, NAME_None, Info);
+			TestFalse(*FString::Printf(TEXT("composer '%s': sin solapes (%s)"), Cs.Prompt, *Info), bOver);
+			UE_LOG(LogTemp, Display, TEXT("JamTables: composer '%s' -> %d piezas, %s"), Cs.Prompt, R.Parts.Num(), *Note);
+		}
 	}
 
 	// 4) Respaldo por palabras clave: frases de referencia.
@@ -153,7 +178,7 @@ bool FJamBuildTableTest::RunTest(const FString& Parameters)
 		if ((*O)->TryGetNumberField(TEXT("energy_capacity"), Num)) { TestEqual(*FString::Printf(TEXT("%s: energy_capacity"), *Type.ToString()), D.Power, (float)Num); }
 	}
 	double MaxParts = 0;
-	if (Root->TryGetNumberField(TEXT("max_parts"), MaxParts)) { TestEqual(TEXT("max_parts"), UJamAssembler::MaxParts, (int32)MaxParts); }
+	if (Root->TryGetNumberField(TEXT("max_parts"), MaxParts)) { TestEqual(TEXT("max_parts"), UJamAssembler::GetMaxParts(), (int32)MaxParts); }
 	for (const TSharedPtr<FJsonValue>& V : Root->GetArrayField(TEXT("templates")))
 	{
 		FString Code;
