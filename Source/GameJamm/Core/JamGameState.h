@@ -23,6 +23,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Jam|Match")
 	EJamTeam GetWinningTeam() const { return WinningTeam; }
 
+	/** Segundos de partida (los cuenta el GameMode cada segundo). */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Jam|Match")
+	float MatchSeconds = 0.f;
+
+	/** 12:00 en adelante (GDD 10). */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Jam|Match")
+	bool bSuddenDeath = false;
+
+	/** true si el nivel tiene bases y corre el reloj de la partida. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Jam|Match")
+	bool bMatchRunning = false;
+
 	/** Solo servidor (lo llama el GameMode). */
 	void SetMatchResult(EJamTeam Winner);
 

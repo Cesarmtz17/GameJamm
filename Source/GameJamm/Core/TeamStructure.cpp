@@ -7,6 +7,9 @@
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
+#include "UObject/ConstructorHelpers.h"
 
 ATeamStructure::ATeamStructure()
 {
@@ -17,7 +20,20 @@ ATeamStructure::ATeamStructure()
 	SetRootComponent(Mesh);
 
 	Health = CreateDefaultSubobject<UHealthComponent>(TEXT("Health"));
-	Health->MaxHealth = 1000.f;
+	Health->MaxHealth = 1500.f; // GDD 9: torre 1500, base 3000 (se ajusta por instancia)
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cyl(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Glow(TEXT("/Engine/EngineMaterials/EmissiveMeshMaterial.EmissiveMeshMaterial"));
+	Bolt = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Bolt"));
+	Bolt->SetupAttachment(Mesh);
+	Bolt->SetUsingAbsoluteLocation(true);
+	Bolt->SetUsingAbsoluteRotation(true);
+	Bolt->SetUsingAbsoluteScale(true);
+	Bolt->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Bolt->SetCastShadow(false);
+	Bolt->SetHiddenInGame(true);
+	if (Cyl.Succeeded()) { Bolt->SetStaticMesh(Cyl.Object); }
+	if (Glow.Succeeded()) { Bolt->SetMaterial(0, Glow.Object); }
 }
 
 void ATeamStructure::BeginPlay()
@@ -76,6 +92,10 @@ void ATeamStructure::HandlePrerequisiteDied(UHealthComponent* HealthComponent, A
 void ATeamStructure::HandleDied(UHealthComponent* HealthComponent, AActor* Killer)
 {
 	GetWorldTimerManager().ClearTimer(AttackTimer);
+	HideBolt();
+	// Cae: deja de verse y de estorbar (BP puede poner ruinas/explosion en OnStructureDestroyed).
+	Mesh->SetHiddenInGame(true);
+	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	OnStructureDestroyed(Killer);
 
 	if (AJamGameMode* GameMode = GetWorld()->GetAuthGameMode<AJamGameMode>())
@@ -135,6 +155,26 @@ void ATeamStructure::TryAttack()
 	if (AActor* Target = FindTarget())
 	{
 		UGameplayStatics::ApplyDamage(Target, AttackDamage, nullptr, this, nullptr);
+
+		// Rayo desde lo alto de la torre al objetivo.
+		FVector Origin, Extent;
+		Mesh->Bounds.GetBox().GetCenterAndExtents(Origin, Extent);
+		const FVector From = FVector(Origin.X, Origin.Y, Origin.Z + Extent.Z * 0.8f);
+		const FVector To = Target->GetActorLocation();
+		const FVector Dir = To - From;
+		Bolt->SetWorldLocationAndRotation(From + Dir * 0.5f, FRotationMatrix::MakeFromZ(Dir.GetSafeNormal()).Rotator());
+		Bolt->SetWorldScale3D(FVector(0.12f, 0.12f, Dir.Size() / 100.f));
+		Bolt->SetHiddenInGame(false);
+		GetWorldTimerManager().SetTimer(BoltTimer, this, &ATeamStructure::HideBolt, 0.15f, false);
+
 		OnAttack(Target);
+	}
+}
+
+void ATeamStructure::HideBolt()
+{
+	if (Bolt)
+	{
+		Bolt->SetHiddenInGame(true);
 	}
 }

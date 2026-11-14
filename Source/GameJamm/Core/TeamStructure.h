@@ -29,6 +29,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Structure")
 	TObjectPtr<UHealthComponent> Health;
 
+	/** Rayo visible del disparo (cilindro emisivo que se estira hasta el objetivo ~0.15 s). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Structure")
+	TObjectPtr<UStaticMeshComponent> Bolt;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Structure")
 	bool bIsBase = false;
 
@@ -78,5 +82,8 @@ protected:
 	void TryAttack();
 	AActor* FindTarget() const;
 
+	void HideBolt();
+
 	FTimerHandle AttackTimer;
+	FTimerHandle BoltTimer;
 };

@@ -21,4 +21,7 @@ void AJamGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AJamGameState, bMatchOver);
 	DOREPLIFETIME(AJamGameState, WinningTeam);
+	DOREPLIFETIME(AJamGameState, MatchSeconds);
+	DOREPLIFETIME(AJamGameState, bSuddenDeath);
+	DOREPLIFETIME(AJamGameState, bMatchRunning);
 }
