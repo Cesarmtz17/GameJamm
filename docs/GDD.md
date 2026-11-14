@@ -51,8 +51,227 @@ Título del juego: **por definir** (afecta solo a la UI y a la página de itch).
 
 Dirección de arte, UI y audio: **[ART.md](ART.md)** (islas flotantes + campo abierto).
 
+---
+
+# Jugabilidad
+
+> Estado de cada parte: **Decidido** = lo confirmó el equipo · **Propuesta** = diseño para revisar (los números son valores
+> iniciales y se ajustan jugando). Datos de piezas: [BuildKnowledge.json](../Content/Game/Building/Data/BuildKnowledge.json) ·
+> reglas de la IA: [research 13](mechanics-research/13-conocimiento-ia-construccion.md) · mapa: `SourceArt/World/map_layout.json`.
+
+## 1. Loop de juego
+
+```mermaid
+flowchart LR
+  A[Apareces con lo mínimo] --> B[Looteas piezas, materiales y energía]
+  B --> C[Le pides una construcción a la IA<br/>o la armas a mano]
+  C --> D[Eliges entre sus propuestas]
+  D --> E[Empujas: minions, jugadores, torres]
+  E --> F{¿Se rompió la construcción<br/>o te quedaste sin energía?}
+  F -- sí --> B
+  F -- no --> E
+  E --> G[Cae la base enemiga: ganas]
+```
+
+Cada vuelta del loop, el jugador decide **qué construir con lo que trae**. Lootear mejor da construcciones más fuertes, y ganar
+peleas da la energía de otros. Por eso explorar y pelear importan tanto como construir.
+
+## 2. Modos de juego — Decidido: los dos son PvP
+
+| | **Asalto** (modo principal) | **Choque en la isla** (segundo modo) — Propuesta |
+|---|---|---|
+| Idea | Tower push: destruir 2 torres y la base enemiga | Arena: sacar o destruir a los rivales en una isla flotante |
+| Equipos | 3 vs 3 | 2 vs 2 o todos contra todos (4) |
+| Mapa | Carril de ~250 m: base → puente → isla de torre 2 → pradera central (torres 1 y río) → torre 2 → base, más 4 islas de loot (blockout de Emilio) | Una isla central del mismo set (pradera o isla de loot) con orillas sin barandal |
+| Minions | **Sí** (§3) | No |
+| Loot | Campamentos fijos y drops (§4) | Cajas que **caen del cielo** cada 20 s en puntos al azar |
+| Cómo se gana | Cae la base enemiga | Primero a 10 eliminaciones, o el último en pie de 5 rondas. Tirar a alguien de la isla cuenta como eliminación |
+| Duración | 12–15 min | 5 min |
+| Por qué | Aquí brillan los vehículos, las torretas y los arietes contra las torres | Partidas cortas para el video y para jueces con poco tiempo; las construcciones que embisten y empujan se lucen |
+
+**Bots en los lugares vacíos (Decidido por alcance):** cualquier lugar sin humano lo ocupa un bot. Los jueces juegan solos, así
+que el caso base es **1 humano + 2 bots aliados contra 3 bots**. Jugar en red humano contra humano es la meta del diseño, pero
+el juego tiene que funcionar completo solo con bots.
+
+> [!warning] Riesgo
+> La red (replicar construcciones con física) es lo más caro de todo. Prioridad: Asalto contra bots > Choque contra bots >
+> PvP en red (LAN o listen server). Si la red no llega, el PvP se muestra con bots y se dice en la página.
+
+## 3. Minions en el PvP — Propuesta
+
+Sí, en Asalto hay minions. Le dan ritmo al carril, son blanco para las construcciones y frenan a quien empuja solo.
+
+| Regla | Valor |
+|---|---|
+| Oleadas | Cada **30 s** sale de cada base: 3 de cuerpo a cuerpo + 1 a distancia. Desde el minuto 8, +1 "pesado" que aguanta más |
+| Ruta | Siguen el carril, pelean con lo primero que encuentran: minions, jugadores, construcciones y luego torres |
+| Vida / daño | Cuerpo a cuerpo 60 HP / 8 por golpe · A distancia 40 HP / 6 · Pesado 200 HP / 15 |
+| Torres | Disparan primero a los minions enemigos en rango. **Cambian a un jugador** si ese jugador le pega a un jugador aliado cerca de la torre |
+| Daño a torres | Un jugador o construcción que golpea una torre **sin minions aliados cerca** hace 50 % de daño. Hay que empujar con la oleada, no meterse solo |
+| Recompensa | Cada minion suelta **energía +3**; el pesado suelta además una pieza común al azar |
+
+## 4. Loot — Propuesta
+
+**Apareces casi sin nada (Decidido):** solo el asiento (infinito) y tu barra mínima de energía. Todo lo demás se lootea.
+
+**Dónde sale cada cosa** (usa las 4 islas de loot del blockout):
+
+| Lugar | Qué da | Reaparece |
+|---|---|---|
+| Isla de loot cercana a tu base (2, una por lado) | Piezas comunes: Plank, Block, Cylinder, Wheel + material de fusión común | Cofre 60 s |
+| Isla de loot de media distancia (2, del lado enemigo y propio) | Dispositivos: Fan, Flamethrower, Cannon, Battery, Spring, Wing | Cofre 90 s; la custodian 3 enemigos neutrales |
+| Pradera central (evento) | **Cofre raro** al minuto 5 y cada 3 min: Jet, Turbine, Beam, HoverStone, Rocket, BigWheel | Una vez por evento; se anuncia en pantalla |
+| Montones de chatarra en el campo | 1–2 piezas comunes al romperlos | 45 s |
+| Minions y enemigos de campamento | Energía (+3 / +10) y a veces una pieza | — |
+| **Jugador eliminado** | Suelta una **bolsa** con 50 % de sus piezas (redondeado abajo) y 50 % de su energía sobre el mínimo | La bolsa dura 30 s en el suelo |
+| Construcción destruida por un enemigo | 50 % de sus piezas quedan tiradas para quien las tome | 30 s |
+| Construcción que desarmas tú | Recuperas **el 100 %** de sus piezas | — |
+
+**Mochila (límites) — Propuesta:**
+
+| Límite | Valor | Por qué |
+|---|---|---|
+| Espacio total | **40 piezas** | Obliga a elegir qué cargar |
+| Por tipo común (Plank, Block, Cylinder, Wheel, Panel) | 8 de cada una | Alcanza para un carro de 4 ruedas y piezas de repuesto |
+| Por dispositivo (Fan, Flamethrower, Cannon, Frost, Spring, Wing, Battery…) | 4 de cada uno | Evita construcciones con 10 cañones |
+| Por pieza rara (Jet, Turbine, Beam, HoverStone, Rocket, BigWheel) | 2 de cada una | La pradera central vale la pena pelearla |
+| Materiales de fusión | 10 de cada uno, aparte de las piezas | — |
+| Asiento | Infinito, no ocupa espacio | Decidido |
+| Construcción | **21 piezas** máximo, **1 construcción activa** por jugador (hacer otra desarma la anterior y devuelve sus piezas) | Rendimiento y claridad en PvP |
+| Por construcción | Máximo 4 armas (Flamethrower, Frost, Cannon, Beam, Bomb) y 6 propulsores (Fan, Turbine, Jet, Rocket) | Balance |
+
+Al recoger algo con la mochila llena, el HUD lo marca y no se recoge. Puedes tirar piezas desde la mochila (Tab).
+
+## 5. Energía — Decidido: tipo maná, con mínimo garantizado
+
+| Regla | Valor (Propuesta) |
+|---|---|
+| **Mínimo garantizado** | **50**. Si tienes menos, se recarga sola (+3/s con tu construcción apagada) hasta 50 |
+| Máximo | **150**. Lo que pase de 50 **solo** se consigue looteando o ganando peleas |
+| Cómo subir de 50 | Cristales de energía (+15 chico, +40 grande) en cofres · minions (+3) · enemigos de campamento (+10) · **eliminar a un jugador**: su orbe trae el 50 % de lo que tenía sobre el mínimo |
+| Baterías (Battery / BigBattery) | Piezas que pegas a tu construcción: reserva de 30 / 80 que se gasta antes que tu barra |
+| Al morir | Conservas el mínimo (50). Lo de arriba lo suelta tu orbe |
+| Asiento | No gasta (Decidido) |
+| Gasto | Ruedas 0.2/s, Fan 1.5, Turbine/Jet 2.5, armas 2.0, Cannon 3.0, HoverStone 0.5, Rocket 0 (es de un uso) |
+| Al llegar a 0 | Se apagan los dispositivos; el asiento sigue dirigiendo sin empuje; la barra parpadea |
+
+Así, **quien lootea y gana peleas tiene construcciones más fuertes y que duran más**. Con el mínimo, un carro con ventilador
+(2.3/s) dura ~22 s. Con la barra llena (150) dura más de un minuto.
+
+**HUD:** barra de 15 segmentos junto a la vida. Los primeros 5 (el mínimo) van de otro tono. Mientras la construcción está
+encendida muestra el gasto actual (−2.3/s), y las baterías pegadas se ven como segmentos extra encima.
+
+## 6. Construir — Decidido: voz, texto y a mano, siempre con propuestas
+
+### 6.1 Por voz o texto: la IA propone y tú eliges
+
+1. Mantienes **V** y hablas, o presionas **B** y escribes: *"algo que ruede y queme todo"*.
+2. El Asistente responde en ~1 s con **3 propuestas**, cada una con un **holograma** frente a ti:
+
+| Propuesta | Qué es | Cómo sale (Jev) |
+|---|---|---|
+| **A — La que pediste** | La forma más probable para tu pedido, con tus piezas | 1.ª opción de Jev |
+| **B — Alternativa** | Otra forma que también encaja (si pediste carro, quizá un ariete o un hover) | 2.ª opción de Jev; Jev da la probabilidad de cada opción, así que salen sin llamadas extra |
+| **C — Segura / reducida** | La versión que sí alcanza con lo que traes y con tu energía | El solver recorta la A |
+
+3. Cada tarjeta muestra: **piezas que usa** (y cuántas te quedan), **gasto de energía por segundo** y cuánto te dura,
+   y **qué te falta**: *"faltan 2 Wheel, hay en la isla de loot cercana"*.
+4. Eliges con **1 / 2 / 3**, **R** para volver a pedir con otras palabras, o **G** para abrir la propuesta en modo manual y
+   editarla. Si una propuesta necesita piezas que no tienes, puedes **guardarla**: el Asistente avisa cuando ya las tengas.
+5. Al elegir, la construcción se arma frente a ti y queda **apagada**. La enciendes con **C**.
+
+### 6.2 A mano
+
+Con **G**: eliges una pieza de la mochila (rueda del mouse), apuntas a una cara de tu construcción, **clic izquierdo** la pega
+y **clic derecho** quita la última. **R** gira la pieza 45° y **Shift+R** gira la construcción completa 45°. Usa el mismo sistema de caras que la IA, así que
+**puedes editar lo que armó la IA** y la IA puede editar lo que armaste tú (*"ahora ponle fuego"*).
+
+### 6.3 Encender, manejar y desarmar
+
+- **C** prende o apaga toda la construcción (todos los dispositivos a la vez).
+- **E** junto al asiento: te subes o te bajas. Arriba: **W/S** acelera y frena, **A/D** gira, **Espacio/Ctrl** sube y baja si
+  vuela; se nivela sola.
+- **X** (mantener 1 s): **desarmar**. Recuperas todas las piezas.
+- Sin asiento, la construcción funciona sola: va derecho o gira en su lugar (una rueda acostada con lanzallamas es una trampa).
+
+## 7. Controles
+
+| Acción | Teclado y mouse | Control |
+|---|---|---|
+| Moverse / cámara | WASD / mouse | Stick izq. / der. |
+| Atacar / apuntar arco o bloquear | Clic izq. / clic der. | RT / LT |
+| Saltar / esquivar | Espacio / Shift | A / B |
+| Interactuar, lootear, subirse al asiento | E | X |
+| Fusionar material al arma | F | Cruz arriba |
+| Cambiar arma (espada, arco) | Rueda del mouse (fuera del modo manual) | Y |
+| Asistente: texto / voz | B / mantener V | Cruz izq. / mantener cruz der. |
+| Elegir propuesta / repetir pedido (con el panel del Asistente abierto) | 1, 2, 3 / R | Cruz / Y |
+| Modo manual: elegir pieza / pegar / quitar / girar | G, luego rueda / clic izq. / clic der. / R | Cruz abajo |
+| Prender o apagar construcción | C | RB |
+| Desarmar | Mantener X | Mantener LB |
+| Mochila | Tab | Menú |
+
+## 8. Combate y fusión — Propuesta
+
+### 8.1 Armas
+
+| Arma | Daño base | Velocidad | Alcance | MVP |
+|---|---|---|---|---|
+| Espada | 20 | 0.6 s por golpe | 2 m | **Sí** |
+| Arco | 15 por flecha | 0.8 s al tensar | 40 m | **Sí** |
+| Lanza | 16 | 0.7 s | 3.5 m | Stretch |
+| Mazo | 32 | 1.1 s | 2 m, empuja | Stretch |
+| Escudo | 6 (golpe) | — | Bloquea 70 % de frente | Stretch |
+
+### 8.2 Cómo se fusiona
+
+- **F** pega **un material** al arma en mano. Un arma lleva **un solo material** a la vez; fusionar otro reemplaza el anterior
+  (el anterior se pierde). El material **se gasta con el uso**: dura **20 golpes** (o 1 flecha) y se cae. El arma base no se rompe.
+- Las **flechas** se fusionan al tensar: cada flecha gasta 1 material.
+- **El material cambia el arma por sus propiedades**, igual que las piezas en la construcción: peso, filo, elemento o dispositivo.
+
+| Material | Qué le hace a la espada | Qué le hace a la flecha |
+|---|---|---|
+| **Roca** | +12 daño, ×2 empuje, **golpeas 30 % más lento** (pesa) | +8 daño, derriba |
+| **Púa / colmillo** | +8 daño, sin penalización | **×2 el bono** (+16): la flecha más fuerte |
+| **Fuego** | Quema: +5/s por 3 s; prende pasto y madera | Incendia el punto de impacto |
+| **Hielo** | Ralentiza 50 % por 2 s; 3 golpes seguidos congelan 1 s | Congela al blanco; sobre agua hace plataforma |
+| **Rayo** | Aturde 0.5 s; se propaga a quien esté mojado | Descarga en área de 2 m |
+| **Bomba** | **Al golpear explota** (35 de daño en 2.5 m, también a ti si estás pegado) y se consume en ese golpe | Flecha explosiva |
+| **Piezas de construcción** (Stretch) | Fan: empuja al golpear · Spring: te impulsa hacia atrás · Wheel: golpe giratorio | Fan: flecha que empuja · Rocket: flecha de largo alcance |
+
+Fórmula: **daño = base del arma + bono del material** (como en la research de fusión, [02](mechanics-research/02-mecanicas-fusion.md)).
+Los efectos (quemar, congelar, aturdir) se acumulan con los de las construcciones: congelar a alguien con flecha y pasarle encima
+con un ariete es una combinación válida.
+
+## 9. Balance base — Propuesta
+
+**Alcances y daño de lo que construyes:**
+
+| Pieza | Alcance | Daño / efecto | Gasto |
+|---|---|---|---|
+| Flamethrower | Cono de **4 m**, 30° | 25/s + quemadura 5/s por 3 s | 2.0/s |
+| Frost | Cono de 4 m | Ralentiza 50 % mientras toca; 2 s seguidos congelan 1.5 s | 2.0/s |
+| Cannon | Bala hasta ~30 m (con caída) | 40 + explosión de 2 m, cada 1.5 s | 3.0/s |
+| Beam | **25 m** en línea recta | 12 cada 0.25 s | 2.0/s |
+| Bomb | 3 m de radio | 60, un solo uso | — |
+| Choque de la construcción | — | Daño = masa × velocidad (sobre 8 m/s), tope 60 por golpe | — |
+| Head (torreta sola) | Detecta a **20 m** | Apunta lo que lleve encima | 0.3/s |
+
+**Vida y defensa:**
+
+| Cosa | Vida | Nota |
+|---|---|---|
+| Jugador | 150 | Reaparece en 5 s (+1 s por minuto, tope 15 s) |
+| Torre | 1500 | Alcance **15 m**, 20 de daño cada 1.5 s (lo que ya hace `ATeamStructure`) |
+| Base | 3000 | Solo recibe daño cuando cayeron las 2 torres de ese equipo |
+| Piezas de construcción | Plank 60 · Block 150 · Wall 300 · Wheel 80 · dispositivos 80 | Las armas de los jugadores y los minions las rompen; si se rompe una pieza, lo pegado a ella se suelta |
+| Contra torres | Las construcciones hacen **50 % de daño a torres y bases** | Ayudan a empujar, pero no derriban una torre solas |
+
+---
+
 ## Decisiones clave de alcance
-1. **Modo principal: jugador vs bots** (aliados y enemigos IA). Los jueces juegan solos. Multijugador online = stretch goal.
+1. **Los dos modos son PvP**, y **cualquier lugar sin humano lo ocupa un bot**. Los jueces juegan solos (1 humano + bots), así que el juego tiene que estar completo contra bots. El PvP en red es la meta, pero va después de que todo funcione contra bots (§2).
 2. **El asistente de IA nunca bloquea el juego**: si no hay red/API, usa recetas predefinidas.
 3. Contenido mínimo y pulido > mucho contenido roto.
 
@@ -63,13 +282,17 @@ Dirección de arte, UI y audio: **[ART.md](ART.md)** (islas flotantes + campo ab
 - [ ] Bots: minions que avanzan por el carril + 2–4 bots "héroe" por equipo (StateTree/Behavior Tree).
 - [ ] **3–4 campamentos de loot** con enemigos y cofre.
 - [ ] **Fusión**: 3 materiales × 2 armas. Ej.: Piedra (+daño/knockback), Fuego (DoT), Hielo (slow). Espada y flecha.
-- [ ] **Construcción**: ~6 piezas con puntos de anclaje (Llanta, Tabla, Motor/Cohete, Lanzallamas, Roca, Asiento opcional). Snap + física (Chaos constraints). Activar/desactivar.
-- [ ] **Asistente IA**: el jugador escribe un prompt → LLM devuelve receta JSON → el juego la arma con las piezas del inventario. Fallback a recetas fijas.
+- [ ] **Construcción**: las piezas de `UJamPartCatalog` con física (Chaos constraints), consumo de la mochila, desarmar y recuperar, prender y apagar con una tecla, asiento para manejar (Jugabilidad §6).
+- [ ] **Asistente IA**: pedido por texto (voz = P1) → Jev → **3 propuestas** con holograma, piezas, energía y lo que falta → eliges o vuelves a pedir (§6.1). Fallback por palabras clave.
+- [ ] **Energía**: barra tipo maná con mínimo 50, sube con loot y eliminaciones (§5).
+- [ ] **Minions** en Asalto (§3) y **loot** por islas (§4).
 - [ ] HUD: vida, inventario de materiales/piezas, estado de torres. Menú inicio + pantalla final.
 - [ ] Audio: música + SFX básicos (golpes, fuego, destrucción de torre).
 
 ## Stretch (solo si el MVP está listo)
-- Multijugador LAN/listen server.
+- Segundo modo **Choque en la isla** (§2) contra bots.
+- PvP en red (LAN/listen server) para los dos modos.
+- Construcción a mano (§6.2), voz, editar la última construcción, fusión con piezas de construcción.
 - Más piezas/materiales, vehículos manejables.
 - Pantalla de repetición de la mejor jugada.
 
