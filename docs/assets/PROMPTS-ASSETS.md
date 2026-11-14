@@ -16,6 +16,11 @@ status: listo
 > (colisión `UCX_`, nombres `SM_/MI_`, ≤5k tris) están en [CATALOGO-ELEMENTOS.md](CATALOGO-ELEMENTOS.md) §0, y el contrato
 > receta↔pieza en §0.1.
 
+> [!note] Reparto de generación (propuesto el 13 nov; confirmar con Emilio)
+> - **Emilio:** piezas estructurales y de movilidad (§3) y mundo (§6).
+> - **Javier (Combate, con Tripo):** los dispositivos de ataque que ya tienen código pero no mesh (`Frost`, `Beam`, `Bomb`, §3), los materiales de fusión (§4) y las armas del jugador (§5), en ese orden. Los créditos de Tripo de la jam vencen el **16 nov**.
+> - `Cannon`, `Flamethrower` y `Rocket` ya existen en `SourceArt/Building/` (hechos por script); no se regeneran con Tripo salvo que se decida cambiar de estilo.
+
 ## 1. Cómo funcionan las piezas en el juego (lee esto antes de generar)
 
 Cuando el jugador pide una construcción, el código **no mira el modelo 3D para decidir dónde va cada pieza**: trata cada
@@ -31,6 +36,12 @@ esa caja**. De ahí salen tres reglas:
 > [!warning] Aviso para rol 3 (al cambiar los BasicShapes por estos meshes)
 > En `JamBuildPart.cpp`, cada pieza con mesh de arte va con `Axis = 0`: el mesh ya viene orientado en el marco del
 > vehículo. `Axis = 1/2` existe solo para rotar los cilindros y conos de `/Engine/BasicShapes` (que miran a +Z).
+
+> [!warning] Estado del escalado en `main` (verificado el 13 nov)
+> Lo de arriba (escalar el mesh a la caja `Size`) es lo que hace la rama `build/recipe-hardening-v2`, que **todavía no está en `main`**.
+> En `main`, `AJamBuildPart::InitFromDef` escala por `Size / 100` **suponiendo un mesh de 100 cm** (las BasicShapes) y reemplaza el
+> material del slot 0 por `DebugMeshMaterial`. Un mesh de arte a tamaño real saldría agrandado y sin su textura hasta que Jesús
+> integre esa rama. Hasta entonces, probar las piezas nuevas en un mapa de pruebas (`Content/Developers/<nombre>/`), no en la construcción.
 
 Además, **todo lo que se mueve o brilla es código o VFX, no el mesh**: los ventiladores giran por código o material
 (entrega las aspas como mesh aparte si puedes), el fuego es Niagara y la rueda gira por física.
@@ -61,6 +72,17 @@ realistic, photoreal, glossy metal, chrome, sci-fi panels, text, letters, logo, 
 scene, ground plane, shadows baked
 ```
 
+### Generar con Tripo Studio (créditos de la jam)
+
+Oferta de la jam: prueba Pro de 7 días + 3,000 créditos, una por correo (guía 01). **Los créditos vencen el 16 nov.**
+- Se usa **Tripo Studio (web)** y se exporta a mano (FBX o GLB). **No instalar el plugin DCC Bridge** en el proyecto: no hay confirmación
+  de que soporte UE 5.8 y modificaría el proyecto de los cinco.
+- Para low-poly, Tripo recomienda el modelo `P1-20260311` (de 50 a 20,000 caras) si Studio lo ofrece. Anotar modelo y semilla.
+- Mejor **image-to-3D** con la hoja de estilo como referencia (paso 1 del flujo). Hacer 2–3 intentos por asset y quedarse con el mejor.
+- Anotar por asset: prompt, modelo y **créditos gastados** (sirve para [SUBMISSION.md](../SUBMISSION.md) y el [DEVLOG](../DEVLOG.md)).
+- Si se usa la API, la clave va solo en la variable de entorno `TRIPO_API_KEY`. El repo es público: nunca en archivos.
+- Carpetas de Combate: crudos de Tripo en `SourceArt/Combat/raw/`, FBX limpios en `SourceArt/Combat/FBX/` (ambos van por LFS).
+
 ## 3. Piezas de construcción (las 12 que ya existen en el código)
 
 `Size` en cm, X × Y × Z en el marco del vehículo. La columna **"Debe leerse como"** dice qué tiene que reconocer el jugador a 20 m.
@@ -87,6 +109,20 @@ scene, ground plane, shadows baked
 | `Rocket` | `SM_DEV_ROCKET` | 60 × 20 × 20 (tobera hacia −X) | Empuje fuerte 3 s y se apaga | Cohete | `handmade rocket lying horizontally, riveted metal body with painted red stripes, three small fins, nozzle at the back` |
 | `Balloon` | `SM_DEV_BALLOON` | 90 × 90 × 90 | Sube la construcción | Globo | `round balloon made of patched canvas, ropes hanging to a small wooden ring at the bottom` |
 
+### Dispositivos de ataque con código y sin mesh (Combate, con Tripo)
+
+Ya están en la tabla de `JamBuildPart.cpp` y los elige el modelo de decisión (`frost`, `beam`, `bomb`), pero hoy se ven como
+BasicShapes. `Size` y comportamiento salen del código en `main`; el daño real de estos dispositivos se está trabajando en la
+rama `build/poc-devices` (ver [research 14](../mechanics-research/14-poc-en-unreal.md), sin verificar).
+
+| Receta | Asset | Size (X×Y×Z) | Qué hace hoy en el código | Debe leerse como | Prompt (después del prefijo) |
+|---|---|---|---|---|---|
+| `Frost` | `SM_DEV_FROST` | 40 × 25 × 25 (boquilla hacia +X) | Esfera de hielo de 150 cm de radio, centrada 150 cm al frente, que frena (amortigua) los cuerpos físicos que no son de la construcción | Emisor de hielo | `handmade frost emitter, short iron nozzle pointing forward, chunky pale cyan ice crystal cluster in a wooden cradle` |
+| `Beam` | `SM_DEV_BEAM` | 50 × 12 × 12 (boca hacia +X) | Rayo de 15 m al frente que empuja lo que toca | Emisor de rayo | `handmade beam emitter, slim iron tube pointing forward, large glowing magenta crystal lens at the muzzle, wooden clamp bracket` |
+| `Bomb` | `SM_DEV_BOMB` | 30 × 30 × 30 | Mecha de 4 s y explosión radial de 500 cm | Bomba | `round cartoon bomb, black iron shell with a rope-wrapped band, short rope fuse` |
+
+Sockets: los `Attach_*` de siempre, más `Fx_Out` (+X) en `Frost` y `Beam`. La bomba lleva solo `Attach_*`.
+
 **Sockets** en cada pieza (Socket Manager): `Attach_Top`, `Attach_Bottom`, `Attach_Front`, `Attach_Back`, `Attach_Left`,
 `Attach_Right`, en el centro de cada cara de la caja y con X saliendo de la superficie. Hoy el código coloca por caja, pero los
 sockets los va a usar después. Ruedas: solo `Attach_Left`/`Attach_Right` (el eje).
@@ -95,6 +131,8 @@ sockets los va a usar después. Ruedas: solo `Attach_Left`/`Attach_Right` (el ej
 ámbar `#E7B65A`), sin energía (apagado) y por expirar (parpadeo). No hace falta un mesh por estado.
 
 ## 4. Materiales de fusión (se pegan al arma)
+
+> Dueño: Combate (Javier, con Tripo). Van después de los dispositivos del §3.
 
 En el juego: el jugador junta un material con la espada o la flecha. Tienen que verse **pegados encima del arma**.
 Tamaño: caben en una caja de **25 × 25 × 25 cm**, con pivote en la cara que toca el arma (`Attach_Bottom`).
@@ -108,6 +146,8 @@ Tamaño: caben en una caja de **25 × 25 × 25 cm**, con pivote en la cara que t
 | `FUSE_BOMB` | *(alta)* | Explota al golpear | `round cartoon bomb, black iron shell, short rope fuse` | Destello blanco + humo redondo + astillas |
 
 ## 5. Armas del jugador
+
+> Dueño: Combate (Javier, con Tripo). Hoy no hay código de personaje, armas ni fusión: estos assets no se verán hasta que exista.
 
 | Asset | Tamaño | Prompt | Notas |
 |---|---|---|---|
@@ -143,5 +183,7 @@ flat warm lighting, transparent background`. Uno por cada pieza y material de la
 3. `FUSE_FIRE`, `FUSE_ICE`, `FUSE_ROCK` y la espada: la fusión del MVP.
 4. Torre, base, cofre e isla chica: sin estos el mapa es BasicShapes.
 5. Lo demás si da tiempo.
+
+Cola de Combate (Javier, Tripo): `Frost`, `Beam`, `Bomb` → `FUSE_FIRE`, `FUSE_ICE`, `FUSE_ROCK` → espada → arco y flecha.
 
 Checklist de entrega por pieza: [CATALOGO-ELEMENTOS.md](CATALOGO-ELEMENTOS.md) §10.
