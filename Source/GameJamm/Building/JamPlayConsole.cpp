@@ -1002,12 +1002,12 @@ bool UJamSayWidget::Initialize()
 		Box = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("SayBox"));
 		Box->SetHintText(FText::FromString(TEXT("Que quieres construir? (Enter = construir, Esc = cerrar)   ej: un carro con cohete y lanzallamas")));
 		Box->OnTextChanged.AddDynamic(this, &UJamSayWidget::OnChanged);
-		if (UCanvasPanelSlot* Slot = Root->AddChildToCanvas(Box))
+		if (UCanvasPanelSlot* CanvasSlot = Root->AddChildToCanvas(Box))
 		{
-			Slot->SetAnchors(FAnchors(0.5f, 0.82f));
-			Slot->SetAlignment(FVector2D(0.5f, 0.5f));
-			Slot->SetPosition(FVector2D(0, 0));
-			Slot->SetSize(FVector2D(820, 46));
+			CanvasSlot->SetAnchors(FAnchors(0.5f, 0.82f));
+			CanvasSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+			CanvasSlot->SetPosition(FVector2D(0, 0));
+			CanvasSlot->SetSize(FVector2D(820, 46));
 		}
 	}
 	return bOk;

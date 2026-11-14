@@ -501,7 +501,7 @@ No va en el repo (`Config/DefaultSecrets.ini` o variables de entorno). **Propues
 
 | ✓ | Área (dueño) | Qué falta | Sección del GDD |
 |---|---|---|---|
-| [ ] | Construcción (Jesús Daniel) | 🔴 **`main` no compila en Windows/MSVC**: `JamPlayConsole.cpp(1005) error C4458` (la variable local `Slot` oculta `UWidget::Slot`). Arreglo: renombrarla a `CanvasSlot` en las líneas 1005–1010 (probado en la PC de Cesar) | — |
+| [x] | Construcción (Jesús Daniel) | **Arreglado:** `main` no compilaba en Windows/MSVC: `JamPlayConsole.cpp(1005) error C4458` (la variable local `Slot` oculta `UWidget::Slot`). Arreglo: renombrarla a `CanvasSlot` en las líneas 1005–1010 (probado en la PC de Cesar) | — |
 | [x] | Construcción (Jesús Daniel) | **Energía del jugador con valores del GDD** (mín. 50, máx. 150, +3/s solo hasta 50; HUD de 15 segmentos): hecho en `8554e24`. Falta conectar orbes de muerte y pickups de cristal | Jugabilidad §5 |
 | [x] | Construcción (Jesús Daniel) | **Shock** aturde 3 s en vez de apagar para siempre: hecho en `8554e24` | §16 |
 | [~] | Construcción (Jesús Daniel) | **Encendido con C** (sale apagada): hecho en `8554e24`. Falta el **brillo al prender** (`Emissive` de `M_Part_Master`): rama `build/brillo-encendido`, sin compilar, solo `.cpp` | §6.3, §17 |
