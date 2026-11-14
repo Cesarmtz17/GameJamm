@@ -33,6 +33,7 @@ namespace JamDevices
 	constexpr float SpinMaxAccel = 200.f;          // rad/s^2
 	constexpr float BalloonHeatMultiplier = 2.f;   // fuego debajo del globo = x2
 	constexpr float BalloonHeatHold = 0.5f;        // s que dura el calor tras la última llama
+	constexpr float BatteryReserve = 30.f;         // Battery pegada: reserva que se gasta antes que la barra
 	constexpr float SpringInterval = 1.5f;
 	constexpr float SpringLaunchBoost = 2.f;
 	constexpr float SeatMaxYawRate = 2.f;          // rad/s
