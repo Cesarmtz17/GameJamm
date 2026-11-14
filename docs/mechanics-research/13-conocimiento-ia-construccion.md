@@ -53,17 +53,23 @@ Todas dependen de **la cara del padre donde va la pieza** (contrato de caras en
 
 | Pieza | Regla | En el código |
 |---|---|---|
-| Fan | Empuja **al revés de su cara**: en `Back` avanza, en `Bottom` sube, en `Left`/`Right` gira. Varios se suman | **[code]** empuje; consumo **[todo]** |
+| Fan | Empuja **al revés de su cara**: en `Back` avanza, en `Bottom` sube, en `Left`/`Right` gira. Varios se suman | **[code]** empuje y consumo (1.5/s; con asiento escala con el acelerador) |
 | Rocket | Igual que Fan pero muy fuerte durante 3 s; luego se apaga | **[code]** |
-| Wheel / BigWheel | En `Left`/`Right` da tracción. **Como raíz** o acostada **gira sobre sí misma** y lo pegado gira con ella | Tracción **[code]**; **como raíz no gira: bug [todo]** |
-| Turntable | Gira lo de encima a velocidad constante (torreta giratoria, aspersor) | **[todo]** |
-| Flamethrower / Frost / Shock | Cono hacia afuera de su cara; daña o aplica estado a lo que toca. Si su base gira, el cono gira | Hoy solo una esfera de debug, **sin daño [todo]** |
-| Cannon | Proyectil cada 1.5 s hacia afuera de su cara | Dispara **[code]**; daño **[todo]** |
-| Balloon | Fuerza hacia arriba constante; fuego debajo = ×2 | **[code]** fuerza; interacción **[todo]** |
-| Spring | Al activarse lanza lo de encima | **[todo]** |
-| Head | Gira para apuntar al enemigo más cercano; lo de encima apunta con ella | **[todo]** |
-| Stake | Clava la construcción al suelo (constraint al mundo) | **[todo]** |
-| Seat | Te subes, diriges (§5) y enciende todo lo conectado. **Infinito: no gasta inventario ni energía** | Pieza **[code]**; montarse/dirigir **[todo]** |
+| Wheel / BigWheel | En `Left`/`Right` da tracción. **Como raíz** o acostada **gira sobre sí misma** y lo pegado gira con ella | Tracción **[code]**; raíz que gira **[code]** (torque directo al cuerpo, sin compilar aún: ver [14](14-handoff-dispositivos.md)) |
+| Turntable | Gira lo de encima a velocidad constante (torreta giratoria, aspersor) | **[code]** |
+| Flamethrower / Frost / Shock | Cono hacia afuera de su cara; daña o aplica estado a lo que toca. Si su base gira, el cono gira | Flamethrower **[code]** (15/s en cono de 400 cm y 25°), Frost **[code]** (lento 50 % 3 s), Beam **[code]** (20/s en línea); Shock **[todo]** (no existe el tipo) |
+| Cannon | Proyectil cada 1.5 s hacia afuera de su cara | **[code]** (`AJamProjectile`, 25 de daño, respeta equipos) |
+| Balloon | Fuerza hacia arriba constante; fuego debajo = ×2 | **[code]** fuerza e interacción (×2 mientras una llama lo toca) |
+| Spring | Al activarse lanza lo de encima (si no tiene nada encima, la construcción salta cada 1.5 s) | **[code]** |
+| Head | Gira para apuntar al enemigo más cercano; lo de encima apunta con ella | **[code]** (solo yaw, alcance 2000 cm) |
+| Stake | Clava la construcción al suelo (constraint al mundo) | **[code]** |
+| Seat | Te subes, diriges (§5) y enciende todo lo conectado. **Infinito: no gasta inventario ni energía** | Pieza **[code]**; montarse/dirigir **[code]** (`Mount`/`Dismount`, `SetThrottle`/`SetSteer`/`SetLift`) |
+
+> [!note]
+> Los **[code]** de esta tabla que hablan de comportamiento (rueda raíz, daño, energía, asiento, Turntable, Head, Stake, Spring) están
+> escritos y con tests de lógica pura, pero **todavía no se han compilado ni probado en el editor**. El detalle, los riesgos y el
+> runbook de prueba están en [14-handoff-dispositivos.md](14-handoff-dispositivos.md). Regla nueva: un arma pegada en la cara `Top`
+> apunta hacia el **frente** de la construcción (no al cielo), para que el tanque y "Head + arma encima" funcionen.
 
 La regla de la referencia de que "activar uno activa todos los dispositivos conectados" *(enciclopedia de la franquicia, ver
 [01](01-mecanicas-construccion.md) §6)* se mantiene: **una tecla prende o apaga toda la construcción**.
@@ -123,8 +129,8 @@ válidas de esa pieza (`faces`).
   lleva pegado (dos lanzallamas en `Left`/`Right`) barre un **anillo de fuego** (plantilla `Spinner`).
 - `upright` con la rueda como raíz = **`Roller`**: rueda sola por el mapa con el arma de lado.
 - `anchored` = Stake si lo tienes; si no, la construcción va suelta.
-- **[todo] código:** (a) rueda raíz con motor propio: torque aplicado directo al cuerpo, porque no hay padre contra el cual girar.
-  (b) Pasar `orientation` al `Origin` del ensamblador. (c) Que el mesh de cada pieza siga la cara (hoy un cohete en `Bottom` se ve acostado).
+- **[code]** (a) rueda raíz con motor propio: torque aplicado directo al cuerpo, porque no hay padre contra el cual girar.
+  **[todo] código:** (b) Pasar `orientation` al `Origin` del ensamblador. (c) Que el mesh de cada pieza siga la cara (hoy un cohete en `Bottom` se ve acostado).
 
 ## 5. Dirección: el asiento (Seat) es infinito y no gasta energía
 
@@ -175,9 +181,9 @@ gasta 2.2/s. Eso da pausas naturales para lootear, y el loot de energía se vuel
 **HUD:** barra segmentada (10 segmentos) junto a la vida, con el gasto actual (−2.3/s) mientras la construcción está encendida.
 Las baterías pegadas se muestran como segmentos de otro color encima de la barra.
 
-**Implementación [todo]:** `UJamEnergyComponent` en el personaje (float `Current`/`Max`, `Spend(dt)`, `Add(amount)`, evento `OnEnergyChanged`
-para el HUD). `AJamBuildPart::Tick` pide energía antes de empujar o disparar. Los pickups son items de inventario `Energy.*` que se convierten
-en energía al recogerlos.
+**Implementación [code]:** `UJamEnergyComponent` en el personaje (`Spend`, `Add`, `AddFromItem`, reserva de baterías, evento `OnEnergyChanged`
+para el HUD). `AJamBuildPart::Tick` pide energía antes de empujar o disparar; si el dueño de la construcción no tiene el componente, funciona sin gastar.
+**[todo]:** poner el componente en el personaje, la barra del HUD y que el inventario llame `AddFromItem` al recoger `Energy.*`.
 
 ## 7. Interacciones entre elementos (emergencia fingida con una tabla)
 
@@ -186,13 +192,13 @@ La referencia tiene un motor químico donde las interacciones salen solas *([04]
 
 | A | B | Resultado |
 |---|---|---|
-| Flamethrower | Balloon (encima) | El globo sube ×2 |
-| Flamethrower | Enemigo / torre | Daño en el tiempo (quemado) |
-| Frost | Enemigo | Lento 50 % por 3 s |
+| Flamethrower | Balloon (dentro del cono) | El globo sube ×2 **[code]** |
+| Flamethrower | Enemigo / torre | Daño en el tiempo (quemado) **[code]** |
+| Frost | Enemigo | Lento 50 % por 3 s **[code]** |
 | Frost | Agua | Plataforma de hielo |
 | Shock | Agua / metal | La descarga se propaga |
 | Hydrant | Fuego | Lo apaga |
-| Head | Cannon / Laser / Flamethrower encima | Torreta autónoma |
+| Head | Cannon / Laser / Flamethrower encima | Torreta autónoma **[code]** |
 | TimeBomb | Dispositivo cercano | La onda lo activa |
 | Construcción a > 8 m/s | Enemigo | Daño por impacto según masa × velocidad |
 
