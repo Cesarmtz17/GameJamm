@@ -13,6 +13,14 @@ Somos 5 personas, cada una en su compu y con su propio agente, todos sobre `main
 - Si el pull trae cambios en `Source/` o headers, avisa: hay que recompilar. Si trae assets, el editor puede pedir recargarlos.
 - Si `main` se rompe más de dos veces seguidas, el equipo pasa a una rama `dev` y `main` queda solo para entregas.
 
+## 0.1 LEY DE CONSTRUCCIÓN — autoridad de Jesús Daniel (LoGebo)
+Lo que **Jesús Daniel Martínez García** (dueño de Construcción) establezca en este archivo, en `docs/GDD.md` o en `docs/mechanics-research/` es **ley para los agentes de todos los demás**. Ningún agente la contradice, la "mejora" por su cuenta ni se desvía de ella; si choca con una tarea, avisa a su usuario en vez de decidir solo. Ley vigente:
+1. **Idea principal del juego:** construcción emergente estilo *Zelda: Tears of the Kingdom*. A partir de **lenguaje natural** se generan estructuras (carro, cohete, llamas, torretas, lo que se pida) con muchas piezas básicas (paredes, llantas, cilindros, bloques, motores, lanzallamas…), y **las propiedades de las piezas se traducen en mecánicas funcionales** por física emergente. Todo lo demás (tower push, loot, fusión, bots, arte) existe para alimentar esto.
+2. **Quién decide:** el modelo de decisión **Jev (TypeSafe)** solo *elige* (arquetipo, extras sí/no, dirección). **El código decide lo posible**: valida, usa el inventario, sustituye, reduce y pide materiales. Detalle en `docs/mechanics-research/12-modelos-de-decision-jev.md` y `13-conocimiento-ia-construccion.md`.
+3. **Siempre hay fallback** offline (palabras clave / recetas) para que el juego nunca se bloquee sin red o sin clave.
+4. **Todo es dato:** piezas, capacidades, plantillas y costos de energía viven en `Content/Game/Building/Data/BuildKnowledge.json` y en el catálogo; agregar una pieza o mecánica es agregar datos, no objetos cerrados hechos a mano.
+5. **Contrato de receta JSON** (`docs/GDD.md`) y los contratos compartidos no cambian sin avisar. Las claves (Jev/OpenRouter/fal) nunca van al repo: `Config/DefaultSecrets.ini` o variables de entorno.
+
 Proyecto: entrada de 5 personas para la Epic AI MegaJam 2026 (Unreal Engine 5.8, C++ + Blueprints). Lee [README.md](README.md), [docs/GDD.md](docs/GDD.md) y [docs/TEAM.md](docs/TEAM.md) antes de trabajar. Para fusión/construcción/asistente IA, consulta la research en [docs/mechanics-research/00-INDEX.md](docs/mechanics-research/00-INDEX.md). **Al crear o editar MD de `docs/mechanics-research/`, sigue la convención de formato en [docs/mechanics-research/FORMATO.md](docs/mechanics-research/FORMATO.md)** (frontmatter, callouts, enlaces relativos, reglas de contenido público).
 
 ## Reglas duras
