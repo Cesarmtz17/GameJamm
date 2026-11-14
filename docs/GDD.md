@@ -502,6 +502,7 @@ No va en el repo (`Config/DefaultSecrets.ini` o variables de entorno). **Propues
 | ✓ | Área (dueño) | Qué falta | Sección del GDD |
 |---|---|---|---|
 | [x] | Construcción (Jesús Daniel) | **Arreglado:** `main` no compilaba en Windows/MSVC: `JamPlayConsole.cpp(1005) error C4458` (la variable local `Slot` oculta `UWidget::Slot`). Arreglo: renombrarla a `CanvasSlot` en las líneas 1005–1010 (probado en la PC de Cesar) | — |
+| [ ] | Construcción (Jesús Daniel) | **`main` no compila en Windows/MSVC desde `9c61246`:** `JamAssembler.cpp(1281) y (1289) error C4456`: el `for (const TCHAR* T : Types)` oculta el `static const TArray<FJamPieceRule> T` de la línea 1186. Arreglo: renombrar la variable del `for` (p. ej. `Ty`) en 1281, 1283 y 1289 (probado en la PC de Cesar, solo local, sin subir) | — |
 | [x] | Construcción (Jesús Daniel) | **Energía del jugador con valores del GDD** (mín. 50, máx. 150, +3/s solo hasta 50; HUD de 15 segmentos): hecho en `8554e24`. Falta conectar orbes de muerte y pickups de cristal | Jugabilidad §5 |
 | [x] | Construcción (Jesús Daniel) | **Shock** aturde 3 s en vez de apagar para siempre: hecho en `8554e24` | §16 |
 | [~] | Construcción (Jesús Daniel) | **Encendido con C** (sale apagada): hecho en `8554e24`. Falta el **brillo al prender** (`Emissive` de `M_Part_Master`): rama `build/brillo-encendido`, sin compilar, solo `.cpp` | §6.3, §17 |
@@ -512,5 +513,5 @@ No va en el repo (`Config/DefaultSecrets.ini` o variables de entorno). **Propues
 | [ ] | Construcción (Jesús Daniel) | Reglas de PvP de §15: 1 construcción activa, no armar a menos de 15 m de torres enemigas, apagarse sola al alejarse/morir el dueño | §15 |
 | [ ] | Construcción (Jesús Daniel) | Asistente: armar **al instante la mejor opción de Jev** (o su versión reducida) con una línea de lo que falta; R = volver a pedir; N = 2.ª opción (P1) | Jugabilidad §6.1 |
 | [ ] | Construcción (Jesús Daniel) | Mochila: tope por tipo (8 común, 4 dispositivo, 2 rara; campo nuevo tipo `stack_max` en `BuildKnowledge.json`), 40 en total, 1 construcción activa, máximo 4 armas y 6 propulsores por construcción; que el solver lo respete | Jugabilidad §4 |
-| [ ] | Combate (Jesús Daniel, por confirmar) | Items de inventario `Mat.Shock` y `Mat.Bomb` para el MVP (hoy solo existen `Mat.Fire`, `Mat.Rock`, `Mat.Ice`); `Mat.Spike` es Stretch | Jugabilidad §8 |
+| [ ] | Combate (Cesar) | Items de inventario `Mat.Shock` y `Mat.Bomb` para el MVP (hoy solo existen `Mat.Fire`, `Mat.Rock`, `Mat.Ice`); `Mat.Spike` es Stretch | Jugabilidad §8 |
 | [x] | Arte (Emilio) | Material de fusión **Púa/colmillo** (`SM_FUSE_SPIKE`): hecho en `SourceArt/Fusion/` con su icono `T_Icon_FUSE_SPIKE` | Jugabilidad §8 |
