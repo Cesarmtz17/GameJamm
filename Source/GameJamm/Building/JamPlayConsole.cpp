@@ -43,6 +43,8 @@ namespace
 	float GDriveThrottle = 0.f, GDriveSteer = 0.f;
 	double GDriveUntil = 0.0, GFireUntil = 0.0;
 	bool GBoostOnce = false;
+	float GLiftInput = 0.f;                      // montado: Espacio sube (+1), Ctrl baja (-1), nada = mantener altura
+	double GLiftUntil = 0.0;                     // Jam.Test: Espacio simulado
 
 	void Screen(const FString& Msg, FColor Color = FColor::Yellow)
 	{
@@ -539,10 +541,15 @@ namespace
 					if (t >= 3.5 && Enter(3)) { T.IdleDisp = FVector::Dist2D(L, T.P0); T.Fx0 = Fx; GFireUntil = NowS + 2.5 * K; }   // clic
 					if (T.Phase == 3) { T.FireOn = FMath::Max(T.FireOn, WeaponsOn); }
 					if (t >= 6.0 && Enter(4)) { T.FireFx = Fx - T.Fx0; GFireUntil = 0.0; }           // soltar
-					if (t >= 6.5 && Enter(5)) { T.WeaponsAfter = WeaponsOn; T.P0 = L; T.Fwd0 = Fwd; GDriveThrottle = 1.f; GDriveSteer = 0.f; GDriveUntil = NowS + 4.0 * K; } // W
+					if (t >= 6.5 && Enter(5)) { T.WeaponsAfter = WeaponsOn; T.P0 = L; T.Fwd0 = Fwd; GDriveThrottle = 1.f; GDriveSteer = 0.f; GDriveUntil = NowS + 4.0 * K; GLiftUntil = NowS + 4.0 * K; } // W (+ Espacio mantenido: subir)
 					if (t >= 9.0 && Enter(6)) { T.DriveFwd = FVector::DotProduct(L - T.P0, T.Fwd0); T.Fwd0 = Fwd; GDriveSteer = 1.f; }          // W + D
 					if (t >= 10.5 && Enter(7)) { T.SteerDeg = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(Fwd, T.Fwd0), -1.0, 1.0))); GDriveUntil = 0.0; GBoostOnce = true; } // Espacio
-					if (T.Phase == 7) { T.bBoostOn |= RocketsOn > 0 || T.bExploded || (T.bHadBomb && !bBomb); }
+					if (T.Phase == 7)
+					{
+						bool bBombArmed = false; // la bomba responde a Espacio armandose (mecha de 4 s): cuenta aunque explote despues
+						for (const AJamBuildPart* P : Parts) { bBombArmed |= IsValid(P) && P->Kind == EJamPartKind::Bomb && P->bActive; }
+						T.bBoostOn |= RocketsOn > 0 || bBombArmed || T.bExploded || (T.bHadBomb && !bBomb);
+					}
 				}
 				if (Key == TEXT("hinge"))
 				{
@@ -633,7 +640,7 @@ namespace
 			TestFinishCase();
 		}
 		// Soltar la entrada simulada, bajar del asiento y volver al punto de partida.
-		GDriveUntil = GFireUntil = 0.0;
+		GDriveUntil = GFireUntil = GLiftUntil = 0.0;
 		GBoostOnce = false;
 		if (const APlayerController* PC = World->GetFirstPlayerController())
 		{
@@ -769,7 +776,9 @@ namespace
 		GTest.Duration = 12.f;
 		int32 Arg = 0;
 		if (Args.Num() > 0 && Args[0].IsNumeric()) { GTest.Duration = FMath::Clamp(FCString::Atof(*Args[0]), 3.f, 60.f); Arg = 1; }
-		const FString Mode = Args.Num() > Arg ? Args[Arg] : FString();
+		// La ruta puede traer espacios (la consola la parte en varios argumentos): se une hasta el que termina en .json.
+		FString Mode = Args.Num() > Arg ? Args[Arg] : FString();
+		while (!Mode.EndsWith(TEXT(".json")) && Mode.Contains(TEXT("/")) && Arg + 1 < Args.Num()) { Mode += TEXT(" ") + Args[++Arg]; }
 		GCases.Reset();
 		GBatteryName = TEXT("interna (aisladas + frases del POC)");
 		GReportPath = FPaths::ProjectDir() / TEXT("docs/building/REPORTE-POC.md");
@@ -1151,12 +1160,33 @@ void AJamTestCharacter::DriveMount(AJamBuildPart* Seat, float Throttle, float St
 			P->SetDrive(FMath::Clamp(SmoothThrottle - 1.5f * SmoothSteer * Side, -1.f, 1.f)); // a tope de giro, el lado interior va en reversa
 		}
 	}
+	// Altura al mando: lo que flota (globos, helices hacia abajo) deja de subir sin control. Sin tecla mantiene la altura;
+	// Espacio sube y Ctrl baja. Es una ayuda limitada: hacia arriba da como mucho 0.3 g, asi que no hace volar lo que no vuela.
+	bool bLifts = false;
+	for (const TWeakObjectPtr<AJamBuildPart>& LiftPart : Seat->Build->Parts)
+	{
+		if (!LiftPart.IsValid() || !LiftPart->bActive) { continue; }
+		const EJamPartKind LiftKind = LiftPart->Kind;
+		bLifts |= LiftKind == EJamPartKind::Balloon || ((LiftKind == EJamPartKind::Fan || LiftKind == EJamPartKind::Rocket) && LiftPart->GetActorQuat().RotateVector(LiftPart->LocalDirection).Z > 0.5);
+	}
+	if (bLifts)
+	{
+		const double Vz = Root->Mesh->GetPhysicsLinearVelocity().Z;
+		const double WantVz = 350.0 * GLiftInput; // cm/s
+		Root->Mesh->AddForce(FVector(0, 0, FMath::Max(Seat->Build->MassKg, 1.f) * FMath::Clamp(12.0 * (WantVz - Vz), -2500.0, 300.0)));
+	}
 	if (!bWheels || FMath::Abs(SmoothSteer) > 0.05f)
 	{
 		// Guiñada asistida (sin ruedas, o para ayudar al giro): aceleracion angular, independiente de la masa.
 		// Torque proporcional a la masa de toda la construccion (la raiz sola es muy ligera): ~4 rad/s2, con freno al soltar.
 		const double Wz = Root->Mesh->GetPhysicsAngularVelocityInRadians().Z;
-		const double Mass = FMath::Max(Seat->Build->MassKg, 1.f);
+		// Una construccion larga tiene mucha mas inercia de giro que masa x 80 cm^2: se usa la mayor de las dos.
+		double Inertia = 0.0;
+		for (const TWeakObjectPtr<AJamBuildPart>& P : Seat->Build->Parts)
+		{
+			if (P.IsValid()) { Inertia += P->Mesh->CalculateMass() * FVector::DistSquared2D(P->GetActorLocation(), Root->GetActorLocation()); }
+		}
+		const double Mass = FMath::Max3((double)Seat->Build->MassKg, 1.0, Inertia / 6400.0);
 		Root->Mesh->AddTorqueInRadians(FVector(0, 0, Mass * 6400.0 * ((bWheels ? 6.0 : 4.0) * SmoothSteer - 1.5 * Wz * (bWheels ? 0.3 : 1.0))));
 	}
 }
@@ -1253,7 +1283,8 @@ void AJamTestCharacter::Tick(float DeltaSeconds)
 	if (Seat)
 	{
 		const bool bFire = !GTyping && (PC->IsInputKeyDown(EKeys::LeftMouseButton) || PC->GetInputAnalogKeyState(EKeys::Gamepad_RightTriggerAxis) > 0.5f || FPlatformTime::Seconds() < GFireUntil);
-		DriveMount(Seat, Fwd, Strafe, bFire, bJumpPressed || GBoostOnce, DeltaSeconds);
+		GLiftInput = GTyping ? 0.f : ((PC->IsInputKeyDown(EKeys::SpaceBar) || FPlatformTime::Seconds() < GLiftUntil) ? 1.f : 0.f) - (PC->IsInputKeyDown(EKeys::LeftControl) ? 1.f : 0.f);
+		DriveMount(Seat, Fwd, Strafe, bFire, bJumpPressed || GBoostOnce || (!GTyping && PC->WasInputKeyJustPressed(EKeys::LeftShift)), DeltaSeconds);
 		GBoostOnce = false;
 	}
 	else
@@ -1523,7 +1554,8 @@ void AJamTestHUD::DrawHUD()
 					if (bSeat) { Ctl += TEXT("  E subir"); }
 					if (bSeat && (bWheels || bPush)) { Ctl += TEXT("  W/S A/D manejar"); }
 					if (bSeat && bWeapons) { Ctl += TEXT("  Clic disparar"); }
-					if (bSeat && bRocket) { Ctl += TEXT("  Espacio cohete/bomba"); }
+					if (bSeat && bRocket) { Ctl += TEXT("  Espacio/Shift cohete/bomba"); }
+					if (bSeat) { Ctl += TEXT("  Espacio/Ctrl subir/bajar (si flota)"); }
 					Lines.Add(Ctl);
 				}
 				Lines.Add(TEXT("#Mecanicas:"));

@@ -52,6 +52,7 @@ namespace
 		FJamPartDef Def;
 		FVector Facing = FVector::ForwardVector;    // hacia donde mira (empuje/disparo)
 		FName Parent;
+		FName Id;
 		AJamBuildPart* Actor = nullptr;
 		bool bOriented = false;                     // la malla va girada segun la cara (los sockets del mesh ya no coinciden con los ejes)
 	};
@@ -131,6 +132,7 @@ namespace
 					return false;
 				}
 				Item.Parent = P.AttachTo;
+				Item.Id = P.Id;
 				Item.Size = Item.Def.Size;
 				if (!P.AttachTo.IsNone())
 				{
@@ -169,7 +171,10 @@ namespace
 		const FVector D = Abs(A.Center - B.Center);
 		// Tocarse no es encimarse... salvo dos ruedas: girando pegadas una a otra se frenan y la fisica revienta; van con 10 cm de aire.
 		const bool bWheels = A.Def.Kind == EJamPartKind::Wheel && B.Def.Kind == EJamPartKind::Wheel;
-		const FVector H = (A.Size + B.Size) * 0.5 + FVector(bWheels ? 10.0 : -1.0);
+		// Una rueda tampoco puede rozar una placa (escudo, muro, puas) que no sea su padre (medido: un escudo pegado detras de las ruedas clavaba el
+		// tanque aunque fuera del mismo chasis): 5 cm de aire en su plano de giro.
+		const bool bWheelRub = !bWheels && ((A.Def.Kind == EJamPartKind::Wheel && B.Def.bFaceAligned) || (B.Def.Kind == EJamPartKind::Wheel && A.Def.bFaceAligned)) && A.Parent != B.Id && B.Parent != A.Id && !A.Parent.IsNone() && !B.Parent.IsNone();
+		const FVector H = (A.Size + B.Size) * 0.5 + (bWheelRub ? FVector(5.0, -1.0, 5.0) : FVector(bWheels ? 10.0 : -1.0));
 		return D.X < H.X && D.Y < H.Y && D.Z < H.Z;
 	}
 }
@@ -681,10 +686,13 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 	for (const FBuildRecipePart& P : Recipe.Parts) { ByDepth.Add(&P); }
 	auto Depth = [&Placed](FName Id) { int32 D = 0; while (!Placed[Id].Parent.IsNone() && D < 200) { Id = Placed[Id].Parent; ++D; } return D; };
 	ByDepth.StableSort([&Depth](const FBuildRecipePart& A, const FBuildRecipePart& B) { return Depth(A.Id) < Depth(B.Id); });
+	// Dos pasadas: primero TODAS las soldaduras y despues las uniones. Si una pieza se suelda al chasis despues de crear la union
+	// de una rueda, la rueda choca con esa pieza (un escudo detras de las ruedas clavaba el tanque).
+	for (int32 JoinPass = 0; JoinPass < 2; ++JoinPass)
 	for (const FBuildRecipePart* PP : ByDepth)
 	{
 		const FBuildRecipePart& P = *PP;
-		if (P.AttachTo.IsNone())
+		if (P.AttachTo.IsNone() || (JoinPass == 1 && Placed[P.Id].Actor->bWelded))
 		{
 			continue;
 		}
@@ -697,9 +705,16 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 		auto Inert = [](EJamPartKind Kd) { return Kd == EJamPartKind::Structural || Kd == EJamPartKind::Seat || Kd == EJamPartKind::Battery || Kd == EJamPartKind::Slide; };
 		if (CVarJamWeld.GetValueOnGameThread() != 0 && Inert(Child.Def.Kind) && Inert(Parent.Def.Kind))
 		{
-			Child.Actor->Mesh->AttachToComponent(Parent.Actor->Mesh, FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true));
-			Child.Actor->bWelded = true;
-			Welded.FindOrAdd(RootOf(P.AttachTo)) += Child.Def.MassKg;
+			if (JoinPass == 0)
+			{
+				Child.Actor->Mesh->AttachToComponent(Parent.Actor->Mesh, FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true));
+				Child.Actor->bWelded = true;
+				Welded.FindOrAdd(RootOf(P.AttachTo)) += Child.Def.MassKg;
+			}
+			continue;
+		}
+		if (JoinPass == 0)
+		{
 			continue;
 		}
 
@@ -749,6 +764,17 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 		// (Contra el componente soldado, el marco de la union salia desplazado lo que mide el tramo y la fisica reventaba:
 		// todo lo que colgaba de un tramo añadido del chasis - ruedas, cañones - tiraba hacia otro sitio.)
 		C->SetConstrainedComponents(Placed[RootOf(P.AttachTo)].Actor->Mesh, NAME_None, Child.Actor->Mesh, NAME_None);
+	}
+	// Motor de las ruedas proporcional al peso que les toca: un tanque de 70 kg sobre 4 ruedas no puede quedarse parado.
+	// ponytail: la fuerza crece lineal con la masa por rueda motriz (base = carro de 30 kg sobre 4 ruedas); afinar jugando.
+	{
+		int32 Motors = 0;
+		for (AJamBuildPart* Part : OutParts) { Motors += (Part->Kind == EJamPartKind::Wheel && Part->DriveConstraint) ? 1 : 0; }
+		const float Scale = Motors > 0 ? FMath::Clamp(State->MassKg / (7.5f * Motors), 1.f, 12.f) : 1.f;
+		for (AJamBuildPart* Part : OutParts)
+		{
+			if (Part->Kind == EJamPartKind::Wheel && Part->DriveConstraint) { Part->DriveConstraint->SetAngularDriveParams(0.f, 5000.f * Scale, 2000000.f * Scale); }
+		}
 	}
 	// La masa del cuerpo soldado es la suma de sus piezas.
 	for (const auto& KV : Welded)
@@ -1383,7 +1409,7 @@ const TArray<FJamPieceRule>& UJamBuildGenerator::PieceTable()
 			Place({TEXT("Light")}, Weapon, TEXT("y"), TEXT("front"), 150.f);
 			Place({TEXT("Wing")}, K({TEXT("Left"), TEXT("Left_Front"), TEXT("Left_Back"), TEXT("Top")}), TEXT("xy"), TEXT("center"));
 			Place({TEXT("Sail")}, K({TEXT("Top_Front"), TEXT("Top"), TEXT("Top_Back")}), TEXT("y"), TEXT("center"));
-			Place({TEXT("Panel")}, K({TEXT("Front_Bottom"), TEXT("Left_Bottom"), TEXT("Back_Bottom")}), TEXT("y"), TEXT("front")); // despues de las armas: no les tapa el tiro
+			Place({TEXT("Panel")}, K({TEXT("Front_Bottom"), TEXT("Left_Bottom"), TEXT("Back_Bottom"), TEXT("Top_Back_Back")}), TEXT("y"), TEXT("front")); // despues de las armas: no les tapa el tiro
 			Place({TEXT("Spikes")}, K({TEXT("Front_Bottom"), TEXT("Left_Bottom")}), TEXT("y"), TEXT("front")); // despues de las armas, como el escudo
 			Place({TEXT("Ball")}, K({TEXT("Front_Bottom"), TEXT("Top_Front"), TEXT("Back_Bottom")}), TEXT("y"), TEXT("front"));
 			Place({TEXT("Girder"), TEXT("Rod")}, K({TEXT("Front_Bottom"), TEXT("Top")}), TEXT("y"), TEXT("front"));

@@ -83,7 +83,8 @@
     "faces": [
      "Front_Bottom",
      "Left_Bottom",
-     "Back_Bottom"
+     "Back_Bottom",
+     "Top_Back_Back"
     ],
     "sym": "y",
     "order": "front"

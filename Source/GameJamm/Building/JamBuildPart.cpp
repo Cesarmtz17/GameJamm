@@ -710,12 +710,16 @@ void AJamBuildPart::SetActive(bool bNewActive)
 	}
 }
 
+static TAutoConsoleVariable<float> CVarJamWheelSpeed(TEXT("jam.Build.WheelSpeed"), 1.f,
+	TEXT("Multiplicador de la velocidad de las ruedas al manejar. 1 = valores de la tabla (Wheel 250 cm/s, BigWheel 320 cm/s); 3.6 = unos 900 cm/s."));
+
 void AJamBuildPart::SetDrive(float Scale)
 {
 	if (DriveConstraint && bActive)
 	{
 		const float Dir = Kind == EJamPartKind::Wheel ? -1.f : 1.f;
-		DriveConstraint->SetAngularVelocityTarget(FVector(Dir * Power * FMath::Clamp(Scale, -1.f, 1.f), 0.f, 0.f) / (2.0 * PI));
+		const float SpeedMul = Kind == EJamPartKind::Wheel ? FMath::Clamp(CVarJamWheelSpeed.GetValueOnGameThread(), 0.1f, 10.f) : 1.f;
+		DriveConstraint->SetAngularVelocityTarget(FVector(Dir * Power * SpeedMul * FMath::Clamp(Scale, -1.f, 1.f), 0.f, 0.f) / (2.0 * PI));
 		Mesh->WakeAllRigidBodies();
 	}
 }
@@ -795,7 +799,8 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 				B->Tags.Add(ArmedTag);
 				if (UPrimitiveComponent* BC = Cast<UPrimitiveComponent>(B->GetRootComponent()))
 				{
-					BC->SetCollisionProfileName(TEXT("PhysicsActor"));
+					// Respuestas explicitas: SetCollisionProfileName no hace nada si el nombre del perfil no cambio y la bala seguia fantasma.
+					BC->SetCollisionResponseToAllChannels(ECR_Block);
 					BC->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 				}
 			}
