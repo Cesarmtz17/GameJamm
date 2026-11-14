@@ -130,3 +130,8 @@ Confirmado en GDC 2024 ("Evolving Physics and Sounds", Dohta/Takayama/Osada):
    `UAttachPointComponent` + `UBuildPartData`.
 6. Autoregistro (historial + favoritos) es el MVP perfecto del "asistente IA" del GDD:
    guardar recetas de builds exitosos y ofrecerlas como fallback.
+7. Las reglas del builder (attach, límites, pesos) no son datos públicos — auditoría y
+   plan de tests en [09-auditoria-fuentes-publicas.md](09-auditoria-fuentes-publicas.md);
+   análisis a fondo del repo de referencia y diseño del grafo de ensamblado en
+   [10-repo-open-source-fusion.md](10-repo-open-source-fusion.md) y
+   [11-diseno-ensamblado-open-source.md](11-diseno-ensamblado-open-source.md).

@@ -113,7 +113,9 @@ Existe una implementación pública y funcional de exactamente este sistema, en 
 **[EvelynSchwab/ComponentFuseMechanic](https://github.com/EvelynSchwab/ComponentFuseMechanic)**
 (actor component inspirado en la construcción de la referencia, construido sobre Chaos).
 Licencia propia en el repo (LICENSE); verificar condiciones antes de copiar código — el
-patrón es lo valioso.
+patrón es lo valioso. **Análisis completo del repo (defectos concretos de código,
+riesgos de versión en Chaos, licencias y qué adoptar/no):**
+[10-repo-open-source-fusion.md](10-repo-open-source-fusion.md).
 
 ### Arquitectura que usa (validada en juego real)
 

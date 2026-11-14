@@ -125,6 +125,45 @@ status: listo
     [native investigation](https://github.com/morluto/rea/blob/main/docs/guides/native/native-investigation.md) ·
     [showcases](https://rea.tools/showcase/)
 
+## Auditoría open-source y validación (docs 09-11)
+
+40. [arXiv 2510.16952](https://arxiv.org/html/2510.16952v1) — LLM genera un JSON DSL que
+    un backend determinista valida (sintaxis/tipos/rangos) y ejecuta; defaults para
+    parámetros faltantes y fallback inofensivo. Advierte que su error handling "salvó la
+    mayoría de las salidas malas" (métricas pass/fail esconden errores) y que no probó
+    inputs adversarios. Cita en [09](09-auditoria-fuentes-publicas.md) §6 y
+    [11](11-diseno-ensamblado-open-source.md) §4.6.
+41. [Waterloo CS-2009-23A](https://cs.uwaterloo.ca/research/tr/2009/CS-2009-23A.pdf) —
+    shape grammars: referencia académica de construcción por reglas (no aplicada a
+    builds con física; no fetchado).
+42. [Spreadsheet de reglas de torneos de Besiege](https://docs.google.com/spreadsheets/d/19loFSAuqFSxgLp28y1vSREPj58C0LOPUbf1n_6Un-6w/edit)
+    — precedente débil de caps de presupuesto/piezas (documento comunitario).
+43. [OSI — texto de la licencia MIT](https://opensource.org/license/mit) — única
+    condición: conservar aviso de copyright y permiso.
+44. Derecho de EE.UU. (nota legal de [10](10-repo-open-source-fusion.md) §5):
+    §102(b) ideas/procesos fuera de copyright
+    ([Berkeley Law](https://www.law.berkeley.edu/center-article/why-copyright-law-excludes-systems-and-processes-from-the-scope-of-its-protection/) ·
+    [Baker v. Selden](https://www.lexplug.com/casebrief/baker_v_selden_65bd562dabbe1c5b9f8a38dd)) ·
+    §1201 anti-circumvención ([Cornell LII](https://www.law.cornell.edu/uscode/text/17/1201)).
+45. Foros y tracker de Unreal Engine — comportamiento de Chaos constraints (evento
+    "broken" que no dispara en 5.0.2, [UE-368639](https://issues.unrealengine.com/issue/UE-368639)
+    plasticity/drive, snap-back al reactivar simulación),
+    [release notes 5.8](https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-5-8-release-notes)
+    y el assembly toolkit cerrado de Team Expotential. URLs completas en
+    [10](10-repo-open-source-fusion.md) §1 y §3.
+46. [godot-proposals #1423](https://github.com/godotengine/godot-proposals/issues/1423) —
+    el motor no proveerá weld joint nativo.
+47. [Nintendo Life (2025)](https://www.nintendolife.com/news/2025/05/nintendo-updates-its-user-agreement-to-crack-down-on-emulation)
+    — actualización de términos de cuenta de Nintendo (RE/decomp de servicios
+    prohibidos).
+48. Prensa y guías de la auditoría (sin URL a propósito: el slug lleva el nombre del
+    juego) — Shacknews (recap del panel GDC 2024), GameSpot (guía de autoconstrucción),
+    Pocket Tactics, Prima Games, GamesRadar (×2), Twinfinite, GameSkinny, ggrecon,
+    GameWith, Game Guides, gamertagmythras, wiki de la franquicia (páginas de esquemas
+    preconstruidos), página comunitaria de speedruns (entrelazamiento de fusión), otra
+    wiki de la franquicia (glitches) y la entrevista oficial "Ask the Developer" de
+    Nintendo (ya listada en #11).
+
 ## Nota legal
 
 > [!warning] Solo conocimiento público
