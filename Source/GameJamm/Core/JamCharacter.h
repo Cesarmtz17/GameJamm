@@ -6,6 +6,7 @@
 
 class UHealthComponent;
 class UInventoryComponent;
+class UJamWeaponComponent;
 
 /**
  * Personaje de la partida (Core). Hereda la tercera persona y todas las teclas de construccion de AJamTestCharacter
@@ -26,6 +27,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Jam")
 	TObjectPtr<UInventoryComponent> Inventory;
 
+	/** Espada y arco (Combat): a pie, clic izq. ataca y rueda del mouse o Q cambia de arma. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Jam")
+	TObjectPtr<UJamWeaponComponent> Weapon;
+
 	/** Piezas con las que se empieza (IDs Part.<Tipo>) hasta que exista loot; construir las consume y desarmar las devuelve. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Jam")
 	TMap<FName, int32> StartingItems;
@@ -40,4 +45,6 @@ protected:
 
 	UFUNCTION()
 	void HandleDied(UHealthComponent* HealthComponent, AActor* Killer);
+
+	TWeakObjectPtr<class UUserWidget> SayBox;
 };

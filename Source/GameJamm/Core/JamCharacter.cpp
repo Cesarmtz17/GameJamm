@@ -2,6 +2,11 @@
 #include "Core/HealthComponent.h"
 #include "Core/InventoryComponent.h"
 #include "Core/JamGameMode.h"
+#include "Building/JamBuildPart.h"
+#include "Combat/JamWeaponComponent.h"
+#include "Blueprint/UserWidget.h"
+#include "GameFramework/PlayerController.h"
+#include "UObject/UObjectIterator.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/World.h"
@@ -13,6 +18,7 @@ AJamCharacter::AJamCharacter()
 	Health->Team = EJamTeam::Red;
 
 	Inventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("Inventory"));
+	Weapon = CreateDefaultSubobject<UJamWeaponComponent>(TEXT("Weapon"));
 	StartingItems = {
 		{ "Part.Plank", 8 }, { "Part.Wheel", 4 }, { "Part.Block", 4 }, { "Part.Wall", 2 }, { "Part.Beam", 2 },
 		{ "Part.Rocket", 1 }, { "Part.Flamethrower", 1 }, { "Part.Cannon", 1 }, { "Part.Fan", 2 },
@@ -37,6 +43,31 @@ void AJamCharacter::Tick(float DeltaSeconds)
 		return;
 	}
 	Super::Tick(DeltaSeconds);
+
+	// Armas a pie: montado, el clic es de la construccion; con la caja de texto abierta no se leen teclas.
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!SayBox.IsValid() && SayWidget)
+	{
+		// UJamSayWidget vive en el .cpp de Building: se ubica por nombre de clase una sola vez.
+		for (TObjectIterator<UUserWidget> It; It; ++It)
+		{
+			if (It->GetWorld() == GetWorld() && It->GetClass()->GetFName() == TEXT("JamSayWidget")) { SayBox = *It; break; }
+		}
+	}
+	const bool bTyping = SayBox.IsValid() && SayBox->IsInViewport();
+	if (!PC || !Weapon || bTyping || Cast<AJamBuildPart>(GetAttachParentActor()))
+	{
+		return;
+	}
+	if (PC->WasInputKeyJustPressed(EKeys::MouseScrollUp) || PC->WasInputKeyJustPressed(EKeys::MouseScrollDown) ||
+		PC->WasInputKeyJustPressed(EKeys::Q) || PC->WasInputKeyJustPressed(EKeys::Gamepad_FaceButton_Top))
+	{
+		Weapon->NextWeapon();
+	}
+	if (PC->IsInputKeyDown(EKeys::LeftMouseButton) || PC->GetInputAnalogKeyState(EKeys::Gamepad_RightTriggerAxis) > 0.5f)
+	{
+		Weapon->Attack();
+	}
 }
 
 void AJamCharacter::HandleDied(UHealthComponent* HealthComponent, AActor* Killer)
