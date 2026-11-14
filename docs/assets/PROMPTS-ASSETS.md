@@ -136,7 +136,7 @@ Las islas grandes de campo abierto se arman en el editor con terreno o con varia
 Prompt base: `game inventory icon of <objeto>, handcrafted wood and iron style, thick dark outline, centered,
 flat warm lighting, transparent background`. Uno por cada pieza y material de las tablas 3 y 4. Nombre: `T_Icon_<id>`.
 
-## 8. Orden de producción sugerido (viernes)
+## 8. Orden de producción sugerido (14 nov)
 
 1. `Plank`, `Wheel`, `Seat`: con estos ya sale el carro de la demo (arquetipo `Car`).
 2. `Fan`, `Cannon`, `Flamethrower`, `Block`, `Battery`: completan los arquetipos Volador y Torreta y la "Rueda Infernal".

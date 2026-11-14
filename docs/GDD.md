@@ -56,7 +56,7 @@ Dirección de arte, UI y audio: **[ART.md](ART.md)** (islas flotantes + campo ab
 2. **El asistente de IA nunca bloquea el juego**: si no hay red/API, usa recetas predefinidas.
 3. Contenido mínimo y pulido > mucho contenido roto.
 
-## MVP (tiene que existir el sábado a mediodía)
+## MVP (tiene que existir el 15 nov a mediodía, antes del freeze)
 - [ ] 1 mapa de **1 carril** (o 3 cortos): por equipo **2 torres + 1 base**.
 - [ ] Personaje 3ra persona: moverse, atacar cuerpo a cuerpo, arco.
 - [ ] Torres/base con vida, disparan a enemigos cercanos; victoria/derrota.
@@ -108,4 +108,4 @@ El proveedor **solo puede usar piezas del inventario**, y el juego valida la rec
 El asistente solo puede usar piezas que el jugador tiene en el inventario; el juego valida la receta antes de construir. Valores válidos de `socket` y de `type`: [CATALOGO-ELEMENTOS §0.1](assets/CATALOGO-ELEMENTOS.md).
 
 ### API key del LLM
-No va en el repo. Para la build de los jueces: key con límite de gasto bajo en config del build **o** solo fallback. Decidir el viernes.
+No va en el repo. Para la build de los jueces: key con límite de gasto bajo en config del build **o** solo fallback. Decidir el 14 nov.

@@ -262,7 +262,7 @@ Validar en C++ **antes** de spawnear nada:
 
 ### 4.7 Lista de trabajo ordenada (deadline del jam: 15 nov 2026)
 
-Hoy es 13 nov y el feature freeze es sáb 15 nov 12:00 CDMX → **solo los primeros
+Hoy es 13 nov y el feature freeze es dom 15 nov 12:00 CDMX → **solo los primeros
 tres**; el resto es post-jam:
 
 1. Arreglar los 4 defectos pequeños del reporte anterior, más

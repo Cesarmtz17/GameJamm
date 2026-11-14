@@ -95,7 +95,7 @@ No hay tiempo para personajes originales completos. Usamos el **maniquí de UE (
 | Minions | Ninguno | Color del equipo, más apagado (`Wear` alto) |
 | Enemigos de campamento | Casco de chatarra | Amarillo neutral |
 
-Si alguien tiene tiempo el viernes, el primer upgrade es el gorro y la bufanda del jugador, porque salen en todas las tomas del video.
+Si alguien tiene tiempo el 14 nov, el primer upgrade es el gorro y la bufanda del jugador, porque salen en todas las tomas del video.
 
 ## 7. Mundo: el archipiélago
 

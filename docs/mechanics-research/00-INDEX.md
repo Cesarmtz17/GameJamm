@@ -16,7 +16,7 @@ status: listo
 > (UE 5.8): fusión de armas, construcción de artefactos y asistente IA.
 > Integrado en `main` (2026-11-13).
 
-**Deadline del jam: sáb 15 nov 8:59 PM EST — feature freeze sáb 15 12:00 CDMX.**
+**Deadline del jam: dom 15 nov 8:59 PM EST — feature freeze dom 15 12:00 CDMX.**
 Este documento existe para *atajar decisiones de diseño*, no para leerse por placer.
 Cada doc termina en una sección "→ aplicable a GameJamm" con lo accionable.
 
