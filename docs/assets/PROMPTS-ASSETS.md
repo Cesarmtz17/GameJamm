@@ -16,10 +16,10 @@ status: listo
 > (colisión `UCX_`, nombres `SM_/MI_`, ≤5k tris) están en [CATALOGO-ELEMENTOS.md](CATALOGO-ELEMENTOS.md) §0, y el contrato
 > receta↔pieza en §0.1.
 
-> [!note] Reparto de generación (propuesto el 13 nov; confirmar con Emilio)
-> - **Emilio:** piezas estructurales y de movilidad (§3) y mundo (§6).
-> - **Javier (Combate, con Tripo):** los dispositivos de ataque que ya tienen código pero no mesh (`Frost`, `Beam`, `Bomb`, §3), los materiales de fusión (§4) y las armas del jugador (§5), en ese orden. Los créditos de Tripo de la jam vencen el **16 nov**.
-> - `Cannon`, `Flamethrower` y `Rocket` ya existen en `SourceArt/Building/` (hechos por script); no se regeneran con Tripo salvo que se decida cambiar de estilo.
+> [!note] Reparto de generación (actualizado el 13 nov; confirmar con Emilio)
+> - **Emilio (script en Blender, `SourceArt/`):** ya entregó piezas de construcción, dispositivos (`Cannon`, `Flamethrower`, `Rocket`, `Frost`, `Shock`, `Spring`, `Wing`…), armas del jugador, los 5 materiales de fusión, accesorios, pickups y props de mundo (lotes 1 a 3). Ver `SourceArt/Building/README.md`.
+> - **Javier (solo arte, con Tripo, en `SourceArt/Tripo/`):** lo que siga sin mesh; hoy `Beam` y los dispositivos del final del §3. El **código** de Combate lo hace Jesús, no Javier. Los créditos de Tripo de la jam vencen el **16 nov**.
+> - No regenerar con Tripo lo que Emilio ya entregó, salvo que se decida cambiar de estilo (su paleta compartida es `T_Part_Palette.png`).
 
 ## 1. Cómo funcionan las piezas en el juego (lee esto antes de generar)
 
@@ -81,7 +81,7 @@ Oferta de la jam: prueba Pro de 7 días + 3,000 créditos, una por correo (guía
 - Mejor **image-to-3D** con la hoja de estilo como referencia (paso 1 del flujo). Hacer 2–3 intentos por asset y quedarse con el mejor.
 - Anotar por asset: prompt, modelo y **créditos gastados** (sirve para [SUBMISSION.md](../SUBMISSION.md) y el [DEVLOG](../DEVLOG.md)).
 - Si se usa la API, la clave va solo en la variable de entorno `TRIPO_API_KEY`. El repo es público: nunca en archivos.
-- Carpetas de Combate: crudos de Tripo en `SourceArt/Combat/raw/`, FBX limpios en `SourceArt/Combat/FBX/` (ambos van por LFS).
+- Carpetas: crudos de Tripo en `SourceArt/Tripo/raw/` y FBX limpios en `SourceArt/Tripo/FBX/` (ambos van por LFS). No usar `SourceArt/Building/`: el script de Emilio la regenera completa.
 
 ## 3. Piezas de construcción (las 12 que ya existen en el código)
 
@@ -109,19 +109,24 @@ Oferta de la jam: prueba Pro de 7 días + 3,000 créditos, una por correo (guía
 | `Rocket` | `SM_DEV_ROCKET` | 60 × 20 × 20 (tobera hacia −X) | Empuje fuerte 3 s y se apaga | Cohete | `handmade rocket lying horizontally, riveted metal body with painted red stripes, three small fins, nozzle at the back` |
 | `Balloon` | `SM_DEV_BALLOON` | 90 × 90 × 90 | Sube la construcción | Globo | `round balloon made of patched canvas, ropes hanging to a small wooden ring at the bottom` |
 
-### Dispositivos de ataque con código y sin mesh (Combate, con Tripo)
+### Dispositivos con código y sin mesh (arte con Tripo)
 
-Ya están en la tabla de `JamBuildPart.cpp` y los elige el modelo de decisión (`frost`, `beam`, `bomb`), pero hoy se ven como
-BasicShapes. `Size` y comportamiento salen del código en `main`; el daño real de estos dispositivos se está trabajando en la
-rama `build/poc-devices` (ver [research 14](../mechanics-research/14-poc-en-unreal.md), sin verificar).
+Tipos que están en la tabla de `JamBuildPart.cpp` y los elige el modelo de decisión, pero **no tenían FBX el 13 nov** (se ven como
+BasicShapes). `Size` y comportamiento salen del código en `main`; el daño real de los dispositivos se está trabajando en la rama
+`build/poc-devices` (ver [research 14](../mechanics-research/14-poc-en-unreal.md), sin verificar). `Frost`, `Shock`, `Spring` y
+`Wing` ya los entregó Emilio.
 
 | Receta | Asset | Size (X×Y×Z) | Qué hace hoy en el código | Debe leerse como | Prompt (después del prefijo) |
 |---|---|---|---|---|---|
-| `Frost` | `SM_DEV_FROST` | 40 × 25 × 25 (boquilla hacia +X) | Esfera de hielo de 150 cm de radio, centrada 150 cm al frente, que frena (amortigua) los cuerpos físicos que no son de la construcción | Emisor de hielo | `handmade frost emitter, short iron nozzle pointing forward, chunky pale cyan ice crystal cluster in a wooden cradle` |
 | `Beam` | `SM_DEV_BEAM` | 50 × 12 × 12 (boca hacia +X) | Rayo de 15 m al frente que empuja lo que toca | Emisor de rayo | `handmade beam emitter, slim iron tube pointing forward, large glowing magenta crystal lens at the muzzle, wooden clamp bracket` |
 | `Bomb` | `SM_DEV_BOMB` | 30 × 30 × 30 | Mecha de 4 s y explosión radial de 500 cm | Bomba | `round cartoon bomb, black iron shell with a rope-wrapped band, short rope fuse` |
 
-Sockets: los `Attach_*` de siempre, más `Fx_Out` (+X) en `Frost` y `Beam`. La bomba lleva solo `Attach_*`.
+Sockets: los `Attach_*` de siempre, más `Fx_Out` (+X) en `Beam`. La bomba lleva solo `Attach_*`.
+
+**Antes de generar `Bomb`:** Emilio entregó `SM_CTRL_TIMEBOMB` (30 × 30 × 36); confirmar con él o con Jesús si ese asset ya cubre el tipo `Bomb`.
+
+Otros tipos del código que tampoco tenían FBX el 13 nov: `Jet`, `Turbine`, `HoverStone`, `Sail`, `Stabilizer`, `Hydrant`, `Light`,
+`Girder`, `Sled` y `Turntable`. Preguntar a Emilio si están en su siguiente lote antes de generarlos con Tripo.
 
 **Sockets** en cada pieza (Socket Manager): `Attach_Top`, `Attach_Bottom`, `Attach_Front`, `Attach_Back`, `Attach_Left`,
 `Attach_Right`, en el centro de cada cara de la caja y con X saliendo de la superficie. Hoy el código coloca por caja, pero los
@@ -132,7 +137,7 @@ sockets los va a usar después. Ruedas: solo `Attach_Left`/`Attach_Right` (el ej
 
 ## 4. Materiales de fusión (se pegan al arma)
 
-> Dueño: Combate (Javier, con Tripo). Van después de los dispositivos del §3.
+> Ya hechos por Emilio (lote 2, `SourceArt/Fusion/`: caja de 25 cm con pivote abajo). Los prompts de abajo quedan de referencia por si se rehacen con Tripo.
 
 En el juego: el jugador junta un material con la espada o la flecha. Tienen que verse **pegados encima del arma**.
 Tamaño: caben en una caja de **25 × 25 × 25 cm**, con pivote en la cara que toca el arma (`Attach_Bottom`).
@@ -147,7 +152,7 @@ Tamaño: caben en una caja de **25 × 25 × 25 cm**, con pivote en la cara que t
 
 ## 5. Armas del jugador
 
-> Dueño: Combate (Javier, con Tripo). Hoy no hay código de personaje, armas ni fusión: estos assets no se verán hasta que exista.
+> Ya hechas por Emilio (lote 2, `SourceArt/Weapons/`). Los prompts quedan de referencia. El código de armas y fusión (Combate) lo hace Jesús; el 13 nov no estaba en `main`.
 
 | Asset | Tamaño | Prompt | Notas |
 |---|---|---|---|
@@ -184,6 +189,6 @@ flat warm lighting, transparent background`. Uno por cada pieza y material de la
 4. Torre, base, cofre e isla chica: sin estos el mapa es BasicShapes.
 5. Lo demás si da tiempo.
 
-Cola de Combate (Javier, Tripo): `Frost`, `Beam`, `Bomb` → `FUSE_FIRE`, `FUSE_ICE`, `FUSE_ROCK` → espada → arco y flecha.
+Cola de Tripo (Javier): `Beam` y, si Emilio no los cubre en su siguiente lote, `Jet`, `Turbine`, `HoverStone` y `Sail`; después, lo que se decida (por ejemplo personajes).
 
 Checklist de entrega por pieza: [CATALOGO-ELEMENTOS.md](CATALOGO-ELEMENTOS.md) §10.
