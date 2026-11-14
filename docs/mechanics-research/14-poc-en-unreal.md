@@ -52,7 +52,7 @@ status: borrador
 |---|---|
 | Catálogo de piezas, ensamblador, spawner, cliente Jev/OpenRouter/fal | **[code]** en `main` |
 | Rama `build/recipe-hardening-v2` (parser robusto, layout sin piezas encimadas, tests) | Sin integrar a `main` |
-| Solver por capacidades (inventario, sustituir, reducir, pedir materiales) | **[sin verificar]** en `build/poc-solver` |
+| Solver por capacidades (inventario, sustituir, reducir, pedir materiales) + comandos `Jam.Build`, `Jam.Inv*`, `Jam.Clear`, `Jam.Prompts` | **[sin verificar en Unreal]** en `build/poc-solver` (subida; Python: 72–73 casos, 0 fallas; el C++ del solver compila con clang contra un mock y pasa 664 comprobaciones) |
 | Comportamientos (rueda raíz, daño de llamas/cañón/frío, energía, asiento, Turntable/Head/Stake/Spring) | **[sin verificar]** en `build/poc-devices` (subida; lógica pura probada en Python: 75 casos, 0 fallas; no compilada) |
 | Comandos de consola `Jam.*` para ver todo en el editor | **[sin verificar]**, ver §5 |
 | Piezas 3D reales (FBX con sockets) | **[code]** `Content/Game/Art/` (Emilio); el PoC usa mallas básicas |
@@ -64,11 +64,14 @@ Las ramas se confirman en §4 cuando el Mac mini termina de subirlas.
 | Orden | Rama | Contiene |
 |---|---|---|
 | 1 | `build/poc-integracion` | `main` + `build/recipe-hardening-v2` (base común) |
-| 2 | `build/poc-solver` | Solver + `Jam.Build`, `Jam.Inv*`, `Jam.Clear`, `Jam.Prompts` |
-| 3 | `build/poc-devices` | Piezas con comportamiento + `Jam.Dummy`, `Jam.Energy`, `Jam.Seat`, `Jam.Debug` |
+| 2 | `build/poc-solver` | Base + solver + `Jam.Build`, `Jam.Inv*`, `Jam.Clear`, `Jam.Prompts`, `Jam.Reload` |
+| 3 | `build/poc-devices` | Base + piezas con comportamiento + `Jam.Dummy`, `Jam.Energy`, `Jam.Seat`, `Jam.Debug`, `Jam.Device`, `Jam.Power` |
+| 4 | `build/poc-final` | **Las dos anteriores unidas** (un conflicto solo en este doc 13, resuelto) |
 
-Probar en ese orden: si compila la 1 pero no la 2, el problema está en la 2. Las ramas 2 y 3 se crearon sobre la 1 y editan
-archivos distintos; se integran juntas en una rama `build/poc-poc` cuando ambas compilan.
+Atajo: si se quiere ir rápido, compilar directamente `build/poc-final`; si falla la compilación, bajar a las ramas 2 y 3 por separado para aislar de qué lado viene el error. Ver detalle de cada lado en [14-handoff-solver.md](14-handoff-solver.md) y [14-handoff-dispositivos.md](14-handoff-dispositivos.md) (vienen dentro de las ramas).
+
+> [!warning]
+> Al unir las ramas, `Head` pasó a existir en el catálogo: el caso del solver "torreta que apunta sola" ya no devuelve `Head` como "aún no existe" sino como material faltante si no está en el inventario. Se actualizaron la prueba de Python y el espejo `JamSolverCases.inl`.
 
 ## 5. Runbook para la sesión MacBook
 
@@ -77,9 +80,9 @@ archivos distintos; se integran juntas en una rama `build/poc-poc` cuando ambas 
 3. Generar proyecto y compilar el target de editor para Mac (`GameJammEditor`, `Mac`, `Development`). Si falla, copiar el **primer** error real, corregir solo en `Source/GameJamm/Building/` y repetir. Si falta un módulo, agregarlo a `GameJamm.Build.cs` y decirlo en el commit.
 4. Abrir el editor, abrir un mapa vacío o `Content/Developers/<nombre>/L_Test_<nombre>`, y comprobar el MCP (listar actores del nivel).
 5. Correr los tests automáticos filtrando por `Jam` (`Automation RunTests Jam` en la consola del editor, o la ventana Session Frontend). Anotar los que fallan.
-6. `git checkout build/poc-solver`, recompilar, Play (PIE), abrir la consola con `~` y correr la tabla de §6 sin clave de Jev (respaldo por palabras clave).
+6. `git checkout build/poc-final` (o `build/poc-solver` para aislar), recompilar, Play (PIE), abrir la consola con `~` y correr la tabla de §6 sin clave de Jev (respaldo por palabras clave).
 7. Poner la clave de Jev (variable de entorno, **no** en el repo), reiniciar el editor y repetir un subconjunto para comparar Jev contra el respaldo (el resumen en pantalla dice cuál usó).
-8. `git checkout build/poc-devices` (o la rama integrada), recompilar y repetir §6 con `Jam.Dummy`, `Jam.Energy`, `Jam.Seat`, `Jam.Debug 1`.
+8. Con `build/poc-final` (o `build/poc-devices` para aislar), repetir §6 con `Jam.Dummy`, `Jam.Energy`, `Jam.Seat`, `Jam.Debug 1`.
 9. Corregir lo que falle, commits chicos `build: …`, pull/rebase y push a la rama de trabajo. **No** empujar a `main` código que no compile y no haya pasado §6.
 10. Reportar al usuario: qué compiló, qué pasó en cada fila de §6 y qué quedó fallando, con el texto del log.
 
@@ -123,7 +126,7 @@ Preparar inventario con `Jam.InvAll 10`. El estado real de cada fila se anota al
 | Qué falta de verificación | Nada de lo nuevo se ha compilado: el Mac mini no tiene Unreal. Solo hay validación en Python (datos y algoritmo) |
 | Créditos del concurso (aplican a Construcción) | Claude $25 (reclamar 12–27 nov), fal $30 (hasta 30 nov), Meshy con API (hasta 17 nov), Tripo y Hyper3D para modelos 3D (hasta 16 nov). Una cuenta por persona; las claves nunca al repo |
 | Contenido público | La convención de [FORMATO.md](FORMATO.md) prohíbe nombrar el juego de referencia; hubo una fuga en `CLAUDE.md` y se corrigió (queda en el historial de git) |
-| Agentes | Dos agentes (solver y piezas) trabajan en `build/poc-solver` y `build/poc-devices`; al escribir esto aún no habían hecho commits. Sus archivos de contexto serán `14-handoff-solver.md` y `14-handoff-dispositivos.md` |
+| Agentes | Dos agentes (solver y piezas) terminaron; sus ramas y archivos de contexto (`14-handoff-solver.md`, `14-handoff-dispositivos.md`) están en `build/poc-solver` y `build/poc-devices` |
 
 ## 9. Rama `build/poc-devices` (subida)
 
@@ -137,6 +140,17 @@ Detalle completo, contratos y riesgos en [14-handoff-dispositivos.md](14-handoff
 | Riesgos de compilación | `OverrideComponent1` debe ser público; `OverlapMultiByObjectType` con `AllObjects`; `SetConstrainedComponents` para anclar al mundo; reconfigurar constraints ya creadas; ambigüedades `float`/`double` |
 | Pendiente de integración | Llamar `SetBuildOwner(Jugador)` tras `UJamAssembler::Assemble`; poner `UJamEnergyComponent` en el personaje y conectar HUD e input real; la plantilla `Spinner` debe poner los lanzallamas en `Front`/`Back` |
 | No hecho | Daño por impacto a más de 8 m/s, hielo sobre agua, Hydrant, BigBattery, elevación de Head, tipo Shock |
+
+## 10. Qué está verificado y qué no (honesto)
+
+| Qué | Cómo | Estado |
+|---|---|---|
+| Datos de `BuildKnowledge.json` | `validate_knowledge.py` | 0 errores, 0 avisos (41 elementos, 16 plantillas) |
+| Algoritmo del solver | `solver_proto.py` | 72 casos, 0 fallas en `build/poc-final` |
+| Lógica numérica de piezas | `devices_proto.py` | 0 fallas (75 casos) |
+| C++ del solver | clang++ contra un mock de Unreal (en `build/poc-solver`) | Compila y pasa 664 comprobaciones; **no es UnrealBuildTool** |
+| C++ de piezas y rama unida | Sin compilador de Unreal; el mock no cubre los símbolos de `JamBuildPart` | **Sin compilar** |
+| Pruebas de Automation, comandos `Jam.*`, física | Requieren el editor | **Sin probar** |
 
 ## → Aplicable a GameJamm
 
