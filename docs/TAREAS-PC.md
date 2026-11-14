@@ -20,10 +20,15 @@
 
 ## Tareas (en orden de prioridad)
 
-### [~] (PC, 14 nov 01:20) 0. Probar el brillo al prender
+### [x] 0. Probar el brillo al prender
 `git checkout build/brillo-encendido`, compilar y en PIE correr `Jam.Say un carro` y luego **C**: la malla debe brillar
 (parámetro `Emissive` de `M_Part_Master`; si el material no lo tiene, agrégalo: Scalar 0–1 × `#E7B65A` a Emissive Color).
 Si funciona, haz merge a `main` y push. Si no compila, pon aquí el primer error.
+
+> **Hecho (PC, 14 nov 01:10):** merge `626a128`. Probado en `-game`: `Jam.Say un carro` → apagado sin brillo, **C** → las llantas brillan cálido (#E7B65A); **C** otra vez lo apaga.
+> **Ojo, no compila en Windows/MSVC ni `main` ni la rama:** `JamPlayConsole.cpp(1005): error C4458: la declaración de 'Slot' oculta el miembro de clase`
+> (`UCanvasPanelSlot* Slot = Root->AddChildToCanvas(Box)` choca con `UWidget::Slot`). Arreglo: renombrar a `CanvasSlot` en las líneas 1005–1010.
+> Lo probé con ese cambio solo local, sin subirlo, porque el archivo es de Jesús Daniel. **Pendiente para Building.**
 
 ### [ ] 1. Partida jugable (Core + mapa)
 Core no tiene dueño: anota "Cesar" en la fila Core de `docs/TEAM.md` y haz push.
