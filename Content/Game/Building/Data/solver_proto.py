@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Prototipo ejecutable del solver por capacidades (espejo de Source/GameJamm/Building/JamSolver.cpp).
 
-Uso (sin Unreal):  python3 -I Content/Game/Building/Data/solver_proto.py [-v]
+Uso (sin Unreal):  python3 -I Content/Game/Building/Data/solver_proto.py [-v] [--emit-cpp]
+  -v          imprime el mensaje y las piezas de cada caso
+  --emit-cpp  regenera Source/GameJamm/Building/Tests/JamSolverCases.inl (espejo para las pruebas de Unreal)
 
 El modelo de decision solo ELIGE (arquetipo, extras, piezas deseadas). Este codigo decide lo posible:
 llena los slots de la plantilla con el inventario, sustituye, reduce, valida que se mueva/ataque y lista
@@ -322,13 +324,14 @@ def try_template(kn, extras_table, usable, tpl, req, max_parts):
         count = 1 if is_root else int(slot.get("count", 1))
         wanted_for_role = [t for t in want_order if provides_role(elem(kn, t), role)]
         trigger = ""
+        only_providers = False
         if optional:
             if role == "control":
                 pass
             elif wanted_for_role:
                 trigger = wanted_for_role[0]
             elif role == "anchor" and anchored:
-                pass
+                only_providers = True  # anclar solo con una pieza que ancle de verdad; si no hay, va suelta sin avisar
             else:
                 continue
         minimum = 0 if optional else int(slot.get("min", count))
@@ -336,6 +339,8 @@ def try_template(kn, extras_table, usable, tpl, req, max_parts):
             minimum = 1
         use_wanted = optional or bool(slot.get("prefer_wanted"))
         cands = slot_candidates(kn, usable, slot, wanted_for_role if use_wanted else [])
+        if only_providers:
+            cands = [t for t in cands if provides_role(elem(kn, t), role)]
         first_choice = cands[0] if cands else ""
         unit = 2 if slot.get("pairs") else 1
 
@@ -882,11 +887,11 @@ CASES = [
     dict(name="42 rueda acostada con dos lanzallamas que gira y quema", prompt="una rueda acostada con dos lanzallamas que gire y queme todo",
          archetype="Spinner", extras=["flame"], inv={"Wheel": 1, "Flamethrower": 2},
          expect=dict(buildable=True, template="Spinner", types={"Wheel": 1, "Flamethrower": 2}, orientation="flat", cost=4.2,
-                     sockets={"body": ("Wheel", "", ""), "weapon0": ("Flamethrower", "body", "Left"), "weapon1": ("Flamethrower", "body", "Right")})),
+                     sockets={"body": ("Wheel", "", ""), "weapon0": ("Flamethrower", "body", "Front"), "weapon1": ("Flamethrower", "body", "Back")})),
     dict(name="43 rueda acostada con 1 lanzallamas: reduce", prompt="una rueda acostada con dos lanzallamas", archetype="Spinner",
          extras=["flame"], inv={"BigWheel": 1, "Flamethrower": 1},
          expect=dict(buildable=True, template="Spinner", types={"BigWheel": 1, "Flamethrower": 1}, reduced=[("weapon", 2, 1)],
-                     subs=[("Wheel", "BigWheel")], missing={"Flamethrower": 1}, sockets={"weapon0": ("Flamethrower", "body", "Left")})),
+                     subs=[("Wheel", "BigWheel")], missing={"Flamethrower": 1}, sockets={"weapon0": ("Flamethrower", "body", "Front")})),
     dict(name="44 rueda infernal (rueda que rueda sola con fuego)", prompt="una rueda infernal", archetype="Roller", extras=["flame"],
          inv={"Wheel": 1, "Flamethrower": 1},
          expect=dict(buildable=True, template="Roller", types={"Wheel": 1, "Flamethrower": 1}, orientation="upright", cost=2.2,
@@ -1075,6 +1080,55 @@ def run_combo_sweep(kn, extras_table, catalog, archetypes):
     return n, errs
 
 
+# ------------------------------------------------------------------------------------------------
+# Espejo para las pruebas de Unreal: los mismos casos, con el resultado exacto de este prototipo
+# ------------------------------------------------------------------------------------------------
+
+CASES_INL = os.path.join(REPO, "Source", "GameJamm", "Building", "Tests", "JamSolverCases.inl")
+
+
+def _cpp_str(text):
+    return 'TEXT("%s")' % text.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def emit_cpp_cases(kn, extras_table, catalog):
+    """Tabla C++ (Tests/JamSolverCases.inl) que JamSolverTests.cpp compara campo por campo con UJamSolver::Solve.
+    Se omiten los casos que simulan piezas que aun no estan en el catalogo (usable_extra)."""
+    lines = ["// GENERADO por Content/Game/Building/Data/solver_proto.py --emit-cpp. No editar a mano.",
+             "// Cada fila: entrada del solver + resultado exacto del prototipo Python (espejo)."]
+    n = 0
+    for case in CASES:
+        if case.get("usable_extra"):
+            continue
+        res, _ = run_case(kn, extras_table, catalog, case)
+        rec = res["recipe"]
+        inv = case.get("inv") or {}
+        fields = [
+            _cpp_str(case["name"]),
+            _cpp_str(case["archetype"]),
+            _cpp_str(",".join(case.get("extras") or [])),
+            _cpp_str(",".join(case.get("want") or [])),
+            _cpp_str(",".join("%s:%d" % (t, inv[t]) for t in inv)),
+            "true" if case.get("unlimited") else "false",
+            "%.4ff" % case.get("energy", -1.0),
+            "true" if res["buildable"] else "false",
+            _cpp_str(res["template"]),
+            _cpp_str("|".join("%s:%s:%s:%s" % (p["id"], p["type"], p["attach_to"], p["socket"]) for p in rec["parts"])),
+            _cpp_str(",".join(rec["activate"])),
+            _cpp_str("|".join("%s:%s>%s:%d" % (x["role"], x["wanted"], x["used"], x["count"]) for x in res["substitutions"])),
+            _cpp_str("|".join("%s:%d:%d" % (x["role"], x["wanted"], x["got"]) for x in res["reductions"])),
+            _cpp_str(",".join("%s:%d" % (m[0], m[1]) for m in res["missing"])),
+            _cpp_str(",".join(res["unsupported"])),
+            "%d" % len(res["trimmed"]),
+            _cpp_str(res["orientation"]),
+            "%.4ff" % res["energy_cost_per_s"],
+            "%.4ff" % res["duration_s"],
+        ]
+        lines.append("{ " + ", ".join(fields) + " },")
+        n += 1
+    return "\n".join(lines) + "\n", n
+
+
 def main(argv):
     verbose = "-v" in argv
     kn, err = load_knowledge()
@@ -1108,11 +1162,23 @@ def main(argv):
         print("       - " + e)
     failed += 1 if errs else 0
 
+    text, n_cpp = emit_cpp_cases(kn, extras_table, catalog)
+    if "--emit-cpp" in argv:
+        with open(CASES_INL, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        print("ok   escrito %s (%d casos)" % (os.path.relpath(CASES_INL, REPO), n_cpp))
+    else:
+        current = _read(CASES_INL).replace("\r\n", "\n") if os.path.exists(CASES_INL) else ""
+        fresh = current == text
+        print("%s espejo C++ al dia: Tests/JamSolverCases.inl (%d casos)%s" % (
+            "ok  " if fresh else "FAIL", n_cpp, "" if fresh else " -> corre con --emit-cpp"))
+        failed += 0 if fresh else 1
+
     bad, _ = load_knowledge(os.path.join(HERE, "no-existe.json"))
     print("%s JSON ausente -> load falla (el llamador usa el camino actual)" % ("ok  " if bad is None else "FAIL"))
     failed += 0 if bad is None else 1
 
-    print("\n%d casos, %d fallas" % (len(CASES) + 2, failed))
+    print("\n%d casos, %d fallas" % (len(CASES) + 3, failed))
     return 1 if failed else 0
 
 

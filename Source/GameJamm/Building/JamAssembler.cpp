@@ -2,6 +2,7 @@
 
 #include "Building/JamBuildPart.h"
 #include "Building/JamLayout.h"
+#include "Building/JamSolver.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
@@ -267,10 +268,30 @@ void UJamBuildGenerator::ChoiceFromKeywords(const FString& Prompt, FJamBuildChoi
 			}
 		}
 	}
+
+	// Plantillas que solo existen en BuildKnowledge.json (rueda acostada, rueda infernal, globo) y piezas deseadas.
+	// No hace nada si el JSON no cargó, así el camino por tabla nunca recibe un arquetipo que no conoce.
+	UJamSolver::RefineChoiceFromText(Prompt, OutChoice);
 }
 
 bool UJamBuildGenerator::ComposeRecipe(const FJamBuildChoice& C, FBuildRecipe& OutRecipe, FString& OutNote)
 {
+	// Solver por capacidades (BuildKnowledge.json). Aquí no hay inventario del jugador, así que sale la versión
+	// completa de la plantilla; con inventario se llama a UJamSolver::Solve directo. Si el JSON no cargó o el
+	// solver no pudo, sigue el camino por tabla de abajo, intacto.
+	{
+		FJamSolverRequest SolverRequest;
+		SolverRequest.Choice = C;
+		SolverRequest.bUnlimitedInventory = true;
+		FJamSolverResult SolverResult;
+		if (UJamSolver::Solve(SolverRequest, SolverResult))
+		{
+			OutRecipe = SolverResult.Recipe;
+			OutNote = SolverResult.Note;
+			return true;
+		}
+	}
+
 	OutRecipe = FBuildRecipe();
 	const FName Archetype = C.Archetype;
 	OutNote = FString::Printf(TEXT("archetype=%s"), *Archetype.ToString());

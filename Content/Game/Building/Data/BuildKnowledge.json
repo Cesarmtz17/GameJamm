@@ -1796,10 +1796,10 @@
      "count": 2,
      "min": 1,
      "faces": [
-      "Left",
-      "Right",
       "Front",
-      "Back"
+      "Back",
+      "Top",
+      "Bottom"
      ],
      "prefer_wanted": true
     }

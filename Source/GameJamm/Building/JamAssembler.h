@@ -62,6 +62,13 @@ struct GAMEJAMM_API FJamBuildChoice
 	/** Claves de FJamExtraDef elegidas (fan, jet, wing, wall, ...). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
 	TArray<FName> Extras;
+
+	/**
+	 * Opcional (vacío por defecto): tipos de pieza que el jugador pide y que no son un extra de la tabla
+	 * ("Head", "Battery"...; repetir = varias). Solo lo usa UJamSolver; ComposeRecipe por tabla lo ignora.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
+	TArray<FName> WantTypes;
 };
 
 /**
