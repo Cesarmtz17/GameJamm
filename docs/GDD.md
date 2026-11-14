@@ -499,11 +499,11 @@ No va en el repo (`Config/DefaultSecrets.ini` o variables de entorno). **Propues
 
 | ✓ | Área (dueño) | Qué falta | Sección del GDD |
 |---|---|---|---|
-| [~] | Construcción (Jesús Daniel) | **Energía del jugador: hecho en `92452a9`** (barra del jugador, baterías primero). Faltaban los valores del GDD (código: arranca 60, máx. 100, +2/s): **ya están en la rama `build/gdd-alineacion`** (mín. 50 con recarga +3/s solo hasta 50, máx. 150, también en `BuildKnowledge.json`), sin compilar; revisar, compilar y mergear. Falta conectar orbes de muerte y pickups | Jugabilidad §5 |
-| [~] | Construcción (Jesús Daniel) | **Shock** apagaba la construcción enemiga para siempre → ahora 3 s y vuelve a prender. Hecho en `build/gdd-alineacion`, sin compilar | §16 |
-| [~] | Construcción (Jesús Daniel) | **Encendido con C**: `Jam.Say` arma apagada y **C** prende/apaga la tuya más cercana (`AJamBuildSpawner::SetBuildOn`); `Jam.Test` y spawners del nivel siguen prendiendo solos. Al prender, la malla de arte **brilla** (`Emissive` = 1 en `M_Part_Master`) y se apaga al apagar, al quedarse sin energía o al gastarse el cohete. Hecho en `build/gdd-alineacion`, sin compilar (cambia `JamBuildSpawner.h`) | §6.3, §17 |
+| [x] | Construcción (Jesús Daniel) | **Energía del jugador con valores del GDD** (mín. 50, máx. 150, +3/s solo hasta 50; HUD de 15 segmentos): hecho en `8554e24`. Falta conectar orbes de muerte y pickups de cristal | Jugabilidad §5 |
+| [x] | Construcción (Jesús Daniel) | **Shock** aturde 3 s en vez de apagar para siempre: hecho en `8554e24` | §16 |
+| [~] | Construcción (Jesús Daniel) | **Encendido con C** (sale apagada): hecho en `8554e24`. Falta el **brillo al prender** (`Emissive` de `M_Part_Master`): rama `build/brillo-encendido`, sin compilar, solo `.cpp` | §6.3, §17 |
 | [ ] | Construcción (Jesús Daniel) | **Solver en `main`**: hoy Jev no ve el inventario y no reduce ni pide materiales (está en `build/poc-final`, sin compilar). §6.1 depende de eso | §6.1 |
-| [~] | Construcción (Jesús Daniel) | **Head y armas ignoran a su equipo**: las piezas tienen dueño spawner → jugador e `IsMine` compara `UJamStatics::GetActorTeam`. Hecho en `build/gdd-alineacion`, sin compilar. Funciona cuando el personaje real tenga `UHealthComponent` con equipo | §15 |
+| [x] | Construcción (Jesús Daniel) | **Head y armas ignoran a su equipo** (`Build->Team`): hecho en `8554e24` | §15 |
 | [x] | Construcción (Jesús Daniel) | Rama con la abreviatura del juego de referencia: ya no existe en GitHub; copia en `build/ref-integracion` | — |
 | [ ] | Construcción (Jesús Daniel) | **Valores de piezas distintos a §9**: Bomba 5 m/30 (GDD 3 m/60), Beam 15 m/12 por s (GDD 25 m/12 cada 0.25 s), Head 25 m (GDD 20 m), Frost ~3 m y frena (GDD 4 m, ralentiza y congela). Para el MVP queda lo del código; el último día afinar hacia §9 o decir aquí qué número se queda. Shock (apaga la construcción enemiga) ya está agregado al GDD | §9, §16 |
 | [ ] | Construcción (Jesús Daniel) | Reglas de PvP de §15: 1 construcción activa, no armar a menos de 15 m de torres enemigas, apagarse sola al alejarse/morir el dueño | §15 |
