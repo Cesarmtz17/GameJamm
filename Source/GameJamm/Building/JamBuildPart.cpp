@@ -103,8 +103,11 @@ void AJamBuildPart::InitFromDef(const FJamPartDef& Def)
 	}
 	Mesh->SetRelativeScale3D(Scale);
 
-	if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0))
+	// BasicShapeMaterial no tiene parametro "Color"; DebugMeshMaterial si.
+	UMaterialInterface* ColorMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineDebugMaterials/DebugMeshMaterial.DebugMeshMaterial"));
+	if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(ColorMat ? ColorMat : Mesh->GetMaterial(0), this))
 	{
+		Mesh->SetMaterial(0, MID);
 		MID->SetVectorParameterValue(TEXT("Color"), Def.Color);
 	}
 
