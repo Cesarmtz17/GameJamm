@@ -37,3 +37,11 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 ## 13 nov — Tema y dirección de arte
 - Tema del jam: DIRECTOR'S CUT = "la función que siempre se recorta" + "tú diriges a tus agentes de IA". Lo cumplimos con la construcción libre con física (la mecánica que nunca entra en el alcance) y con el asistente de IA al que le das la visión y decides qué se queda. Una primera versión de los docs le había puesto por error una ficción de estudio de cine; se retiró.
 - Dirección de arte: archipiélago de islas flotantes con islas grandes de campo abierto, low-poly estilizado, artefactos de madera, hierro y cuerda. Conceptos 01-A/01-B/01-C en docs/concepts/ (generados con gpt-image-2 vía OpenClaw a partir del GDD; elegidos por el equipo). Guía en docs/ART.md.
+
+## 13-14 nov — Arte 3D, iconos y audio por código (Emilio)
+- Sin experiencia previa en Blender: el agente (Claude vía OpenClaw) escribió **scripts de Python para Blender en modo headless** en lugar de modelar a mano o usar Blender MCP. Un script = un lote completo en segundos (las 12 primeras piezas salieron en 13 s).
+- Las medidas salen de la tabla de `JamBuildPart.cpp` (fuente de verdad); cada FBX trae caja exacta, pivote al centro, colisión `UCX_` y sockets `Attach_*`. Cuando Construcción subió 35 piezas con otras medidas, se regeneraron todas en minutos.
+- Una sola textura de paleta (16 colores) para todo: un material, cero texturas por pieza.
+- Resultado: 104 modelos, mapa blockout + versión vestida, 62 iconos (inventario + HUD), hoja de estilo, todo regenerable.
+- Audio también por código (numpy): 23 efectos y 3 loops de música sintetizados, originales y sin licencias de terceros.
+- Qué falló: un instalador que pedía permisos de administrador (se usó Blender portátil); certificados TLS de la red del agente; el arco salió en pedazos en el primer intento y las vistas previas cortaban piezas (se corrigió el encuadre).

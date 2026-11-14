@@ -57,5 +57,7 @@ Prellenado desde el historial del repo el 13 nov: **confirmar licencias y comple
 | Claude Code (agentes del equipo: código, docs, research) | Anthropic | Servicio; términos del proveedor | prellenado |
 | gpt-image-2 vía OpenClaw (conceptos de arte en `docs/concepts/`) | OpenAI | Servicio; por confirmar términos de uso de las imágenes | prellenado |
 | Unreal MCP (plugin de UE 5.8) | Epic Games | Por confirmar | prellenado |
-| Blender MCP (arte 3D) | Por confirmar | Por confirmar | prellenado |
+| Blender 5.3 (arte 3D por scripts en `SourceArt/**/scripts/`: 104 modelos, mapa, iconos, hoja de estilo; no se usó Blender MCP) | Blender Foundation | GPL (la herramienta; los assets generados son nuestros) | Emilio |
+| Audio de `SourceArt/Audio/` (23 SFX + 3 loops de música) | Sintetizado por código propio (numpy) | Original del equipo, sin samples de terceros | Emilio |
+| Claude (agente de Emilio vía OpenClaw: scripts de Blender y audio, docs de arte) | Anthropic | Servicio; términos del proveedor | Emilio |
 | Jev / Decisions API (`api.typesafe.ai`), OpenRouter, fal (asistente de IA en gameplay) | Typesafe, OpenRouter, fal | Servicios; términos del proveedor | prellenado |
