@@ -42,7 +42,7 @@ Entrada del equipo para la [2026 Epic AI MegaJam](https://itch.io/jam/2026-epic-
 
 Los `.uasset`/`.umap` son binarios: **no se pueden mergear**. Si dos personas editan el mismo asset, uno pierde su trabajo. Por eso:
 
-1. **Antes de empezar:** `git pull` (siempre).
+1. **Antes de empezar:** `git pull` (siempre). **Y cada 5 minutos** mientras trabajes (ver "Sincronización" abajo): somos 5 personas, cada una con su compu y su agente.
 2. **Antes de editar un asset existente:** bloquéalo.
    ```bash
    git lfs lock "Content/Game/Combat/BP_Sword.uasset"
@@ -61,6 +61,13 @@ Los `.uasset`/`.umap` son binarios: **no se pueden mergear**. Si dos personas ed
 6. **No renombres/muevas assets de otros** sin avisar (rompe referencias y deja redirectors). Si mueves algo: *Fix Up Redirectors* y commit todo junto.
 7. **C++:** si cambias headers, avisa; los demás tienen que recompilar.
 8. **Nunca commitear API keys.** Van en `Config/DefaultSecrets.ini` (ignorado por git).
+
+### Sincronización cada 5 min
+Cada sesión de Claude Code (la de cada integrante) debe jalar el repo seguido, para ver lo que suben los demás:
+```
+/loop 5m git pull --rebase --autostash
+```
+Si el pull falla por conflicto, **para y avisa**; no resuelvas a ciegas ni uses `--force`. Detalle en [CLAUDE.md](CLAUDE.md).
 
 ### Mensajes de commit
 `<area>: <qué>` — áreas: `core`, `combat`, `build`, `ai`, `map`, `ui`, `audio`, `docs`.
