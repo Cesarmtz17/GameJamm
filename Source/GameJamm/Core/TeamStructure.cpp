@@ -158,7 +158,11 @@ void ATeamStructure::TryAttack()
 	}
 	if (AActor* Target = FindTarget())
 	{
-		UGameplayStatics::ApplyDamage(Target, AttackDamage, nullptr, this, nullptr);
+		ShotsOnTarget = LastTarget.Get() == Target ? ShotsOnTarget + 1 : 0;
+		LastTarget = Target;
+		const bool bMinion = Target->ActorHasTag(TEXT("Minion"));
+		const float Damage = bMinion ? AttackDamage : HeroDamage * FMath::Min(1.f + HeroRampPerShot * ShotsOnTarget, HeroRampMax);
+		UGameplayStatics::ApplyDamage(Target, Damage, nullptr, this, nullptr);
 
 		// Rayo desde lo alto de la torre al objetivo.
 		FVector Origin, Extent;
