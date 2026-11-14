@@ -36,8 +36,10 @@ def main():
             continue
         cmd = [BLENDER, "--background", "--factory-startup", "--python", os.path.join(HERE, "tripo_normalize.py"), "--",
                "--in", src, "--name", p["name"], "--size", *[str(s) for s in p["size"]],
-               "--out", os.path.join(ROOT, "FBX"), "--auto-axis", "--sockets", p.get("sockets", "six"),
+               "--out", os.path.join(ROOT, "FBX"), "--sockets", p.get("sockets", "six"),
                "--tex", str(p.get("tex", 1024)), "--preview", os.path.join(ROOT, "previews", p["name"] + ".png")]
+        if p.get("auto_axis", True):  # "auto_axis": false si el modelo ya viene de pie (p. ej. un aro arriba que lo haría más alto)
+            cmd += ["--auto-axis"]
         if p.get("rot"):
             cmd += ["--rot", p["rot"]]
         for fx in p.get("fx", []):

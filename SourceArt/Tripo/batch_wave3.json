@@ -38,7 +38,8 @@
    "sockets": "six",
    "fx": [],
    "tex": 1024,
-   "detail": "a heavy ballast counterweight: a wide low dark iron weight block inside a sturdy wooden frame with a big iron lifting ring on top, twice as wide as tall"
+   "detail": "a heavy ballast counterweight: a wide low dark iron weight block inside a sturdy wooden frame with a big iron lifting ring on top, twice as wide as tall",
+   "auto_axis": false
   },
   {
    "type": "Cart",
@@ -64,7 +65,8 @@
    "sockets": "six",
    "fx": [],
    "tex": 512,
-   "detail": "one very long slim metal ski runner lying flat with a curled-up front tip, a wooden strip on top and bolts, extremely long and narrow. Side three-quarter view"
+   "detail": "one very long slim metal ski runner lying flat with a curled-up front tip, a wooden strip on top and bolts, extremely long and narrow. Side three-quarter view",
+   "rot": "z180"
   },
   {
    "type": "IceBlock",
