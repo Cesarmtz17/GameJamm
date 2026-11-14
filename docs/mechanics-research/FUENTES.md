@@ -164,6 +164,15 @@ status: listo
     wiki de la franquicia (glitches) y la entrevista oficial "Ask the Developer" de
     Nintendo (ya listada en #11).
 
+
+## Fuentes del doc 12
+
+Las fuentes de [12-programacion-piezas-ue5.md](12-programacion-piezas-ue5.md) están en su §10, con URL
+(todas neutras): API y guías de Epic para UE 5.5–5.9 (`WeldTo`, `FBodyInstance`, masa/COM/inercia,
+`AddForceAtLocation`, `UPhysicsConstraintComponent`, sub-stepping, CCD, Data Assets, sockets,
+colisión, Chaos Modular Vehicles, Networked Physics), un hilo del foro de UE sobre la dirección de
+ruedas con constraints y los repos KinetiForge-Vehicle-System, Async-Physics-Suspension y creasiege.
+
 ## Nota legal
 
 > [!warning] Solo conocimiento público
