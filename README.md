@@ -9,6 +9,7 @@ Entrada del equipo para la [2026 Epic AI MegaJam](https://itch.io/jam/2026-epic-
 - Equipo, roles y carpetas: [docs/TEAM.md](docs/TEAM.md)
 - Checklist de entrega: [docs/SUBMISSION.md](docs/SUBMISSION.md)
 - Devlog (premio Glass Box): [docs/DEVLOG.md](docs/DEVLOG.md)
+- Investigación de mecánicas (fusión/construcción/IA): [docs/mechanics-research/00-INDEX.md](docs/mechanics-research/00-INDEX.md)
 - Reglas para agentes de IA: [CLAUDE.md](CLAUDE.md)
 
 ## Stack
