@@ -58,6 +58,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	void SetPromptAndBuild(const FString& NewPrompt);
 
+	const TArray<TObjectPtr<AJamBuildPart>>& GetParts() const { return Parts; }
+
 	/** Destruye las piezas de la construccion actual. */
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	void ClearBuild();

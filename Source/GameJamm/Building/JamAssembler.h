@@ -17,7 +17,7 @@ public:
 	/** Límite de piezas por construcción (valor de diseño). */
 	static constexpr int32 MaxParts = 21;
 
-	/** Energia inicial de una construccion (BuildKnowledge.json: energy.max); cada Battery suma su capacidad. */
+	/** Reserva propia de una construccion cuando jam.Build.Energy = 1; cada Battery suma su capacidad en cualquier modo. */
 	static constexpr float BaseEnergy = 100.f;
 
 	UFUNCTION(BlueprintCallable, Category = "Jam|Building", meta = (WorldContext = "WorldContextObject"))

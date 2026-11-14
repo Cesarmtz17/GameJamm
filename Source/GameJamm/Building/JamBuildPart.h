@@ -139,11 +139,28 @@ public:
 	UPROPERTY()
 	FVector LocalDirection = FVector::ForwardVector;
 
+	/** Cuerpos ajenos que esta pieza ha afectado (quemado, congelado, empujado, electrocutado...). Para pruebas y UI. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	int32 EffectHits = 0;
+
+	/** Malla real de la pieza (Content/Game/Building/Parts), o null si aun no esta importada: se usa la forma basica. */
+	static UStaticMesh* FindRealMesh(FName Type);
+
+	/** jam.Build.Energy: 0 = sin energia, 1 = reserva por construccion, 2 = barra del jugador (por defecto). */
+	static int32 EnergyMode();
+
+	/** Barra de energia del jugador (tipo mana): 0..100, se recarga sola tras 3 s sin gastar. */
+	static float GetPlayerEnergy(const UWorld* World);
+	static void SetPlayerEnergy(const UWorld* World, float Value);
+
 	/** Estado compartido de la construccion; lo asigna el ensamblador. */
 	TSharedPtr<FJamBuildState> Build;
 
-	/** BoxSize = caja ya orientada segun la cara (ver UJamAssembler). */
-	void InitFromDef(const FJamPartDef& Def, const FVector& BoxSize);
+	/**
+	 * BoxSize = caja ya orientada segun la cara (ver UJamAssembler). El cuerpo fisico es siempre la forma basica;
+	 * si existe la malla de arte se muestra encima (solo visual) con la rotacion VisualWorldRot.
+	 */
+	void InitFromDef(const FJamPartDef& Def, const FVector& BoxSize, const FQuat& VisualWorldRot);
 
 	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
 	void SetActive(bool bNewActive);
@@ -155,6 +172,8 @@ private:
 	/** Componentes fisicos/peones dentro de una esfera (sin esta pieza). */
 	void Nearby(const FVector& Center, float Radius, TArray<UPrimitiveComponent*>& Out) const;
 	void SpawnBall(const FVector& At, const FVector& Velocity);
+	/** Efecto visual barato: esfera de color que desaparece sola (hasta que haya Niagara). */
+	void Puff(const FVector& At, float SizeCm, const FLinearColor& Color, float Life = 0.25f);
 
 	float Power = 0.f;
 	float EnergyPerSecond = 0.f;
@@ -163,6 +182,7 @@ private:
 	float Length = 50.f;
 	float HeatedUntil = 0.f;   // globo calentado por fuego cercano
 	float DebugTimer = 0.f;
+	float FxTimer = 0.f;
 	float HoldZ = 0.f;         // altura objetivo de la piedra flotante sin suelo debajo
 	TWeakObjectPtr<AActor> Target;                                  // cabeza
 	TMap<TWeakObjectPtr<UPrimitiveComponent>, float> Frozen;        // hielo: componente -> hora de descongelar

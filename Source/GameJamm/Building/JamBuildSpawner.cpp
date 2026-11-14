@@ -108,7 +108,12 @@ void AJamBuildSpawner::BuildNow()
 			FString Note2 = N;
 			if (bOk && UJamBuildGenerator::ComposeRecipe(C, R, Note2))
 			{
-				Self->Realize(R, Note2);
+				// N = "jev archetype=... conf=..." (o "fal-llm ..."): se conserva el backend y la confianza delante de la nota de la receta.
+				FString Backend = N, Rest;
+				N.Split(TEXT(" archetype="), &Backend, &Rest);
+				FString Conf;
+				Rest.Split(TEXT(" "), nullptr, &Conf);
+				Self->Realize(R, (Backend + TEXT(" ") + Conf).TrimEnd() + TEXT(" ") + Note2);
 				return;
 			}
 			// Respaldo: palabras clave.

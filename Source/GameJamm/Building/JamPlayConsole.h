@@ -12,6 +12,8 @@ class UCameraComponent;
  *   Jam.Say <texto libre>  -> prompt -> modelo de decision (Jev) -> receta -> ensamblador, ~6 m delante del jugador
  *   Jam.Clear              -> borra todo lo construido
  *   Jam.Seat               -> se sube al asiento de la construccion mas cercana / se baja
+ *   Jam.Energy [valor]     -> muestra o fija la barra de energia del jugador
+ *   Jam.Test [seg]         -> bateria de frases; escribe docs/building/REPORTE-POC.md
  * No es el personaje final del juego: es lo minimo para caminar y probar sin assets ni input mappings.
  */
 UCLASS()

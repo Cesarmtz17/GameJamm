@@ -3,6 +3,7 @@
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/Engine.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
@@ -11,13 +12,19 @@
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Misc/PackageName.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogJamPart, Log, All);
 
-static TAutoConsoleVariable<int32> CVarJamEnergy(TEXT("jam.Build.Energy"), 1,
-	TEXT("1 = las piezas gastan la energia de su construccion y se apagan al agotarla; 0 = energia infinita."));
+static TAutoConsoleVariable<int32> CVarJamEnergy(TEXT("jam.Build.Energy"), 2,
+	TEXT("2 = las piezas gastan primero las baterias de su construccion y luego la barra del jugador (por defecto); 1 = reserva propia por construccion; 0 = energia infinita."));
+
+static TAutoConsoleVariable<int32> CVarJamRealMeshes(TEXT("jam.Build.RealMeshes"), 1,
+	TEXT("1 = usar las mallas de Content/Game/Building/Parts cuando existan; 0 = siempre formas basicas."));
+
+static TAutoConsoleVariable<int32> CVarJamFx(TEXT("jam.Build.Fx"), 1, TEXT("1 = efectos visuales simples (fuego, hielo, agua, humo); 0 = sin efectos."));
 
 static TAutoConsoleVariable<int32> CVarJamDebug(TEXT("jam.Build.Debug"), 0,
 	TEXT("1 = la pieza raiz de cada construccion escribe en el log su posicion, velocidad y energia cada segundo."));
@@ -99,6 +106,92 @@ namespace
 	}
 }
 
+namespace
+{
+	// Barra de energia del jugador (BuildKnowledge.json: energy). ponytail: un solo jugador local y vive aqui;
+	// cuando exista la barra real (HUD/Core), sustituir estas 3 funciones por ese componente.
+	struct FJamPlayerEnergy
+	{
+		TWeakObjectPtr<const UWorld> World;
+		float Energy = 60.f;      // energy.start
+		float LastDrain = -100.f;
+		float LastUpdate = 0.f;
+	};
+
+	FJamPlayerEnergy& PlayerPool(const UWorld* World)
+	{
+		static FJamPlayerEnergy P;
+		if (P.World.Get() != World)
+		{
+			P = FJamPlayerEnergy();
+			P.World = World;
+		}
+		const float Now = World ? World->GetTimeSeconds() : 0.f;
+		const float From = FMath::Max(P.LastUpdate, P.LastDrain + 3.f); // energy.regen_delay_s
+		if (Now > From)
+		{
+			P.Energy = FMath::Min(100.f, P.Energy + 2.f * (Now - From)); // energy.regen_per_s, energy.max
+		}
+		P.LastUpdate = Now;
+		return P;
+	}
+
+	// Tipo de receta -> malla de arte (SourceArt/Building/README.md).
+	const TMap<FName, FString>& RealMeshNames()
+	{
+		static const TMap<FName, FString> M = {
+			{"Plank", "SM_PART_PLANK"}, {"Block", "SM_PART_BLOCK"}, {"Cylinder", "SM_PART_CYLINDER"}, {"Wall", "SM_PART_WALL"}, {"Panel", "SM_PART_PANEL"},
+			{"Girder", "SM_PART_GIRDER"}, {"Ball", "SM_PART_BALL"}, {"Sled", "SM_DEV_SLED"}, {"Hinge", "SM_JOINT_HINGE"}, {"Turntable", "SM_JOINT_TURNTABLE"},
+			{"Stake", "SM_ANCHOR_STAKE"}, {"Wheel", "SM_DEV_WHEEL_S"}, {"BigWheel", "SM_DEV_WHEEL_L"}, {"Spring", "SM_DEV_SPRING"}, {"Fan", "SM_DEV_FAN"},
+			{"Jet", "SM_DEV_JET"}, {"Turbine", "SM_DEV_TURBINE"}, {"Rocket", "SM_DEV_ROCKET"}, {"Balloon", "SM_DEV_BALLOON"}, {"HoverStone", "SM_DEV_HOVER"},
+			{"Wing", "SM_DEV_WING"}, {"Sail", "SM_DEV_SAIL"}, {"Stabilizer", "SM_DEV_STABILIZER"}, {"Seat", "SM_CTRL_SEAT"}, {"Head", "SM_CTRL_HEAD"},
+			{"Battery", "SM_PWR_BATTERY_S"}, {"BigBattery", "SM_PWR_BATTERY_L"}, {"Cannon", "SM_DEV_CANNON"}, {"Flamethrower", "SM_DEV_FLAME"}, {"Frost", "SM_DEV_FROST"},
+			{"Beam", "SM_DEV_BEAM"}, {"Shock", "SM_DEV_SHOCK"}, {"Bomb", "SM_CTRL_TIMEBOMB"}, {"Hydrant", "SM_DEV_HYDRANT"}, {"Light", "SM_DEV_LIGHT"},
+		};
+		return M;
+	}
+}
+
+UStaticMesh* AJamBuildPart::FindRealMesh(FName Type)
+{
+	if (CVarJamRealMeshes.GetValueOnGameThread() == 0)
+	{
+		return nullptr;
+	}
+	static TMap<FName, TWeakObjectPtr<UStaticMesh>> Cache;
+	if (const TWeakObjectPtr<UStaticMesh>* Hit = Cache.Find(Type))
+	{
+		if (Hit->IsValid()) { return Hit->Get(); }
+	}
+	const FString* Name = RealMeshNames().Find(Type);
+	if (!Name)
+	{
+		return nullptr;
+	}
+	const FString Pkg = TEXT("/Game/Game/Building/Parts/") + *Name;
+	UStaticMesh* SM = FPackageName::DoesPackageExist(Pkg) ? LoadObject<UStaticMesh>(nullptr, *(Pkg + TEXT(".") + *Name)) : nullptr;
+	if (SM)
+	{
+		Cache.Add(Type, SM);
+	}
+	return SM;
+}
+
+int32 AJamBuildPart::EnergyMode()
+{
+	return CVarJamEnergy.GetValueOnGameThread();
+}
+
+float AJamBuildPart::GetPlayerEnergy(const UWorld* World)
+{
+	return PlayerPool(World).Energy;
+}
+
+void AJamBuildPart::SetPlayerEnergy(const UWorld* World, float Value)
+{
+	PlayerPool(World).Energy = FMath::Clamp(Value, 0.f, 100.f);
+}
+
 bool UJamPartCatalog::Find(FName Type, FJamPartDef& OutDef)
 {
 	for (const FJamPartDef& D : Table())
@@ -131,7 +224,7 @@ AJamBuildPart::AJamBuildPart()
 	Mesh->SetCollisionProfileName(TEXT("PhysicsActor"));
 }
 
-void AJamBuildPart::InitFromDef(const FJamPartDef& Def, const FVector& BoxSize)
+void AJamBuildPart::InitFromDef(const FJamPartDef& Def, const FVector& BoxSize, const FQuat& VisualWorldRot)
 {
 	PartType = Def.Type;
 	Kind = Def.Kind;
@@ -143,6 +236,7 @@ void AJamBuildPart::InitFromDef(const FJamPartDef& Def, const FVector& BoxSize)
 	{
 		Mesh->SetStaticMesh(SM);
 	}
+	UStaticMesh* Real = FindRealMesh(Def.Type);
 
 	// Escala nativa (mesh basico 100 cm). Axis 1/2: el eje Z del mesh ya viene rotado por el ensamblador.
 	FVector Scale;
@@ -155,11 +249,24 @@ void AJamBuildPart::InitFromDef(const FJamPartDef& Def, const FVector& BoxSize)
 	Mesh->SetRelativeScale3D(Scale);
 
 	// BasicShapeMaterial no tiene parametro "Color"; DebugMeshMaterial si.
-	UMaterialInterface* ColorMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineDebugMaterials/DebugMeshMaterial.DebugMeshMaterial"));
-	if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(ColorMat ? ColorMat : Mesh->GetMaterial(0), this))
+	UMaterialInterface* ColorMat = Real ? nullptr : LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineDebugMaterials/DebugMeshMaterial.DebugMeshMaterial"));
+	if (UMaterialInstanceDynamic* MID = ColorMat ? UMaterialInstanceDynamic::Create(ColorMat, this) : nullptr)
 	{
 		Mesh->SetMaterial(0, MID);
 		MID->SetVectorParameterValue(TEXT("Color"), Def.Color);
+	}
+
+	if (Real)
+	{
+		// Malla de arte (caja exacta, +X = hacia donde mira, eje de rueda = Y): solo visual; la fisica sigue en la forma basica oculta.
+		UStaticMeshComponent* Visual = NewObject<UStaticMeshComponent>(this);
+		Visual->SetupAttachment(Mesh);
+		Visual->SetUsingAbsoluteScale(true);
+		Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Visual->SetStaticMesh(Real);
+		Visual->RegisterComponent();
+		Visual->SetWorldRotation(VisualWorldRot);
+		Mesh->SetVisibility(false, false);
 	}
 
 	if (Kind == EJamPartKind::Slide)
@@ -222,9 +329,37 @@ void AJamBuildPart::SpawnBall(const FVector& At, const FVector& Velocity)
 	}
 }
 
+void AJamBuildPart::Puff(const FVector& At, float SizeCm, const FLinearColor& Color, float Life)
+{
+	if (CVarJamFx.GetValueOnGameThread() == 0)
+	{
+		return;
+	}
+	// ponytail: un actor-esfera por bocanada; sustituir por Niagara (NS_flame, NS_frost...) cuando arte los entregue.
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	if (AStaticMeshActor* A = GetWorld()->SpawnActor<AStaticMeshActor>(At, FRotator::ZeroRotator, P))
+	{
+		UStaticMeshComponent* C = A->GetStaticMeshComponent();
+		C->SetMobility(EComponentMobility::Movable);
+		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		C->SetCastShadow(false);
+		C->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, SphereMesh));
+		C->SetWorldScale3D(FVector(SizeCm / 100.f));
+		UMaterialInterface* Mat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineDebugMaterials/DebugMeshMaterial.DebugMeshMaterial"));
+		if (UMaterialInstanceDynamic* MID = Mat ? UMaterialInstanceDynamic::Create(Mat, A) : nullptr)
+		{
+			C->SetMaterial(0, MID);
+			MID->SetVectorParameterValue(TEXT("Color"), Color);
+		}
+		A->SetLifeSpan(Life);
+	}
+}
+
 void AJamBuildPart::SetActive(bool bNewActive)
 {
-	if (bNewActive && Build.IsValid() && Build->Energy <= 0.f && EnergyPerSecond > 0.f && CVarJamEnergy.GetValueOnGameThread() != 0)
+	const int32 Mode = EnergyMode();
+	if (bNewActive && Build.IsValid() && EnergyPerSecond > 0.f && Mode != 0 && Build->Energy <= 0.f && !(Mode == 2 && GetPlayerEnergy(GetWorld()) > 0.f))
 	{
 		bNewActive = false; // sin energia no enciende
 	}
@@ -243,7 +378,9 @@ void AJamBuildPart::SetActive(bool bNewActive)
 	}
 	if (DriveConstraint)
 	{
-		DriveConstraint->SetAngularVelocityTarget(FVector(bNewActive ? Power : 0.f, 0.f, 0.f) / (2.0 * PI));
+		// Ruedas: signo negativo = rodar hacia el frente (+X) de la construccion (verificado en el editor).
+		const float Dir = Kind == EJamPartKind::Wheel ? -1.f : 1.f;
+		DriveConstraint->SetAngularVelocityTarget(FVector(bNewActive ? Dir * Power : 0.f, 0.f, 0.f) / (2.0 * PI));
 	}
 	if (Kind == EJamPartKind::Stake)
 	{
@@ -328,7 +465,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			}
 		}
 		UE_LOG(LogJamPart, Log, TEXT("state t=%.1f root=%s pos=(%s) vel=(%s) up.z=%.2f spin=%.1f energy=%.1f on=%d/%d"), Now, *PartType.ToString(),
-			*GetActorLocation().ToCompactString(), *Mesh->GetPhysicsLinearVelocity().ToCompactString(), GetActorUpVector().Z, MaxSpin, Build->Energy, On, Build->Parts.Num());
+			*GetActorLocation().ToCompactString(), *Mesh->GetPhysicsLinearVelocity().ToCompactString(), GetActorUpVector().Z, MaxSpin, Build->Energy + (EnergyMode() == 2 ? GetPlayerEnergy(World) : 0.f), On, Build->Parts.Num());
 	}
 
 	if (!bActive)
@@ -337,12 +474,35 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 	}
 
 	// Energia: cada pieza encendida gasta de la reserva de su construccion; a cero se apaga todo.
-	if (Build.IsValid() && EnergyPerSecond > 0.f && CVarJamEnergy.GetValueOnGameThread() != 0)
+	FxTimer += DeltaSeconds;
+	const bool bFx = FxTimer >= 0.06f; // bocanadas visuales: ~16 por segundo por pieza
+	if (bFx) { FxTimer = 0.f; }
+	if (Build.IsValid() && EnergyPerSecond > 0.f && EnergyMode() != 0)
 	{
-		Build->Energy -= EnergyPerSecond * DeltaSeconds;
-		if (Build->Energy <= 0.f)
+		// Primero las baterias (o la reserva) de la construccion; despues la barra del jugador.
+		const float Need = EnergyPerSecond * DeltaSeconds;
+		bool bPaid = true;
+		if (Build->Energy >= Need)
+		{
+			Build->Energy -= Need;
+		}
+		else if (EnergyMode() == 2 && PlayerPool(World).Energy >= Need)
+		{
+			FJamPlayerEnergy& Pool = PlayerPool(World);
+			Pool.Energy -= Need;
+			Pool.LastDrain = Now;
+		}
+		else
+		{
+			bPaid = false;
+		}
+		if (!bPaid)
 		{
 			UE_LOG(LogJamPart, Log, TEXT("build out of energy: devices off"));
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(7001, 6.f, FColor::Orange, TEXT("Sin energia: los dispositivos se apagaron. La barra del jugador se recarga sola tras 3 s sin gastar (Jam.Energy 100 la llena)."));
+			}
 			for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts)
 			{
 				if (P.IsValid() && P->EnergyPerSecond > 0.f)
@@ -353,6 +513,9 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			return;
 		}
 	}
+
+	// Una construccion quieta se duerme y las fuerzas no la despiertan: mientras este encendida, se mantiene despierta.
+	Mesh->WakeAllRigidBodies();
 
 	const FVector WorldDir = GetActorQuat().RotateVector(LocalDirection);
 	const FVector Nozzle = GetActorLocation() + WorldDir * (Length * 0.5f + 10.f);
@@ -378,10 +541,17 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		}
 		break;
 	case EJamPartKind::Fan:
-		Mesh->AddForce(WorldDir * Power);
+	{
+		// Una helice no empuja mas rapido que el aire que mueve: el empuje cae a cero al llegar a su velocidad tope.
+		const double TopSpeed = Power > 50000.f ? 2000.0 : 800.0;
+		const double Along = FVector::DotProduct(Mesh->GetPhysicsLinearVelocity(), WorldDir);
+		Mesh->AddForce(WorldDir * Power * FMath::Clamp(1.0 - Along / TopSpeed, 0.0, 1.0));
+		if (bFx && Power > 50000.f) { Puff(GetActorLocation() - WorldDir * (Length * 0.5f + FMath::FRandRange(10.f, 50.f)), 18.f, FLinearColor(0.3f, 0.6f, 1.f)); } // jet/turbina
 		break;
+	}
 	case EJamPartKind::Rocket:
 		Mesh->AddForce(WorldDir * Power);
+		if (bFx) { Puff(GetActorLocation() - WorldDir * (Length * 0.5f + FMath::FRandRange(10.f, 80.f)) + FMath::VRand() * 8.f, FMath::FRandRange(15.f, 30.f), FLinearColor(1.f, 0.6f, 0.1f), 0.35f); }
 		BurnLeft -= DeltaSeconds;
 		if (BurnLeft <= 0.f)
 		{
@@ -390,7 +560,8 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		break;
 	case EJamPartKind::Balloon:
 		// Fuego cerca (cualquier lanzallamas) = sube el doble. El globo frena con el aire: sube y avanza despacio.
-		Mesh->AddForce(FVector(0, 0, Power * (Now < HeatedUntil ? 2.f : 1.f)) - Mesh->GetPhysicsLinearVelocity() * 50.f);
+		Mesh->AddForce(FVector(0, 0, Power * (Now < HeatedUntil ? 2.f : 1.f)));
+		RootMesh->AddForce(RootMesh->GetPhysicsLinearVelocity() * -50.f); // el freno va en la raiz: sobre el globo (1 kg) seria inestable
 		break;
 	case EJamPartKind::Hover:
 	{
@@ -429,8 +600,11 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 	{
 		// Fuego: daña lo ajeno y calienta globos (de cualquier construccion) dentro de la llama.
 		const FVector C = Nozzle + WorldDir * 100.f;
-		DrawDebugSphere(World, Nozzle + WorldDir * 15.f, 22.f, 8, FColor::Orange, false, 0.f);
-		DrawDebugLine(World, Nozzle, C + WorldDir * 100.f, FColor::Orange, false, 0.f, 0, 6.f);
+		if (bFx)
+		{
+			const float D = FMath::FRandRange(0.f, 220.f);
+			Puff(Nozzle + WorldDir * D + FMath::VRand() * D * 0.12f, 12.f + D * 0.16f, FLinearColor(1.f, FMath::FRandRange(0.15f, 0.6f), 0.02f), 0.22f);
+		}
 		TArray<UPrimitiveComponent*> Hits;
 		Nearby(C, 150.f, Hits);
 		for (UPrimitiveComponent* H : Hits)
@@ -442,6 +616,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			}
 			if (!IsMine(H->GetOwner()))
 			{
+				EffectHits += bFx ? 1 : 0;
 				UGameplayStatics::ApplyDamage(H->GetOwner(), Power * DeltaSeconds, nullptr, this, nullptr);
 			}
 		}
@@ -456,10 +631,11 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 	}
 	case EJamPartKind::Sail:
 	{
-		// Viento global hacia +X del mundo (600 cm/s): empuja segun cuanto lo encara la vela y nunca mas rapido que el viento.
-		const FVector Wind(1, 0, 0);
+		// ponytail: el viento sopla siempre de popa (hacia el frente de la vela) a 600 cm/s; con un viento global del mapa,
+		// cambiar Wind por ese vector y multiplicar por cuanto lo encara la vela.
+		const FVector Wind = GetActorForwardVector();
 		const double Rel = FMath::Clamp(1.0 - FVector::DotProduct(Mesh->GetPhysicsLinearVelocity(), Wind) / 600.0, 0.0, 1.0);
-		Mesh->AddForce(Wind * Power * Rel * FMath::Abs(FVector::DotProduct(Wind, GetActorForwardVector())));
+		Mesh->AddForce(Wind * Power * Rel);
 		break;
 	}
 	case EJamPartKind::Spring:
@@ -490,6 +666,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 					{
 						H->AddImpulse(Throw, NAME_None, true);
 						bThrew = true;
+						++EffectHits;
 					}
 				}
 				if (!bThrew && WorldDir.Z > 0.5)
@@ -506,7 +683,8 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			// Explosion: empuja y daña todo lo cercano, y su onda enciende los dispositivos que alcanza.
 			bActive = false;
 			const FVector At = GetActorLocation();
-			DrawDebugSphere(World, At, 500.f, 16, FColor::Red, false, 0.6f);
+			Puff(At, 500.f, FLinearColor(1.f, 0.25f, 0.f), 0.25f);
+			Puff(At, 250.f, FLinearColor(1.f, 0.9f, 0.3f), 0.4f);
 			TArray<UPrimitiveComponent*> Hits;
 			Nearby(At, 500.f, Hits);
 			for (UPrimitiveComponent* H : Hits)
@@ -531,13 +709,18 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 	{
 		// Cono de hielo: frena 3 s (amortigua) cuerpos simulados que no son de esta construccion.
 		const FVector C = Nozzle + WorldDir * 150.f;
-		DrawDebugSphere(World, C, 150.f, 10, FColor::Cyan, false, 0.f);
+		if (bFx)
+		{
+			const float D = FMath::FRandRange(0.f, 280.f);
+			Puff(Nozzle + WorldDir * D + FMath::VRand() * D * 0.3f, 14.f + D * 0.12f, FLinearColor(0.6f, 0.95f, 1.f), 0.3f);
+		}
 		TArray<UPrimitiveComponent*> Hits;
 		Nearby(C, 150.f, Hits);
 		for (UPrimitiveComponent* H : Hits)
 		{
 			if (H->IsSimulatingPhysics() && !IsMine(H->GetOwner()))
 			{
+				EffectHits += bFx ? 1 : 0;
 				H->SetLinearDamping(8.f);
 				H->SetAngularDamping(8.f);
 				Frozen.Add(H, Now + 3.f);
@@ -560,8 +743,14 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		}
 		const bool bHit = World->LineTraceSingleByChannel(Hit, Nozzle, End, ECC_PhysicsBody, Q);
 		DrawDebugLine(World, Nozzle, bHit ? Hit.ImpactPoint : End, FColor::Magenta, false, 0.f, 0, 3.f);
+		if (bFx)
+		{
+			const FVector To = bHit ? Hit.ImpactPoint : End;
+			for (int32 i = 1; i <= 6; ++i) { Puff(FMath::Lerp(Nozzle, To, i / 6.f), 9.f, FLinearColor(1.f, 0.05f, 0.4f), 0.08f); }
+		}
 		if (bHit && Hit.GetComponent())
 		{
+			EffectHits += bFx ? 1 : 0;
 			if (Hit.GetComponent()->IsSimulatingPhysics())
 			{
 				Hit.GetComponent()->AddForceAtLocation(WorldDir * Power, Hit.ImpactPoint);
@@ -590,6 +779,8 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			if (Best)
 			{
 				DrawDebugLine(World, Nozzle, Best->GetComponentLocation(), FColor::Yellow, false, 0.3f, 0, 5.f);
+				for (int32 i = 0; i <= 5; ++i) { Puff(FMath::Lerp(Nozzle, Best->GetComponentLocation(), i / 5.f) + FMath::VRand() * 12.f, 14.f, FLinearColor(1.f, 1.f, 0.2f), 0.3f); }
+				++EffectHits;
 				UGameplayStatics::ApplyDamage(Best->GetOwner(), Power, nullptr, this, nullptr);
 				if (Best->IsSimulatingPhysics())
 				{
@@ -610,7 +801,11 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 	{
 		// Chorro: empuja cuerpos ajenos y apaga cualquier lanzallamas que moje.
 		const FVector C = Nozzle + WorldDir * 150.f;
-		DrawDebugLine(World, Nozzle, C + WorldDir * 100.f, FColor::Blue, false, 0.f, 0, 8.f);
+		if (bFx)
+		{
+			const float D = FMath::FRandRange(0.f, 250.f);
+			Puff(Nozzle + WorldDir * D - FVector(0, 0, D * D * 0.0006f), 16.f, FLinearColor(0.1f, 0.35f, 1.f), 0.25f);
+		}
 		TArray<UPrimitiveComponent*> Hits;
 		Nearby(C, 100.f, Hits);
 		for (UPrimitiveComponent* H : Hits)
@@ -623,6 +818,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			if (H->IsSimulatingPhysics() && !IsMine(H->GetOwner()))
 			{
 				H->AddForce(WorldDir * Power);
+				EffectHits += bFx ? 1 : 0;
 			}
 		}
 		break;

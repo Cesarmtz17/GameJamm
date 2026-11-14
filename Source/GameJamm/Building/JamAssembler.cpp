@@ -199,7 +199,7 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 
 	// 3) Spawn de las piezas + estado compartido de la construccion (energia, masa, miembros; la raiz va primero).
 	const TSharedPtr<FJamBuildState> State = MakeShared<FJamBuildState>();
-	State->Energy = BaseEnergy;
+	State->Energy = AJamBuildPart::EnergyMode() == 1 ? BaseEnergy : 0.f; // modo 2: solo baterias; el resto sale de la barra del jugador
 	for (const FBuildRecipePart& P : Recipe.Parts)
 	{
 		FPlaced& It = Placed[P.Id];
@@ -207,6 +207,10 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 		FQuat AxisRot = FQuat::Identity;
 		if (It.Def.Axis == 1) { AxisRot = FQuat::FindBetweenNormals(FVector::UpVector, It.Def.Kind == EJamPartKind::Rocket ? -It.Facing : It.Facing); }
 		if (It.Def.Axis == 2) { AxisRot = FQuat::FindBetweenNormals(FVector::UpVector, FVector::RightVector); }
+		// Malla de arte: su +X es hacia donde mira (cohete y jet: su +X es la punta, la tobera va en -X).
+		const bool bNoseFirst = It.Def.Kind == EJamPartKind::Rocket || It.Def.Type == "Jet";
+		const bool bOriented = !P.AttachTo.IsNone() && (It.Def.Axis == 1 || It.Def.bFaceAligned);
+		const FQuat VisualRot = Origin.GetRotation() * (bOriented ? FRotationMatrix::MakeFromX(bNoseFirst ? -It.Facing : It.Facing).ToQuat() : FQuat::Identity);
 
 		const FTransform T(Origin.GetRotation() * AxisRot, Origin.TransformPosition(It.Center + Lift));
 		FActorSpawnParameters SP;
@@ -218,7 +222,7 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 			return false;
 		}
 		Part->RecipeId = P.Id;
-		Part->InitFromDef(It.Def, It.Size);
+		Part->InitFromDef(It.Def, It.Size, VisualRot);
 		Part->Build = State;
 		State->MassKg += It.Def.MassKg;
 		if (It.Def.Kind == EJamPartKind::Battery) { State->Energy += It.Def.Power; }
@@ -439,7 +443,12 @@ const TArray<FJamArchetypeDef>& UJamBuildGenerator::ArchetypeTable()
 			  Pt(TEXT("w2"), TEXT("Wheel"), TEXT("body"), TEXT("Left_Back")), Pt(TEXT("w3"), TEXT("Wheel"), TEXT("body"), TEXT("Right_Back")), Pt(TEXT("seat"), TEXT("Seat"), TEXT("body"), TEXT("Top")) }),
 		Arch(TEXT("Rocket"), TEXT("A rocket or missile that launches upward."),
 			K({TEXT("cohete"), TEXT("rocket"), TEXT("misil"), TEXT("missile")}),
-			{ Pt(TEXT("body"), TEXT("Cylinder")), Pt(TEXT("r0"), TEXT("Rocket"), TEXT("body"), TEXT("Bottom")) }),
+			{ Pt(TEXT("body"), TEXT("Cylinder")), Pt(TEXT("r0"), TEXT("Rocket"), TEXT("body"), TEXT("Left_Center_Bottom")), Pt(TEXT("r1"), TEXT("Rocket"), TEXT("body"), TEXT("Right_Center_Bottom")),
+			  Pt(TEXT("stab"), TEXT("Stabilizer"), TEXT("body"), TEXT("Top")) }),
+		Arch(TEXT("Bridge"), TEXT("A long flat walkway made of planks with no moving parts: bridge, ramp, walkway, platform."),
+			K({TEXT("puente"), TEXT("bridge"), TEXT("pasarela"), TEXT("walkway")}),
+			{ Pt(TEXT("body"), TEXT("Plank")), Pt(TEXT("p1"), TEXT("Plank"), TEXT("body"), TEXT("Front")), Pt(TEXT("p2"), TEXT("Plank"), TEXT("body"), TEXT("Back")),
+			  Pt(TEXT("p3"), TEXT("Plank"), TEXT("p1"), TEXT("Front")), Pt(TEXT("p4"), TEXT("Plank"), TEXT("p2"), TEXT("Back")) }),
 	};
 	return T;
 }
@@ -448,7 +457,7 @@ const TArray<FJamExtraDef>& UJamBuildGenerator::ExtraTable()
 {
 	static const TArray<FName> Veh = N({TEXT("Car"), TEXT("Tank"), TEXT("Bike"), TEXT("Sled"), TEXT("Hover"), TEXT("Flyer"), TEXT("Glider"), TEXT("Airship")});
 	static const TArray<FName> Ground = N({TEXT("Car"), TEXT("Tank"), TEXT("Bike"), TEXT("Sled")});
-	static const TArray<FName> Static = N({TEXT("Turret"), TEXT("Fortress"), TEXT("Catapult"), TEXT("Spinner")});
+	static const TArray<FName> Static = N({TEXT("Turret"), TEXT("Fortress"), TEXT("Catapult"), TEXT("Spinner"), TEXT("Bridge")});
 	static const TArray<FName> NoRoller = Join({Veh, Static, N({TEXT("Rocket")})});
 	static const TArray<FName> All;
 
@@ -460,7 +469,7 @@ const TArray<FJamExtraDef>& UJamBuildGenerator::ExtraTable()
 			Extra(TEXT("head"), TEXT("The user wants it to aim at or track enemies by itself: auto-aim, self-aiming head, sensor that follows targets."), TEXT("Nothing is asked to aim or track targets by itself."),
 				TEXT("Head"), K({TEXT("Top_Front|Top|Top_Back|Top_Left|Top_Right")}), Join({Veh, Static}),
 				K({TEXT("cabeza"), TEXT("apunta sol"), TEXT("apunte sol"), TEXT("automátic"), TEXT("automatic"), TEXT("centinela"), TEXT("sentry"), TEXT("auto-aim")})),
-			Extra(TEXT("spin"), TEXT("The user explicitly asks for something that keeps spinning around: turntable, rotor, rotating platform, weapons that spin in circles."), TEXT("Nothing is asked to spin in circles. Wheels, turrets, aiming and tracking do not count as spinning."),
+			Extra(TEXT("spin"), TEXT("The user explicitly asks for something that keeps spinning around: turntable, rotor, rotating platform, weapons that spin in circles."), TEXT("Nothing is asked to spin in circles. Wheels, fans, propellers, turbines, turrets, aiming and tracking do not count as spinning."),
 				TEXT("Turntable"), K({TEXT("Top_Front|Top|Top_Back|Top_Left|Top_Right")}), Join({Veh, Static}),
 				K({TEXT("giratori"), TEXT("que gire"), TEXT("gira "), TEXT("rotor"), TEXT("spinning"), TEXT("rotating"), TEXT("tornamesa")})),
 			Extra(TEXT("fan"), TEXT("The user explicitly asks for a fan, ventilator or propeller."), TEXT("No fan or propeller is mentioned. Turbines, jets and rockets do not count as a fan."),
@@ -471,9 +480,9 @@ const TArray<FJamExtraDef>& UJamBuildGenerator::ExtraTable()
 				TEXT("Turbine"), K({TEXT("Top_Back_Back|Back|Top_Center_Back")}), Veh, K({TEXT("turbina"), TEXT("turbine")})),
 			Extra(TEXT("rocket"), TEXT("The user asks for a rocket, nitro or a rocket booster."), TEXT("No rocket or nitro is mentioned. Jets and fans do not count as a rocket."),
 				TEXT("Rocket"), K({JAM_REAR}), Veh, K({TEXT("cohete"), TEXT("rocket"), TEXT("nitro"), TEXT("booster")})),
-			Extra(TEXT("flame"), TEXT("The user wants fire, flames or a flamethrower."), TEXT("No fire is asked for."),
+			Extra(TEXT("flame"), TEXT("The user explicitly asks for a flamethrower, flames or to burn things."), TEXT("No flamethrower or burning is mentioned. Rockets, jets and engines do not count as fire."),
 				TEXT("Flamethrower"), K({JAM_FRONT}), All, K({TEXT("fuego"), TEXT("llama"), TEXT("flame"), TEXT("fire"), TEXT("lanzallamas"), TEXT("quem")}), true),
-			Extra(TEXT("cannon"), TEXT("The user wants a cannon, gun or something that shoots projectiles."), TEXT("No cannon or projectile shooting is asked for. Lasers, fire and ice do not count."),
+			Extra(TEXT("cannon"), TEXT("The user explicitly asks for a cannon, gun or something that shoots projectiles."), TEXT("No cannon or gun is mentioned. Rockets, missiles, lasers, fire, ice, catapults and springs do not count as a cannon."),
 				TEXT("Cannon"), K({JAM_FWD}), All, K({TEXT("cañon"), TEXT("cañón"), TEXT("canon"), TEXT("cannon"), TEXT("dispara"), TEXT("artiller"), TEXT("gun")}), true),
 			Extra(TEXT("balloon"), TEXT("The user wants a balloon."), TEXT("No balloon is asked for."),
 				TEXT("Balloon"), K({TEXT("seat:Top|Top|Top_Back|Top_Front")}), NoRoller, K({TEXT("globo"), TEXT("balloon")})),
@@ -481,7 +490,7 @@ const TArray<FJamExtraDef>& UJamBuildGenerator::ExtraTable()
 				TEXT("Wing"), K({TEXT("Left"), TEXT("Right")}), N({TEXT("Car"), TEXT("Bike"), TEXT("Sled"), TEXT("Hover"), TEXT("Flyer"), TEXT("Airship")}),
 				K({TEXT(" ala"), TEXT("alas"), TEXT("wing"), TEXT("planeador"), TEXT("glider")})),
 			Extra(TEXT("sail"), TEXT("The user wants a sail that catches the wind."), TEXT("No sail is asked for."),
-				TEXT("Sail"), K({TEXT("Top_Front|Top_Back|Top")}), Join({Ground, N({TEXT("Hover"), TEXT("Airship")})}), K({TEXT("vela"), TEXT("sail"), TEXT("viento")})),
+				TEXT("Sail"), K({TEXT("Top_Front|Top_Back|Top|seat:Top")}), Join({Ground, N({TEXT("Hover"), TEXT("Airship")})}), K({TEXT("vela"), TEXT("sail"), TEXT("viento")})),
 			Extra(TEXT("hover"), TEXT("The user wants anti-gravity stones or levitation."), TEXT("No levitation or anti-gravity is asked for. Balloons, wings and propellers do not count."),
 				TEXT("HoverStone"), K({TEXT("Bottom_Front"), TEXT("Bottom_Back")}), NoRoller, K({TEXT("levit"), TEXT("antigrav"), TEXT("flota"), TEXT("hover")})),
 			Extra(TEXT("wall"), TEXT("The user wants a shield, armor plate, wall or battering ram on the front."), TEXT("No shield, armor or wall is asked for."),
@@ -507,11 +516,11 @@ const TArray<FJamExtraDef>& UJamBuildGenerator::ExtraTable()
 				TEXT("Light"), K({JAM_FRONT}), All, K({TEXT("luz"), TEXT("luces"), TEXT("faro"), TEXT("lampara"), TEXT("lámpara"), TEXT("linterna"), TEXT("headlight"), TEXT("lamp"), TEXT("spotlight")}), true),
 			Extra(TEXT("hydrant"), TEXT("The user wants water, a hose, a hydrant or a water cannon."), TEXT("No water or hose is asked for."),
 				TEXT("Hydrant"), K({JAM_FRONT}), All, K({TEXT("agua"), TEXT("manguera"), TEXT("hidrante"), TEXT("chorro"), TEXT("water"), TEXT("hose"), TEXT("hydrant")}), true),
-			Extra(TEXT("hinge"), TEXT("The user wants a hinge, door, hatch, flap or swinging part."), TEXT("No hinge or swinging part is asked for."),
+			Extra(TEXT("hinge"), TEXT("The user explicitly asks for a hinge, door, hatch or flap."), TEXT("No hinge, door, hatch or flap is mentioned. Heads, turrets, aiming and anchors do not count."),
 				TEXT("Hinge"), K({TEXT("Top_Back|Top_Front|Top")}), Join({Veh, Static}), K({TEXT("bisagra"), TEXT("puerta"), TEXT("compuerta"), TEXT("escotilla"), TEXT("hinge"), TEXT("door"), TEXT("flap"), TEXT("hatch")})),
 			Extra(TEXT("ball"), TEXT("The user wants a heavy ball, sphere, boulder or wrecking ball."), TEXT("No ball or boulder is asked for. Balloons and bombs do not count."),
 				TEXT("Ball"), K({TEXT("Front|Back|Top_Front|Top_Back")}), All, K({TEXT("bola"), TEXT("esfera"), TEXT("pelota"), TEXT("boulder"), TEXT("sphere"), TEXT("wrecking")})),
-			Extra(TEXT("girder"), TEXT("The user wants a long beam, girder, pole, lance or ramming arm sticking out."), TEXT("No long girder, pole or lance is asked for."),
+			Extra(TEXT("girder"), TEXT("The user explicitly asks for a long girder, wooden beam, pole or lance."), TEXT("No girder, pole or lance is mentioned. Guns, cannons and tanks do not count."),
 				TEXT("Girder"), K({TEXT("Front|Back|Top")}), NoRoller, K({TEXT("viga"), TEXT("larguero"), TEXT("lanza "), TEXT("girder"), TEXT("lance")})),
 			Extra(TEXT("bigwheels"), TEXT("The user wants big, off-road or monster wheels."), TEXT("No big wheels are asked for."),
 				nullptr, {}, N({TEXT("Car")}), K({TEXT("ruedas grandes"), TEXT("llantas grandes"), TEXT("monster"), TEXT("todoterreno"), TEXT("off-road"), TEXT("big wheel")})),
