@@ -30,7 +30,7 @@ Si funciona, haz merge a `main` y push. Si no compila, pon aquí el primer error
 > (`UCanvasPanelSlot* Slot = Root->AddChildToCanvas(Box)` choca con `UWidget::Slot`). Arreglo: renombrar a `CanvasSlot` en las líneas 1005–1010.
 > Lo probé con ese cambio solo local, sin subirlo, porque el archivo es de Jesús Daniel. **Pendiente para Building.**
 
-### [ ] 1. Partida jugable (Core + mapa)
+### [~] (PC, 14 nov 01:30) 1. Partida jugable (Core + mapa)
 Core no tiene dueño: anota "Cesar" en la fila Core de `docs/TEAM.md` y haz push.
 1. Importa `SourceArt/World/FBX/SM_MAP_Dressed.fbx` (o el blockout) y arma `Content/Game/Maps/L_Main` con World Partition + OFPA.
    Las posiciones están en `SourceArt/World/map_layout.json` (bases en ±12400 X, torres en ±8200 y ±4400).
