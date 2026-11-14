@@ -22,7 +22,8 @@ public class GameJamm : ModuleRules
 			"UMG",
 			"HTTP",
 			"Json",
-			"JsonUtilities"
+			"JsonUtilities",
+			"AudioCaptureCore" // microfono para pedir construcciones por voz (Building/JamVoice)
 		});
 	}
 }
