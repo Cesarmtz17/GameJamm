@@ -16,6 +16,9 @@ public:
 	/** Vacío si no hay clave configurada (entonces se usa el respaldo por palabras clave). */
 	static FString GetApiKey();
 
+	/** Clave directa de TypeSafe (env TYPESAFE_API_KEY o [Jam] DecisionsApiKey): llama a Jev en api.typesafe.ai/v1/systemone. */
+	static FString GetTypeSafeKey();
+
 	/** Clave de fal (env FAL_KEY o [Jam] FalApiKey): respaldo de decisión vía fal.run/openrouter/router (LLM que elige en JSON). */
 	static FString GetFalKey();
 
@@ -23,7 +26,7 @@ public:
 	static bool ParseFalResponse(const FString& ResponseJson, FJamBuildChoice& OutChoice, FString& OutNote);
 
 	/** Cuerpo JSON de la petición para un prompt (público para pruebas). */
-	static FString BuildRequestBody(const FString& Prompt);
+	static FString BuildRequestBody(const FString& Prompt, const TCHAR* ModelOverride = nullptr);
 
 	/** Respuesta de Jev -> decisiones. noul > 0.5 = sí. */
 	static bool ParseResponse(const FString& ResponseJson, FJamBuildChoice& OutChoice, FString& OutNote);

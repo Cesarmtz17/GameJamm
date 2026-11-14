@@ -42,6 +42,19 @@ FString FJamDecisionClient::GetApiKey()
 	return Key;
 }
 
+FString FJamDecisionClient::GetTypeSafeKey()
+{
+	FString Key = FPlatformMisc::GetEnvironmentVariable(TEXT("TYPESAFE_API_KEY"));
+	if (!Key.IsEmpty())
+	{
+		return Key;
+	}
+	FConfigFile Secrets;
+	Secrets.Read(FPaths::ProjectConfigDir() / TEXT("DefaultSecrets.ini"));
+	Secrets.GetString(TEXT("Jam"), TEXT("DecisionsApiKey"), Key);
+	return Key;
+}
+
 FString FJamDecisionClient::GetFalKey()
 {
 	FString Key = FPlatformMisc::GetEnvironmentVariable(TEXT("FAL_KEY"));
@@ -91,10 +104,10 @@ bool FJamDecisionClient::ParseFalResponse(const FString& ResponseJson, FJamBuild
 	return true;
 }
 
-FString FJamDecisionClient::BuildRequestBody(const FString& Prompt)
+FString FJamDecisionClient::BuildRequestBody(const FString& Prompt, const TCHAR* ModelOverride)
 {
 	TSharedRef<FJsonObject> Root = Obj();
-	Root->SetStringField(TEXT("model"), ModelId);
+	Root->SetStringField(TEXT("model"), ModelOverride ? ModelOverride : ModelId);
 
 	TSharedRef<FJsonObject> State = Obj();
 	State->SetStringField(TEXT("request"), Prompt);
@@ -180,7 +193,10 @@ bool FJamDecisionClient::ParseResponse(const FString& ResponseJson, FJamBuildCho
 
 void FJamDecisionClient::RequestChoice(const FString& Prompt, TFunction<void(bool, const FJamBuildChoice&, const FString&)> Done)
 {
-	const FString Key = GetApiKey();
+	// Prioridad: TypeSafe directo (Jev) > OpenRouter (Jev) > fal (LLM generico).
+	const FString TsKey = GetTypeSafeKey();
+	const bool bDirect = !TsKey.IsEmpty();
+	const FString Key = bDirect ? TsKey : GetApiKey();
 	if (Key.IsEmpty())
 	{
 		const FString FalKey = GetFalKey();
@@ -222,11 +238,11 @@ void FJamDecisionClient::RequestChoice(const FString& Prompt, TFunction<void(boo
 	}
 
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
-	Req->SetURL(Endpoint);
+	Req->SetURL(bDirect ? TEXT("https://api.typesafe.ai/v1/systemone") : Endpoint);
 	Req->SetVerb(TEXT("POST"));
 	Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
 	Req->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *Key));
-	Req->SetContentAsString(BuildRequestBody(Prompt));
+	Req->SetContentAsString(BuildRequestBody(Prompt, bDirect ? TEXT("jev-1.13.0") : nullptr));
 	Req->SetTimeout(8.f);
 	Req->OnProcessRequestComplete().BindLambda([Done](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
 	{
