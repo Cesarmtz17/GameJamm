@@ -260,6 +260,7 @@ void AJamBuildPart::InitFromDef(const FJamPartDef& Def, const FVector& BoxSize, 
 	{
 		// Malla de arte (caja exacta, +X = hacia donde mira, eje de rueda = Y): solo visual; la fisica sigue en la forma basica oculta.
 		UStaticMeshComponent* Visual = NewObject<UStaticMeshComponent>(this);
+		Visual->SetMobility(EComponentMobility::Movable); // sin esto SetStaticMesh se ignora y la pieza queda invisible
 		Visual->SetupAttachment(Mesh);
 		Visual->SetUsingAbsoluteScale(true);
 		Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
