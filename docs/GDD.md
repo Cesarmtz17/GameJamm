@@ -381,7 +381,7 @@ Lo que hace que el sistema se sienta vivo: las piezas reaccionan entre sí por s
 | Fuego + madera (Plank, Wheel, Sail) | Las piezas de madera prenden y pierden 10 vida/s por 3 s | Propuesta |
 | Fuego + hielo | Se cancelan: el fuego quita la ralentización; el hielo apaga la quemadura | Propuesta |
 | Agua + choque | El agua conduce: un Shock sobre algo mojado (últimos 3 s) alcanza el doble | Propuesta (stretch) |
-| Arma fusionada vs construcción | Fuego quema piezas de madera, Rayo apaga la construcción 0.5 s, Roca empuja ×2, Bomba explota al pegar | Propuesta (Combate, Javier) |
+| Arma fusionada vs construcción | Fuego quema piezas de madera, Rayo apaga la construcción 0.5 s, Roca empuja ×2, Bomba explota al pegar | Propuesta (Combate) |
 
 > [!NOTE]
 > Los valores en código hoy no coinciden con §9 en varias piezas. Bomba: 5 m y 30 de daño (GDD: 3 m y 60). Beam: 15 m y 12/s (GDD: 25 m y 12 cada 0.25 s). Head: 25 m (GDD: 20 m). Frost: alcance de unos 3 m y frena 3 s (GDD: 4 m, frena 50 % y congela). **Para el MVP manda lo que ya está en código**; §9 son los valores objetivo para afinar el último día (ver Pendientes).
