@@ -1,6 +1,6 @@
 {
- "_doc": "Base de conocimiento del asistente de construcción. Diseño: docs/mechanics-research/13-conocimiento-ia-construccion.md. Valores iniciales de diseño (tunables).",
- "version": 1,
+ "_doc": "Base de conocimiento del asistente de construcción. Diseño: docs/mechanics-research/13-conocimiento-ia-construccion.md. Valores iniciales de diseño (tunables). Tipos = los de UJamPartCatalog (JamBuildPart.cpp); code_archetype = ArchetypeTable (JamAssembler.cpp).",
+ "version": 2,
  "max_parts": 21,
  "use_energy": true,
  "elements": [
@@ -32,7 +32,7 @@
    ],
    "substitutes": [
     "Panel",
-    "Beam"
+    "Girder"
    ],
    "priority": "mvp",
    "infinite": false
@@ -41,7 +41,7 @@
    "id": "PART_PANEL",
    "type": "Panel",
    "category": "estructura",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 8,
    "energy_per_s": 0,
    "provides": [
@@ -73,7 +73,7 @@
    "id": "PART_WALL",
    "type": "Wall",
    "category": "estructura",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 30,
    "energy_per_s": 0,
    "provides": [
@@ -103,7 +103,7 @@
   },
   {
    "id": "PART_BEAM",
-   "type": "Beam",
+   "type": "Girder",
    "category": "estructura",
    "in_code": false,
    "mass_kg": 6,
@@ -194,7 +194,7 @@
     "barrel"
    ],
    "substitutes": [
-    "Beam",
+    "Girder",
     "Rod"
    ],
    "priority": "mvp",
@@ -287,7 +287,7 @@
     "stick"
    ],
    "substitutes": [
-    "Beam"
+    "Girder"
    ],
    "priority": "post",
    "infinite": false
@@ -572,7 +572,7 @@
    "id": "DEV_SPRING",
    "type": "Spring",
    "category": "movilidad",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 3,
    "energy_per_s": 0,
    "provides": [
@@ -675,10 +675,74 @@
    "infinite": false
   },
   {
+   "id": "DEV_JET",
+   "type": "Jet",
+   "category": "propulsion",
+   "in_code": true,
+   "mass_kg": 6,
+   "energy_per_s": 0.2,
+   "provides": [
+    "thrust"
+   ],
+   "faces": [
+    "Back",
+    "Bottom"
+   ],
+   "behavior": "Motor a reacción: empuje continuo fuerte al revés de su cara (más que Fan, menos que Rocket, sin apagarse).",
+   "names_es": [
+    "jet",
+    "reactor",
+    "turbo",
+    "propulsor"
+   ],
+   "names_en": [
+    "jet",
+    "jet engine",
+    "thruster"
+   ],
+   "substitutes": [
+    "Fan",
+    "Rocket"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "DEV_TURBINE",
+   "type": "Turbine",
+   "category": "propulsion",
+   "in_code": true,
+   "mass_kg": 6,
+   "energy_per_s": 0.2,
+   "provides": [
+    "thrust",
+    "lift"
+   ],
+   "faces": [
+    "Back",
+    "Bottom"
+   ],
+   "behavior": "Ventilador grande: como Fan pero más empuje y más grande.",
+   "names_es": [
+    "turbina",
+    "ventilador grande"
+   ],
+   "names_en": [
+    "turbine",
+    "big fan"
+   ],
+   "substitutes": [
+    "Fan",
+    "Jet"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
    "id": "DEV_WING",
    "type": "Wing",
    "category": "propulsion",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 3,
    "energy_per_s": 0,
    "provides": [
@@ -708,6 +772,36 @@
    "infinite": false
   },
   {
+   "id": "DEV_SAIL",
+   "type": "Sail",
+   "category": "propulsion",
+   "in_code": true,
+   "mass_kg": 2,
+   "energy_per_s": 0,
+   "provides": [
+    "thrust_wind"
+   ],
+   "faces": [
+    "Top",
+    "Left",
+    "Right"
+   ],
+   "behavior": "Vela: empuja con el viento, sin energía.",
+   "names_es": [
+    "vela",
+    "viento"
+   ],
+   "names_en": [
+    "sail",
+    "wind"
+   ],
+   "substitutes": [
+    "Fan"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
    "id": "DEV_BALLOON",
    "type": "Balloon",
    "category": "propulsion",
@@ -731,20 +825,21 @@
    ],
    "substitutes": [
     "Fan",
-    "Hover"
+    "HoverStone"
    ],
    "priority": "post",
    "infinite": false
   },
   {
    "id": "DEV_HOVER",
-   "type": "Hover",
+   "type": "HoverStone",
    "category": "propulsion",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 4,
    "energy_per_s": 0.03,
    "provides": [
-    "hover_static"
+    "hover_static",
+    "lift"
    ],
    "faces": [
     "Bottom",
@@ -864,9 +959,9 @@
   },
   {
    "id": "CTRL_TIMEBOMB",
-   "type": "TimeBomb",
+   "type": "Bomb",
    "category": "control",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 2,
    "energy_per_s": 0,
    "provides": [
@@ -992,7 +1087,7 @@
    "id": "DEV_FROST",
    "type": "Frost",
    "category": "arma",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 3,
    "energy_per_s": 0.18,
    "provides": [
@@ -1059,9 +1154,9 @@
   },
   {
    "id": "DEV_LASER",
-   "type": "Laser",
+   "type": "Beam",
    "category": "arma",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 3,
    "energy_per_s": 0.18,
    "provides": [
@@ -1119,8 +1214,8 @@
     "artillery"
    ],
    "substitutes": [
-    "Laser",
-    "TimeBomb"
+    "Beam",
+    "Bomb"
    ],
    "priority": "mvp",
    "infinite": false
@@ -1238,6 +1333,57 @@
      "face": "Top",
      "optional": true
     }
+   ],
+   "code_archetype": "Car"
+  },
+  {
+   "id": "Tank",
+   "es": "tanque / blindado / máquina de guerra",
+   "code_archetype": "Tank",
+   "orientation": "upright",
+   "anchored": false,
+   "slots": [
+    {
+     "role": "chassis",
+     "count": 1
+    },
+    {
+     "role": "ground_drive",
+     "count": 4,
+     "min": 2,
+     "faces": [
+      "Left_Front",
+      "Right_Front",
+      "Left_Back",
+      "Right_Back"
+     ],
+     "pairs": true,
+     "part_pref": [
+      "BigWheel",
+      "Wheel"
+     ]
+    },
+    {
+     "role": "weapon",
+     "count": 1,
+     "min": 1,
+     "face": "Top",
+     "part_pref": [
+      "Cannon"
+     ]
+    },
+    {
+     "role": "shield",
+     "count": 1,
+     "face": "Front",
+     "optional": true
+    },
+    {
+     "role": "control",
+     "count": 1,
+     "face": "Top",
+     "optional": true
+    }
    ]
   },
   {
@@ -1270,7 +1416,8 @@
      "face": "Bottom",
      "optional": true
     }
-   ]
+   ],
+   "code_archetype": null
   },
   {
    "id": "Hoverbike",
@@ -1298,6 +1445,44 @@
      "role": "control",
      "count": 1,
      "face": "Top"
+    }
+   ],
+   "code_archetype": null
+  },
+  {
+   "id": "Hover",
+   "es": "plataforma levitante con piedras flotantes",
+   "code_archetype": "Hover",
+   "orientation": "upright",
+   "anchored": false,
+   "slots": [
+    {
+     "role": "chassis",
+     "count": 1
+    },
+    {
+     "role": "hover_static",
+     "count": 2,
+     "min": 1,
+     "faces": [
+      "Bottom_Front",
+      "Bottom_Back"
+     ],
+     "part_pref": [
+      "HoverStone"
+     ]
+    },
+    {
+     "role": "thrust",
+     "count": 1,
+     "face": "Back",
+     "optional": true
+    },
+    {
+     "role": "control",
+     "count": 1,
+     "face": "Top",
+     "optional": true
     }
    ]
   },
@@ -1334,7 +1519,8 @@
      "count": 1,
      "face": "Top"
     }
-   ]
+   ],
+   "code_archetype": "Flyer"
   },
   {
    "id": "Glider",
@@ -1367,7 +1553,8 @@
      "count": 1,
      "face": "Top"
     }
-   ]
+   ],
+   "code_archetype": null
   },
   {
    "id": "Airship",
@@ -1399,7 +1586,8 @@
      "face": "Top",
      "optional": true
     }
-   ]
+   ],
+   "code_archetype": null
   },
   {
    "id": "Rocket",
@@ -1420,7 +1608,8 @@
      "min": 1,
      "face": "Bottom"
     }
-   ]
+   ],
+   "code_archetype": "Rocket"
   },
   {
    "id": "Turret",
@@ -1454,7 +1643,8 @@
      "face": "Front",
      "on": "aim"
     }
-   ]
+   ],
+   "code_archetype": "Turret"
   },
   {
    "id": "Spinner",
@@ -1484,7 +1674,8 @@
       "Back"
      ]
     }
-   ]
+   ],
+   "code_archetype": null
   },
   {
    "id": "Roller",
@@ -1511,7 +1702,8 @@
       "Right"
      ]
     }
-   ]
+   ],
+   "code_archetype": null
   },
   {
    "id": "Ram",
@@ -1546,7 +1738,8 @@
      "face": "Top",
      "optional": true
     }
-   ]
+   ],
+   "code_archetype": null
   },
   {
    "id": "Catapult",
@@ -1574,7 +1767,8 @@
      "on": "launch",
      "optional": true
     }
-   ]
+   ],
+   "code_archetype": null
   },
   {
    "id": "Wall",
@@ -1593,14 +1787,16 @@
      "face": "Bottom",
      "optional": true
     }
-   ]
+   ],
+   "code_archetype": "Fortress"
   },
   {
    "id": "Free",
    "es": "libre: cualquier combinación que no sea una plantilla",
    "orientation": "any",
    "anchored": false,
-   "slots": []
+   "slots": [],
+   "code_archetype": null
   }
  ]
 }

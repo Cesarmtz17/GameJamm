@@ -14,7 +14,7 @@ status: borrador
 > [!info]
 > Convierte la ingeniería inversa de la referencia ([01](01-mecanicas-construccion.md), [03](03-mecanicas-vehiculos-dispositivos.md),
 > [04](04-quimica-fisica-gdc.md)) en **reglas que el asistente puede usar para decidir** qué construir con lo que el jugador trae en
-> el inventario. Los datos viven en **`Content/Game/Building/Data/BuildKnowledge.json`** (38 elementos y 14 plantillas), que el código y
+> el inventario. Los datos viven en **`Content/Game/Building/Data/BuildKnowledge.json`** (41 elementos y 16 plantillas; los tipos son los de `UJamPartCatalog` y `code_archetype` apunta a `ArchetypeTable`), que el código y
 > Jev leen. Etiquetas: **[code]** = ya existe en `Source/GameJamm/Building/`, **[todo]** = falta, **[inferencia]** = diseño nuestro.
 
 > [!tip] Veredicto central
@@ -36,12 +36,12 @@ elige la pieza que las da con lo que haya en el inventario.
 | `chassis` | Base a la que se pega todo | Plank, Panel, Block, Cylinder, Cart, Sled |
 | `ground_drive` | Tracción con motor | Wheel, BigWheel → (sustituto pasivo) Ball, Sled |
 | `spin` | Gira sobre sí misma y arrastra lo pegado | Wheel, BigWheel, Turntable |
-| `thrust` / `burst_thrust` | Empuje continuo / de un uso | Fan / Rocket |
-| `lift` | Sube | Fan en `Bottom`, Balloon, Hover |
+| `thrust` / `burst_thrust` | Empuje continuo / de un uso | Fan, Turbine, Jet / Rocket |
+| `lift` | Sube | Fan o Turbine en `Bottom`, Balloon, HoverStone |
 | `glide` | Planea | Wing |
 | `control` | Dirigir y encender todo | **Seat (infinito)** |
 | `aim` | Apunta solo al enemigo | Head |
-| `weapon_*` | Daño | Flamethrower, Frost, Shock, Laser, Cannon |
+| `weapon_*` | Daño | Flamethrower, Frost, Shock, Beam (láser), Cannon, Bomb |
 | `launch` | Lanza lo de encima | Spring |
 | `anchor` | Fija al suelo | Stake |
 | `shield` / `ram` / `weight` | Bloquear / embestir / contrapeso | Wall, Panel, Block |
@@ -92,7 +92,7 @@ algo imposible**, y la llamada queda chica (Jev cobra por token de entrada *(doc
 
 | Pregunta | Tipo Jev | Opciones |
 |---|---|---|
-| `shape` | Choice | Las 14 plantillas del JSON (`Car`, `Bike`, `Hoverbike`, `Flyer`, `Glider`, `Airship`, `Rocket`, `Turret`, `Spinner`, `Roller`, `Ram`, `Catapult`, `Wall`, `Free`) con su descripción `es` como criterio |
+| `shape` | Choice | Las 16 plantillas del JSON (`Car`, `Tank`, `Bike`, `Hoverbike`, `Hover`, `Flyer`, `Glider`, `Airship`, `Rocket`, `Turret`, `Spinner`, `Roller`, `Ram`, `Catapult`, `Wall`, `Free`); las 7 que ya existen en `ArchetypeTable` llevan `code_archetype` con su descripción `es` como criterio |
 | `want_<Tipo>` | Noul ×N | Uno por tipo que tienes: "¿el jugador pide o necesita esta pieza?" (criterio = `behavior` + sinónimos) |
 | `orientation` | Choice | `upright` (parada), `flat` (acostada), `inverted` (de cabeza) |
 | `anchored` | Noul | ¿Quiere que se quede fija en su lugar? |
@@ -180,8 +180,8 @@ La referencia tiene un motor químico donde las interacciones salen solas *([04]
 
 ## 9. Limitaciones conocidas
 
-- `PART_BEAM` usa el tipo `Beam`, así que el emisor de haz del catálogo (`DEV_BEAM`) se llama **`Laser`** en el JSON para no chocar.
-- Faltan en el código 26 de los 38 elementos (`in_code: false`). El solver solo debe ofrecer los que tienen `in_code: true` hasta que existan.
+- En el código, `Beam` es el **emisor láser** (`DEV_BEAM`); la viga estructural `PART_BEAM` se llama **`Girder`** en el JSON para no chocar.
+- Faltan en el código 18 de los 41 elementos (`in_code: false`). El solver solo debe ofrecer los que tienen `in_code: true` hasta que existan.
 - Jev puede cambiar sus probabilidades si cambia el orden de las opciones *(doc 12)*: generar las preguntas siempre en el orden del JSON.
 
 ## → Aplicable a GameJamm
