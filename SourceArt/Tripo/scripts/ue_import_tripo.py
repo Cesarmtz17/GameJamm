@@ -142,7 +142,11 @@ def clear_existing(path):
     refs = [r for r in EAL.find_package_referencers_for_asset(path, False)
             if r != path.rsplit(".", 1)[0] and not str(r).startswith("/Game/Developers/")]  # niveles de prueba no cuentan
     if refs:
-        log(f"AVISO {path} tiene referencias {refs}: se reimporta encima sin borrar")
+        # Mallas del mapa (las usan actores de L_Main): no se borran. Se reimporta encima, renombrando el slot 0 al
+        # material del FBX nuevo (M_<id>) para que el importador lo reutilice en vez de agregar un slot nuevo.
+        # Mallas del mapa (las usan actores de L_Main): no se borran; se reimporta encima y, como el importador puede
+        # dejar slots viejos, después se pone el mismo MI en todos (en el mapa no se usa el brillo del slot 0).
+        log(f"AVISO {path} lo usan {refs[:3]}: se reimporta encima y se pinta todo con el MI")
         return False
     ok = EAL.delete_asset(path)
     log(f"borrada la malla vieja {path}: {ok}")
@@ -157,13 +161,19 @@ def main():
     # Importador FBX clásico: respeta import_materials=False (Interchange crea materiales propios).
     unreal.SystemLibrary.execute_console_command(None, "Interchange.FeatureFlags.Import.FBX 0")
     master = make_master(f"{dest}/Materials/M_Tripo_Master")
-    for sm_name in job["assets"]:
-        base = sm_name[3:] if sm_name.startswith("SM_") else sm_name
+    for entry in job["assets"]:
+        # Entrada: "SM_X" o {"name": "SM_MAP_...", "mat": "STRUCT_TOWER_RED"} para que varias mallas del mapa con el
+        # mismo modelo compartan MI_<mat> y T_<mat>_* (no duplicar texturas en memoria de video).
+        sm_name = entry if isinstance(entry, str) else entry["name"]
+        base = entry["mat"] if isinstance(entry, dict) and entry.get("mat") else (sm_name[3:] if sm_name.startswith("SM_") else sm_name)
         tex_dest = f"{dest}/Textures"
         texs = {}
         for role in ("D", "N", "MR"):
+            tpath = f"{tex_dest}/T_{base}_{role}"
             png = os.path.join(fbx_dir, f"T_{base}_{role}.png")
-            if os.path.exists(png):
+            if isinstance(entry, dict) and EAL.does_asset_exist(tpath):
+                texs[role] = unreal.load_asset(tpath)  # ya importada por otra malla del mismo modelo
+            elif os.path.exists(png):
                 texs[role] = import_texture(png, tex_dest, f"T_{base}_{role}", role)
         clear_existing(f"{mesh_dest}/{sm_name}")
         paths = import_file(os.path.join(fbx_dir, f"{sm_name}.fbx"), mesh_dest, sm_name, mesh_options())
@@ -187,7 +197,12 @@ def main():
                 MEL.set_material_instance_texture_parameter_value(mi, pname, texs[role])
         MEL.update_material_instance(mi)
         EAL.save_loaded_asset(mi)
-        mesh.set_material(0, mi)
+        for i in range(max(1, len(mesh.static_materials))):
+            mesh.set_material(i, mi)
+        if job.get("collision") == "complex":  # mallas del mapa: se pisan y chocan con su forma real
+            bs = mesh.get_editor_property("body_setup")
+            if bs:
+                bs.set_editor_property("collision_trace_flag", unreal.CollisionTraceFlag.CTF_USE_COMPLEX_AS_SIMPLE)
         EAL.save_loaded_asset(mesh)
         bb = mesh.get_bounding_box()
         size = bb.max - bb.min

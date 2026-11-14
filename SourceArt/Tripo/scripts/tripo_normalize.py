@@ -48,6 +48,8 @@ def parse_args():
     p.add_argument("--ucx", default="none", choices=["none", "box", "wheel"])
     p.add_argument("--sockets", default="six", choices=["six", "lr", "none"])
     p.add_argument("--fx", action="append", default=[], help="Socket de efecto 'Nombre:Cara', p. ej. Fx_Out:Front")
+    p.add_argument("--center", type=float, nargs=3, default=None,
+                   help="Centro de la caja en cm del mundo (UE). Para mallas del mapa que traen su posición integrada")
     p.add_argument("--preview", default="")
     p.add_argument("--blend", default="")
     return p.parse_args(argv)
@@ -371,16 +373,22 @@ def main():
         n, f = fx.split(":")
         add_socket(obj, n, f, a.size)
 
+    if a.preview:  # antes de mover al centro del mundo: la cámara de la vista previa mira al origen
+        os.makedirs(os.path.dirname(os.path.abspath(a.preview)), exist_ok=True)
+        render_preview(obj, a.size, os.path.abspath(a.preview))
+        report["preview"] = os.path.abspath(a.preview)
+        for o in [o for o in bpy.data.objects if o.name in ("Arrow", "Cam")]:
+            bpy.data.objects.remove(o, do_unlink=True)
+    if a.center:
+        obj.data.transform(Matrix.Translation(ue(a.center)))
+        obj.data.update()
+        report["center_cm"] = a.center
     fbx = os.path.join(out_dir, f"{a.name}.fbx")
     export_fbx(obj, fbx)
     report["fbx"] = fbx
     if a.blend:
         os.makedirs(os.path.dirname(os.path.abspath(a.blend)), exist_ok=True)
         bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(a.blend))
-    if a.preview:
-        os.makedirs(os.path.dirname(os.path.abspath(a.preview)), exist_ok=True)
-        render_preview(obj, a.size, os.path.abspath(a.preview))
-        report["preview"] = os.path.abspath(a.preview)
     print("TRIPO_REPORT " + json.dumps(report, ensure_ascii=False))
 
 

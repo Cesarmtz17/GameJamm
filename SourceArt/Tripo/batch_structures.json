@@ -1,0 +1,85 @@
+{
+ "_doc": "Torres y bases de ATeamStructure (pivote abajo al centro, como SM_TOWER_WATCH 300x300x800 y SM_BASE_KEEP 530x530x800). Rojo mira a +X, azul a -X.",
+ "parts": [
+  {
+   "name": "SM_STRUCT_TOWER_RED",
+   "src": "SM_STRUCT_TOWER_RED_rodin_v1.glb",
+   "mat": "STRUCT_TOWER_RED",
+   "size": [
+    300,
+    300,
+    800
+   ],
+   "center": [
+    0,
+    0,
+    400
+   ],
+   "rot": "z90",
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 10000
+  },
+  {
+   "name": "SM_STRUCT_KEEP_RED",
+   "src": "SM_STRUCT_KEEP_RED_rodin_v1.glb",
+   "mat": "STRUCT_KEEP_RED",
+   "size": [
+    530,
+    530,
+    800
+   ],
+   "center": [
+    0,
+    0,
+    400
+   ],
+   "rot": "z90",
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 12000
+  },
+  {
+   "name": "SM_STRUCT_TOWER_BLUE",
+   "src": "SM_STRUCT_TOWER_BLUE_rodin_v1.glb",
+   "mat": "STRUCT_TOWER_BLUE",
+   "size": [
+    300,
+    300,
+    800
+   ],
+   "center": [
+    0,
+    0,
+    400
+   ],
+   "rot": "z-90",
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 10000
+  },
+  {
+   "name": "SM_STRUCT_KEEP_BLUE",
+   "src": "SM_STRUCT_KEEP_BLUE_rodin_v1.glb",
+   "mat": "STRUCT_KEEP_BLUE",
+   "size": [
+    530,
+    530,
+    800
+   ],
+   "center": [
+    0,
+    0,
+    400
+   ],
+   "rot": "z-90",
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 12000
+  }
+ ]
+}

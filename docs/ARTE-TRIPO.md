@@ -20,6 +20,18 @@ siendo de su dueño: lo que el arte necesita de código se pide en la sección "
   `M_Tripo_Master` tiene el escalar `Emissive` que usa `SetGlow`: al encender, brilla la textura teñida de cálido.
 - Comparación antes/después: `SourceArt/Tripo/previews/_comparacion_vehiculo.png`.
 
+## Mundo (14 nov, Rodin)
+
+- **Torres y bases del juego:** los 6 actores `ATeamStructure` de `L_Main` ahora usan
+  `Content/Game/Art/Tripo/Structures/SM_STRUCT_{TOWER|KEEP}_{RED|BLUE}` (pivote abajo al centro, mismo tamaño que
+  `SM_TOWER_WATCH`/`SM_BASE_KEEP`) y ya **no** llevan `MI_Structure_Red/Blue` forzado: la textura del equipo viene en la malla.
+  Rojo mira a +X y azul a −X. Script: `SourceArt/Tripo/scripts/ue_assign_structures.py`. Posición, escala y vida no cambiaron.
+- **`MapDressed`:** banderas, barricadas y plataformas de spawn de cada equipo reemplazadas **en su lugar** (misma caja y
+  posición del mundo; `batch_world.json`). También se reemplazaron `SM_MAP_Dressed_Tower*` y `*Base` aunque hoy ningún actor
+  de `L_Main` las usa.
+- Los archivos `.uasset` de actores de `L_Main` pueden quedar en **solo lectura** en copias viejas (eran bloqueables): si el
+  editor no guarda, quitar el atributo de solo lectura a esos archivos.
+
 ## No pisar
 
 - **No reimportar los FBX viejos** de `SourceArt/Building/FBX/` sobre `Content/Game/Building/Parts/`: reemplazaría el

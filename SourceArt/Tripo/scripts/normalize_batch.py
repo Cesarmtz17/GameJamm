@@ -30,7 +30,8 @@ def main():
     for p in batch["parts"]:
         if only and p["name"] not in only:
             continue
-        src = latest_raw(p["name"])
+        # "src": GLB de raw/ compartido por varias mallas (p. ej. las 2 torres rojas del mapa usan el mismo modelo)
+        src = os.path.join(ROOT, "raw", p["src"]) if p.get("src") else latest_raw(p["name"])
         if not src:
             rows.append((p["name"], "sin GLB", "", ""))
             continue
@@ -42,6 +43,10 @@ def main():
             cmd += ["--auto-axis"]
         if p.get("rot"):
             cmd += ["--rot", p["rot"]]
+        if p.get("tris"):
+            cmd += ["--tris", str(p["tris"])]
+        if p.get("center"):  # mallas del mapa: traen su posición del mundo integrada (ver ue_dump_bounds.py)
+            cmd += ["--center", *[str(c) for c in p["center"]]]
         for fx in p.get("fx", []):
             cmd += ["--fx", fx]
         out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace").stdout

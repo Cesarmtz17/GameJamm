@@ -1,0 +1,319 @@
+{
+ "_doc": "Mundo (Rodin): estructuras de MapDressed reemplazadas en su lugar. center/size = caja original de cada malla (ue_dump_bounds.py); src = modelo compartido; mat = MI/texturas compartidas.",
+ "parts": [
+  {
+   "name": "SM_MAP_Dressed_TowerRed1",
+   "src": "SM_STRUCT_TOWER_RED_rodin_v1.glb",
+   "mat": "STRUCT_TOWER_RED",
+   "size": [
+    300,
+    300,
+    800
+   ],
+   "center": [
+    -4400,
+    0,
+    400
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 10000,
+   "rot": "z90"
+  },
+  {
+   "name": "SM_MAP_Dressed_TowerRed2",
+   "src": "SM_STRUCT_TOWER_RED_rodin_v1.glb",
+   "mat": "STRUCT_TOWER_RED",
+   "size": [
+    300,
+    300,
+    800
+   ],
+   "center": [
+    -8200,
+    0,
+    400
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 10000,
+   "rot": "z90"
+  },
+  {
+   "name": "SM_MAP_Dressed_TowerBlue1",
+   "src": "SM_STRUCT_TOWER_BLUE_rodin_v1.glb",
+   "mat": "STRUCT_TOWER_BLUE",
+   "size": [
+    300,
+    300,
+    800
+   ],
+   "center": [
+    4400,
+    0,
+    400
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 10000,
+   "rot": "z-90"
+  },
+  {
+   "name": "SM_MAP_Dressed_TowerBlue2",
+   "src": "SM_STRUCT_TOWER_BLUE_rodin_v1.glb",
+   "mat": "STRUCT_TOWER_BLUE",
+   "size": [
+    300,
+    300,
+    800
+   ],
+   "center": [
+    8200,
+    0,
+    400
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 10000,
+   "rot": "z-90"
+  },
+  {
+   "name": "SM_MAP_Dressed_RedBase",
+   "src": "SM_STRUCT_KEEP_RED_rodin_v1.glb",
+   "mat": "STRUCT_KEEP_RED",
+   "size": [
+    848,
+    848,
+    1280
+   ],
+   "center": [
+    -12400,
+    0,
+    640
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 12000,
+   "rot": "z90"
+  },
+  {
+   "name": "SM_MAP_Dressed_BlueBase",
+   "src": "SM_STRUCT_KEEP_BLUE_rodin_v1.glb",
+   "mat": "STRUCT_KEEP_BLUE",
+   "size": [
+    848,
+    848,
+    1280
+   ],
+   "center": [
+    12400,
+    0,
+    640
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 12000,
+   "rot": "z-90"
+  },
+  {
+   "name": "SM_MAP_Dressed_RedBase_Flag",
+   "src": "SM_STRUCT_FLAG_RED_rodin_v1.glb",
+   "mat": "STRUCT_FLAG_RED",
+   "size": [
+    180,
+    60,
+    520
+   ],
+   "center": [
+    -11200,
+    -1200,
+    260
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 4000
+  },
+  {
+   "name": "SM_MAP_Dressed_BlueBase_Flag",
+   "src": "SM_STRUCT_FLAG_BLUE_rodin_v1.glb",
+   "mat": "STRUCT_FLAG_BLUE",
+   "size": [
+    180,
+    60,
+    520
+   ],
+   "center": [
+    11200,
+    -1200,
+    260
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 4000
+  },
+  {
+   "name": "SM_MAP_Dressed_RedBase_Flag_001",
+   "src": "SM_STRUCT_FLAG_RED_rodin_v1.glb",
+   "mat": "STRUCT_FLAG_RED",
+   "size": [
+    180,
+    60,
+    520
+   ],
+   "center": [
+    -11200,
+    1200,
+    260
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 4000
+  },
+  {
+   "name": "SM_MAP_Dressed_BlueBase_Flag_001",
+   "src": "SM_STRUCT_FLAG_BLUE_rodin_v1.glb",
+   "mat": "STRUCT_FLAG_BLUE",
+   "size": [
+    180,
+    60,
+    520
+   ],
+   "center": [
+    11200,
+    1200,
+    260
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 4000
+  },
+  {
+   "name": "SM_MAP_Dressed_TowerRed1_Barricade",
+   "src": "SM_STRUCT_BARRICADE_RED_rodin_v1.glb",
+   "mat": "STRUCT_BARRICADE_RED",
+   "size": [
+    80,
+    300,
+    160
+   ],
+   "center": [
+    -3800,
+    450,
+    80
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 5000
+  },
+  {
+   "name": "SM_MAP_Dressed_TowerRed2_Barricade",
+   "src": "SM_STRUCT_BARRICADE_RED_rodin_v1.glb",
+   "mat": "STRUCT_BARRICADE_RED",
+   "size": [
+    80,
+    300,
+    160
+   ],
+   "center": [
+    -7600,
+    450,
+    80
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 5000
+  },
+  {
+   "name": "SM_MAP_Dressed_TowerBlue1_Barricade",
+   "src": "SM_STRUCT_BARRICADE_BLUE_rodin_v1.glb",
+   "mat": "STRUCT_BARRICADE_BLUE",
+   "size": [
+    80,
+    300,
+    160
+   ],
+   "center": [
+    3800,
+    450,
+    80
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 5000,
+   "rot": "z90",
+   "auto_axis": false
+  },
+  {
+   "name": "SM_MAP_Dressed_TowerBlue2_Barricade",
+   "src": "SM_STRUCT_BARRICADE_BLUE_rodin_v1.glb",
+   "mat": "STRUCT_BARRICADE_BLUE",
+   "size": [
+    80,
+    300,
+    160
+   ],
+   "center": [
+    7600,
+    450,
+    80
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 5000,
+   "rot": "z90",
+   "auto_axis": false
+  },
+  {
+   "name": "SM_MAP_Dressed_RedBase_Spawn",
+   "src": "SM_STRUCT_SPAWN_RED_rodin_v1.glb",
+   "mat": "STRUCT_SPAWN_RED",
+   "size": [
+    600,
+    600,
+    160
+   ],
+   "center": [
+    -10800,
+    0,
+    80
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 6000
+  },
+  {
+   "name": "SM_MAP_Dressed_BlueBase_Spawn",
+   "src": "SM_STRUCT_SPAWN_BLUE_rodin_v1.glb",
+   "mat": "STRUCT_SPAWN_BLUE",
+   "size": [
+    600,
+    600,
+    160
+   ],
+   "center": [
+    10800,
+    0,
+    80
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 6000
+  }
+ ]
+}

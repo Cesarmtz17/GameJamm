@@ -38,6 +38,15 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 14 nov — Arte con Tripo y Rodin: las 45 piezas y las estructuras del mapa (Javier)
+- Qué: las 35 piezas de construcción (más 10 nuevas de solo datos) pasaron de primitivas de color plano a modelos texturizados a mano; después torres, fortalezas, banderas, barricadas y plataformas de spawn de cada equipo. Comparación en `SourceArt/Tripo/previews/_comparacion_vehiculo.png`.
+- Cómo con IA: referencia 2D por pieza en Tripo (Nano Banana, con el concepto 01-C como guía de estilo; gratis) → imagen a 3D (Tripo Modelo HD, 30 créditos, 5k polígonos) o **Rodin Gen-2.5 por el MCP oficial de Hyper3D** (0.5 créditos). Prompt base: *"Game asset, single object only: <pieza>, in the exact art style of the reference image (stylized hand-painted 3D game art, chunky toy-like proportions…)"*.
+- Pipeline sin abrir programas: un script de **Blender en modo headless** encaja cada modelo en la caja `Size` exacta de `JamBuildPart.cpp` (pivote, +X adelante, ≤5k tris, texturas 1K) y un **commandlet de Python de Unreal** lo importa con un material maestro que conserva el brillo al encender. Las estructuras del mapa se reemplazaron en su lugar leyendo la caja de cada malla, y los 6 `ATeamStructure` se reasignaron con un script dentro del editor.
+- Qué falló: Chrome bloqueaba descargas en serie (se capturó la URL firmada de cada exportación); un script de lanzamiento se cortó por tiempo pero siguió corriendo en la página (se verificó por créditos que no hubo duplicados); 10 piezas salieron mirando al revés (se revisa con vista superior y lateral); reimportar encima dejaba dos slots de material; los actores del mapa seguían en solo lectura tras quitarles el lock; y dos agentes en la misma carpeta hicieron una carrera de `git pull` a media compilación.
+- Qué aprendimos: el contrato de la pieza (caja exacta, pivote, un slot) permitió cambiar todo el arte sin tocar código; la verificación por imagen (render + captura del juego) atrapó lo que los números no.
+
+---
+
 ## 13-14 nov — Research de mecánicas con agentes (docs/mechanics-research)
 - Pipeline: agente **deep-research** recopiló fuentes públicas (panel de física de GDC 2024, prensa técnica, wikis, datamines de la comunidad, papers) → 8 docs con valores y fórmulas (01-08); una segunda pasada de **auditoría open source** añadió el análisis del repo de referencia ComponentFuseMechanic y el diseño del ensamblado con grafo/joints/JSON validado (docs 09-11). Todo con formato Obsidian y citado en FUENTES.md.
 - El repo es público del jam: se aplicó un **scrub** para no nombrar el juego fuente ni enlazar URLs de su ecosistema — títulos, personajes, lugares y habilidades → genérico ("el juego de referencia"); los valores datamineados se conservaron. Verificado con `git grep` en todo el árbol: 0 menciones.
