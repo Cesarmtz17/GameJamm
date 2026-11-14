@@ -11,20 +11,19 @@
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogJamDecision, Log, All);
+
 namespace
 {
 	const TCHAR* Endpoint = TEXT("https://openrouter.ai/api/alpha/decisions");
 	const TCHAR* ModelId = TEXT("typesafe/jev-1.13"); // fijado: los umbrales cambian entre versiones.
 
-	// Orden fijo de las opciones: Jev altera las probabilidades si cambia el orden.
-	struct FExtra { const TCHAR* Key; const TCHAR* TrueText; const TCHAR* FalseText; };
-	const FExtra Extras[] = {
-		{ TEXT("fan"), TEXT("The user wants a fan, propeller, turbo or extra air thrust."), TEXT("No fan or propeller is asked for.") },
-		{ TEXT("rocket"), TEXT("The user wants a rocket, nitro or a rocket booster."), TEXT("No rocket or nitro is asked for.") },
-		{ TEXT("flame"), TEXT("The user wants fire, flames or a flamethrower."), TEXT("No fire is asked for.") },
-		{ TEXT("cannon"), TEXT("The user wants a cannon, gun or something that shoots."), TEXT("No cannon or shooting is asked for.") },
-		{ TEXT("balloon"), TEXT("The user wants a balloon or floating lift."), TEXT("No balloon is asked for.") },
-	};
+	FString ExtrasStr(const FJamBuildChoice& C)
+	{
+		TArray<FString> S;
+		for (const FName& N : C.Extras) { S.Add(N.ToString()); }
+		return FString::Join(S, TEXT(","));
+	}
 
 	TSharedRef<FJsonObject> Obj() { return MakeShared<FJsonObject>(); }
 }
@@ -95,11 +94,18 @@ bool FJamDecisionClient::ParseFalResponse(const FString& ResponseJson, FJamBuild
 	}
 	OutChoice = FJamBuildChoice();
 	OutChoice.Archetype = FName(*Arch);
-	D->TryGetBoolField(TEXT("fan"), OutChoice.bFan);
-	D->TryGetBoolField(TEXT("rocket"), OutChoice.bRocket);
-	D->TryGetBoolField(TEXT("flame"), OutChoice.bFlame);
-	D->TryGetBoolField(TEXT("cannon"), OutChoice.bCannon);
-	D->TryGetBoolField(TEXT("balloon"), OutChoice.bBalloon);
+	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
+	if (D->TryGetArrayField(TEXT("extras"), Arr) && Arr)
+	{
+		for (const TSharedPtr<FJsonValue>& V : *Arr)
+		{
+			const FName Key(*V->AsString());
+			for (const FJamExtraDef& E : UJamBuildGenerator::ExtraTable())
+			{
+				if (E.Key == Key) { OutChoice.Extras.AddUnique(Key); }
+			}
+		}
+	}
 	OutNote = FString::Printf(TEXT("fal-llm archetype=%s"), *Arch);
 	return true;
 }
@@ -119,14 +125,14 @@ FString FJamDecisionClient::BuildRequestBody(const FString& Prompt, const TCHAR*
 	Arch->SetStringField(TEXT("type"), TEXT("choice"));
 	Arch->SetStringField(TEXT("instructions"), TEXT("Pick the kind of machine the user wants to build from their request."));
 	TSharedRef<FJsonObject> ArchCriteria = Obj();
-	ArchCriteria->SetStringField(TEXT("Car"), TEXT("A ground vehicle: car, cart, truck, buggy, anything that drives on wheels."));
-	ArchCriteria->SetStringField(TEXT("Flyer"), TEXT("Something that flies or hovers: plane, drone, helicopter, glider."));
-	ArchCriteria->SetStringField(TEXT("Turret"), TEXT("A fixed defensive or shooting emplacement: turret, cannon tower."));
-	ArchCriteria->SetStringField(TEXT("Rocket"), TEXT("A rocket or missile that launches upward."));
+	for (const FJamArchetypeDef& A : UJamBuildGenerator::ArchetypeTable())
+	{
+		ArchCriteria->SetStringField(A.Name.ToString(), A.Description);
+	}
 	Arch->SetObjectField(TEXT("criteria"), ArchCriteria);
 	Questions->SetObjectField(TEXT("archetype"), Arch);
 
-	for (const FExtra& E : Extras)
+	for (const FJamExtraDef& E : UJamBuildGenerator::ExtraTable())
 	{
 		TSharedRef<FJsonObject> Q = Obj();
 		Q->SetStringField(TEXT("type"), TEXT("noul"));
@@ -135,7 +141,7 @@ FString FJamDecisionClient::BuildRequestBody(const FString& Prompt, const TCHAR*
 		Crit->SetStringField(TEXT("true"), E.TrueText);
 		Crit->SetStringField(TEXT("false"), E.FalseText);
 		Q->SetObjectField(TEXT("criteria"), Crit);
-		Questions->SetObjectField(E.Key, Q);
+		Questions->SetObjectField(E.Key.ToString(), Q);
 	}
 	Root->SetObjectField(TEXT("questions"), Questions);
 
@@ -173,17 +179,15 @@ bool FJamDecisionClient::ParseResponse(const FString& ResponseJson, FJamBuildCho
 	}
 	OutChoice.Archetype = FName(*Picked);
 
-	auto Yes = [&](const TCHAR* Key) -> bool
+	for (const FJamExtraDef& E : UJamBuildGenerator::ExtraTable())
 	{
 		const TSharedPtr<FJsonObject>* A = nullptr;
 		double P = 0.0;
-		return (*Answers)->TryGetObjectField(Key, A) && A && (*A)->TryGetNumberField(TEXT("noul"), P) && P > 0.5;
-	};
-	OutChoice.bFan = Yes(TEXT("fan"));
-	OutChoice.bRocket = Yes(TEXT("rocket"));
-	OutChoice.bFlame = Yes(TEXT("flame"));
-	OutChoice.bCannon = Yes(TEXT("cannon"));
-	OutChoice.bBalloon = Yes(TEXT("balloon"));
+		if ((*Answers)->TryGetObjectField(E.Key.ToString(), A) && A && (*A)->TryGetNumberField(TEXT("noul"), P) && P > 0.5)
+		{
+			OutChoice.Extras.Add(E.Key);
+		}
+	}
 
 	double Conf = 0.0;
 	(*Arch)->TryGetNumberField(TEXT("confidence"), Conf);
@@ -209,7 +213,12 @@ void FJamDecisionClient::RequestChoice(const FString& Prompt, TFunction<void(boo
 		TSharedRef<FJsonObject> Body = Obj();
 		Body->SetStringField(TEXT("model"), TEXT("google/gemini-2.5-flash"));
 		Body->SetNumberField(TEXT("temperature"), 0.0);
-		Body->SetStringField(TEXT("system_prompt"), TEXT("Eres el modelo de decision de un juego de construccion. Responde SOLO un JSON sin markdown con: archetype (Car|Flyer|Turret|Rocket) y booleanos fan, rocket, flame, cannon, balloon segun lo que pida el jugador."));
+				FString Sys = TEXT("Eres el modelo de decision de un juego de construccion. Responde SOLO un JSON sin markdown: {\"archetype\": uno de [");
+		for (const FJamArchetypeDef& A : UJamBuildGenerator::ArchetypeTable()) { Sys += A.Name.ToString() + TEXT(" = ") + A.Description + TEXT("; "); }
+		Sys += TEXT("], \"extras\": lista con las claves que el jugador pida de [");
+		for (const FJamExtraDef& E : UJamBuildGenerator::ExtraTable()) { Sys += E.Key.ToString() + TEXT(" = ") + E.TrueText + TEXT("; "); }
+		Sys += TEXT("]}. Solo incluye extras pedidos explicitamente o implicitos.");
+		Body->SetStringField(TEXT("system_prompt"), Sys);
 		Body->SetStringField(TEXT("prompt"), Prompt);
 		FString BodyStr;
 		FJsonSerializer::Serialize(Body, TJsonWriterFactory<>::Create(&BodyStr));
@@ -231,6 +240,7 @@ void FJamDecisionClient::RequestChoice(const FString& Prompt, TFunction<void(boo
 				return;
 			}
 			const bool bParsed = ParseFalResponse(Resp->GetContentAsString(), C, Note);
+			UE_LOG(LogJamDecision, Log, TEXT("backend=fal ok=%d %s extras=[%s]"), bParsed, *Note, *ExtrasStr(C));
 			Done(bParsed, C, Note);
 		});
 		FReq->ProcessRequest();
@@ -244,7 +254,7 @@ void FJamDecisionClient::RequestChoice(const FString& Prompt, TFunction<void(boo
 	Req->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *Key));
 	Req->SetContentAsString(BuildRequestBody(Prompt, bDirect ? TEXT("jev-1.13.0") : nullptr));
 	Req->SetTimeout(8.f);
-	Req->OnProcessRequestComplete().BindLambda([Done](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	Req->OnProcessRequestComplete().BindLambda([Done, bDirect](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
 	{
 		FJamBuildChoice C;
 		FString Note;
@@ -259,6 +269,7 @@ void FJamDecisionClient::RequestChoice(const FString& Prompt, TFunction<void(boo
 			return;
 		}
 		const bool bParsed = ParseResponse(Resp->GetContentAsString(), C, Note);
+		UE_LOG(LogJamDecision, Log, TEXT("backend=%s ok=%d %s extras=[%s]"), bDirect ? TEXT("typesafe-jev") : TEXT("openrouter-jev"), bParsed, *Note, *ExtrasStr(C));
 		Done(bParsed, C, Note);
 	});
 	Req->ProcessRequest();

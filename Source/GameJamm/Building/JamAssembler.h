@@ -29,30 +29,39 @@ public:
 	static void DestroyBuild(UPARAM(ref) TArray<AJamBuildPart*>& Parts);
 };
 
-/** Resultado de las "decisiones" sobre un prompt: un arquetipo + extras sí/no. */
+/** Arquetipo base (esqueleto de la construccion). */
+struct FJamArchetypeDef
+{
+	FName Name;
+	FString Description; // texto para el modelo de decision
+};
+
+/** Extra elegible sí/no por el modelo; la tabla es la unica fuente para palabras clave, Jev y fal. */
+struct FJamExtraDef
+{
+	FName Key;
+	FString TrueText;
+	FString FalseText;
+	FName PartType;                    // NAME_None = modificador (no agrega pieza)
+	TArray<FName> Sockets;             // una pieza por socket (cara del cuerpo, token secundario opcional: "Top_Front")
+	TArray<FName> FlyerSockets;        // si no esta vacio, reemplaza a Sockets en el arquetipo Flyer
+	TArray<FName> Allowed;             // arquetipos permitidos (vacio = todos)
+	TArray<FString> Keywords;          // respaldo offline
+};
+
+/** Resultado de las "decisiones" sobre un prompt: un arquetipo + extras elegidos. */
 USTRUCT(BlueprintType)
 struct GAMEJAMM_API FJamBuildChoice
 {
 	GENERATED_BODY()
 
-	/** Car, Flyer, Turret, Rocket */
+	/** Car, Flyer, Turret, Rocket, Tank, Fortress, Hover */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
 	FName Archetype = "Car";
 
+	/** Claves de FJamExtraDef elegidas (fan, jet, wing, wall, ...). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
-	bool bFan = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
-	bool bRocket = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
-	bool bFlame = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
-	bool bCannon = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
-	bool bBalloon = false;
+	TArray<FName> Extras;
 };
 
 /**
@@ -66,6 +75,9 @@ class GAMEJAMM_API UJamBuildGenerator : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
+	static const TArray<FJamArchetypeDef>& ArchetypeTable();
+	static const TArray<FJamExtraDef>& ExtraTable();
+
 	/** Palabras clave -> decisiones (offline, respaldo cuando no hay API key). */
 	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
 	static void ChoiceFromKeywords(const FString& Prompt, FJamBuildChoice& OutChoice);

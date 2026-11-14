@@ -19,7 +19,13 @@ enum class EJamPartKind : uint8
 	Cannon,
 	Seat,
 	Battery,
-	Flame
+	Flame,
+	Wing,
+	Frost,
+	Beam,
+	Bomb,
+	Spring,
+	Sail
 };
 
 /** Definición de un tipo de pieza (POC: tabla en C++, después DataAsset). */
