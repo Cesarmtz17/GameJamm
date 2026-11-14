@@ -6,7 +6,7 @@ Cada rol es **dueño** de sus carpetas: solo esa persona edita esos assets (o pi
 |---|---|---|---|---|
 | 1 | **Core / Lead** — partida, torres, base, equipos, respawn, victoria; integración y builds | TBD | `Content/Game/Core/`, `Content/Game/Maps/` (persistent level) | `Source/GameJamm/Core/` |
 | 2 | **Combate + Fusión** — armas, arco, materiales, efectos | TBD | `Content/Game/Combat/` | `Source/GameJamm/Combat/` |
-| 3 | **Construcción** — piezas, anclajes, física | TBD | `Content/Game/Building/` | `Source/GameJamm/Building/` |
+| 3 | **Construcción / Mecánicas** — piezas, anclajes, física, ensamblado; recetas JSON y su integración con la IA generativa | Jesús Daniel Martínez García (LoGebo) | `Content/Game/Building/` | `Source/GameJamm/Building/` |
 | 4 | **IA** — bots (StateTree) + asistente LLM | TBD | `Content/Game/AI/` | `Source/GameJamm/AI/` |
 | 5 | **Mundo / Arte / Audio / UI** — mapa, look, SFX/música, HUD, **video y devlog** | TBD | `Content/Game/Art/`, `Content/Game/Audio/`, `Content/Game/UI/`, actores del mapa | — |
 
