@@ -84,6 +84,19 @@ El mismo script genera también (cada carpeta con `FBX/`, `Blend/` y `preview.pn
 - **`SourceArt/FX/`**: `SM_FX_SHARD_WOOD` y `SM_FX_SHARD_STONE` para destrucción (Niagara mesh renderer / Chaos).
 - **`SourceArt/Icons/`**: 46 iconos de inventario (ver su README).
 
+### Lote 6 (`gen_assets.py ... lot6`): kit para vestir el mapa (`SourceArt/World/Props/`)
+
+- **Vegetación:** `SM_PROP_TREE_ROUND`, `SM_PROP_TREE_TALL`, `SM_PROP_TREE_DEAD` (colisión solo en tronco), `SM_PROP_GRASS_TUFT`,
+  `SM_PROP_FLOWERS`, `SM_PROP_MUSHROOM` (sin colisión: úsalos con Foliage Tool).
+- **Roca y ruinas:** `SM_PROP_ROCK_FLAT`, `SM_PROP_ROCK_SPIRE`, `SM_PROP_RUIN_PILLAR`, `SM_PROP_RUIN_WALL`, `SM_PROP_RUIN_STAIRS`.
+- **Madera:** `SM_PROP_PLATFORM` (4 m, caminable), `SM_PROP_STAIRS_WOOD`, `SM_PROP_LADDER`, `SM_PROP_SCAFFOLD`.
+- **Campamento:** `SM_PROP_TENT`, `SM_PROP_CAMPFIRE` (socket `Fx_Fire` para el Niagara), `SM_PROP_WORKBENCH` (mesa de
+  construcción), `SM_PROP_WEAPON_RACK`, `SM_PROP_SACKS`.
+- **Carril:** `SM_PROP_BARRICADE` (franja de equipo), `SM_PROP_LANTERN_POST` (socket `Light` para un Point Light).
+- **Islas:** `SM_ISLAND_LARGE` (60 m, pivote en la superficie) y `SM_ISLAND_CLIFF_EDGE` (orilla para tapar bordes).
+
+Lo que no trae UCX (`none`) se usa con *Use Complex Collision As Simple* si debe pisarse (rampas, escaleras, plataformas, islas).
+
 La paleta tiene 16 colores (los 8 originales + piedra, naranja, chispa, blanco, azul, pasto, cobre y lona). Si se
 regenera un lote, regenerar también el otro para que todos usen la misma `T_Part_Palette.png`.
 

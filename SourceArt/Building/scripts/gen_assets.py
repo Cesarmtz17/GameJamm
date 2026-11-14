@@ -676,6 +676,208 @@ LOT5 = [
 ]
 
 
+# ---------------------------------------------------------------- lote 6: kit para vestir el mapa
+def tree_round(p):
+    p.cyl((0, 0, -200), 35, 300, "z", "wood_dark", 6)
+    p.sphere((0, 0, 100), 190, "grass", subdiv=1)
+    p.sphere((90, 60, 40), 110, "grass", subdiv=1)
+
+
+def tree_tall(p):
+    p.cyl((0, 0, -350), 30, 200, "z", "wood_dark", 6)
+    for r, z in ((180, -150), (140, 50), (100, 230), (60, 380)):
+        p.cyl((0, 0, z), r, 220, "z", "grass", 7, radius2=r * 0.25)
+
+
+def tree_dead(p):
+    p.cyl((0, 0, -100), 35, 400, "z", "wood_dark", 6, radius2=18)
+    for ang, z in ((35, 40), (-50, 120), (160, 60)):
+        p.box((0, 0, z), (12, 12, 160), "wood_dark")
+        rot_last(p, 8, (0, 0, z - 60), "Y", ang)
+
+
+def rock_flat(p):
+    p.cyl((0, 0, 0), 150, 60, "z", "stone", 7, radius2=120)
+    p.cyl((60, 40, 40), 60, 40, "z", "stone", 6, radius2=40)
+
+
+def rock_spire(p):
+    p.cyl((0, 0, 0), 80, 500, "z", "stone", 6, radius2=10)
+    p.cyl((60, 30, -150), 50, 200, "z", "stone", 5, radius2=8)
+
+
+def grass_tuft(p):
+    for k in range(5):
+        a = math.radians(72 * k)
+        p.cyl((math.cos(a) * 12, math.sin(a) * 12, 0), 6, 50, "z", "grass", 3, radius2=0.5)
+        rot_last(p, 6, (math.cos(a) * 12, math.sin(a) * 12, -25), "X", 15 * (1 if k % 2 else -1))
+
+
+def flowers(p):
+    for k, col in enumerate(("red", "yellow", "white", "red", "cyan")):
+        a = math.radians(72 * k)
+        x, y = math.cos(a) * 20, math.sin(a) * 20
+        p.cyl((x, y, -5), 1.5, 30, "z", "grass", 4)
+        p.sphere((x, y, 12), 5, col, subdiv=1)
+
+
+def mushroom(p):
+    p.cyl((0, 0, -15), 8, 30, "z", "cloth", 8)
+    p.cyl((0, 0, 8), 25, 16, "z", "red", 10, radius2=6)
+    for x, y in ((10, 5), (-8, 10), (2, -12)):
+        p.sphere((x, y, 13), 3, "white", subdiv=1)
+
+
+def ruin_pillar(p):
+    p.box((0, 0, -180), (90, 90, 40), "stone", bevel=4)
+    p.cyl((0, 0, 0), 35, 340, "z", "stone", 8)
+    p.box((0, 0, 160), (80, 80, 30), "stone", bevel=3)
+    p.box((25, 25, -150), (30, 30, 20), "grass")
+
+
+def ruin_wall(p):
+    for i, h in enumerate((260, 200, 300, 140)):
+        p.box((-150 + i * 100, 0, -150 + h / 2), (96, 60, h), "stone", bevel=3)
+    p.box((0, 0, -140), (400, 64, 20), "grass")
+
+
+def ruin_stairs(p):
+    for i in range(5):
+        p.box((-120 + i * 60, 0, -70 + i * 35), (60, 300, 35), "stone", bevel=2)
+
+
+def platform(p):
+    p.box((0, 0, 90), (400, 400, 20), "wood", bevel=2)
+    for x in range(-150, 151, 100):
+        p.box((x, 0, 101), (6, 400, 2), "wood_dark")
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.box((sx * 180, sy * 180, -10), (25, 25, 200), "wood_dark")
+
+
+def stairs_wood(p):
+    for i in range(6):
+        p.box((-125 + i * 50, 0, -85 + i * 35), (50, 160, 10), "wood")
+    for y in (-80, 80):
+        p.box((0, y, 0), (330, 10, 20), "wood_dark")
+        rot_last(p, 8, (0, y, 0), "Y", -35)
+
+
+def ladder(p):
+    for y in (-25, 25):
+        p.box((0, y, 0), (8, 8, 400), "wood_dark")
+    for z in range(-170, 180, 45):
+        p.cyl((0, 0, z), 3, 50, "y", "wood", 6)
+
+
+def scaffold(p):
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.box((sx * 140, sy * 90, 0), (12, 12, 500), "wood_dark")
+    for z in (-100, 120):
+        p.box((0, 0, z), (300, 200, 12), "wood")
+    p.box((0, 95, 0), (300, 6, 10), "wood_dark")
+    rot_last(p, 8, (0, 95, 0), "Y", 50)
+
+
+def tent(p):
+    p.box((0, -70, 0), (300, 10, 220), "cloth")
+    rot_last(p, 8, (0, -70, 0), "X", 32)
+    p.box((0, 70, 0), (300, 10, 220), "cloth")
+    rot_last(p, 8, (0, 70, 0), "X", -32)
+    p.box((0, 0, 95), (310, 12, 12), "wood_dark")
+    p.box((0, 0, -100), (320, 280, 6), "leather")
+
+
+def campfire(p):
+    for k in range(6):
+        a = math.radians(60 * k)
+        p.sphere((math.cos(a) * 45, math.sin(a) * 45, -15), 14, "stone", subdiv=1)
+    for k in range(3):
+        p.box((0, 0, -10), (80, 10, 10), "wood_dark")
+        rot_last(p, 8, (0, 0, -10), "Z", 60 * k)
+    p.cyl((0, 0, 15), 22, 45, "z", "orange", 6, radius2=2)
+    p.cyl((0, 0, 10), 12, 30, "z", "spark", 5, radius2=1)
+
+
+def workbench(p):     # mesa de construcción del jugador
+    p.box((0, 0, 10), (200, 90, 12), "wood", bevel=1.5)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.box((sx * 85, sy * 35, -40), (12, 12, 90), "wood_dark")
+    p.box((-60, 0, 25), (40, 30, 18), "iron", bevel=1)               # tornillo de banco
+    p.cyl((40, 10, 22), 12, 6, "z", "iron", 10)                       # engrane
+    p.box((40, -25, 18), (50, 6, 4), "leather")                       # herramienta
+    p.box((0, 40, 55), (200, 8, 80), "wood_dark")                     # tablero de herramientas
+
+
+def weapon_rack(p):
+    p.box((0, 0, -60), (160, 50, 20), "wood_dark")
+    p.box((0, 15, 20), (160, 10, 160), "wood")
+    for x in (-50, 0, 50):
+        p.box((x, -5, 30), (10, 4, 120), "white")                      # espadas
+        p.box((x, -5, -25), (26, 6, 6), "iron")
+
+
+def sacks(p):
+    for x, y, z in ((-30, 0, -10), (30, 5, -12), (0, -5, 25)):
+        p.sphere((x, y, z), 32, "cloth", subdiv=1)
+
+
+def barricade(p):     # barricada del carril (franja de equipo)
+    for x in (-110, 0, 110):
+        p.box((x, 0, 0), (14, 14, 160), "wood_dark")
+        rot_last(p, 8, (x, 0, 0), "X", 20)
+    p.box((0, -10, 20), (280, 10, 40), "wood")
+    p.box((0, -16, 20), (280, 2, 12), "red")
+
+
+def lantern_post(p):
+    p.box((0, 0, -50), (14, 14, 350), "wood_dark")
+    p.box((40, 0, 110), (90, 10, 10), "wood_dark")
+    p.box((75, 0, 75), (24, 24, 30), "iron")
+    p.box((75, 0, 75), (18, 18, 22), "spark")
+
+
+def island_large(p):
+    p.cyl((0, 0, 1700), 3000, 150, "z", "grass", 20)
+    p.cyl((0, 0, 1000), 2960, 1300, "z", "leather", 18, radius2=1900)
+    p.cyl((0, 0, -700), 1900, 2100, "z", "leather", 14, radius2=120)
+
+
+def cliff_edge(p):
+    p.box((0, 0, 100), (600, 300, 60), "grass")
+    p.cyl((0, 0, -60), 340, 260, "y", "leather", 6)
+
+
+LOT6 = [
+    ("World/Props", "SM_PROP_TREE_ROUND", (420, 380, 600), tree_round, "trunk", "bottom", []),
+    ("World/Props", "SM_PROP_TREE_TALL", (360, 360, 900), tree_tall, "trunk", "bottom", []),
+    ("World/Props", "SM_PROP_TREE_DEAD", (300, 200, 500), tree_dead, "trunk", "bottom", []),
+    ("World/Props", "SM_PROP_ROCK_FLAT", (300, 300, 100), rock_flat, "box", "bottom", []),
+    ("World/Props", "SM_PROP_ROCK_SPIRE", (220, 200, 500), rock_spire, "box", "bottom", []),
+    ("World/Props", "SM_PROP_GRASS_TUFT", (60, 60, 50), grass_tuft, "none", "bottom", []),
+    ("World/Props", "SM_PROP_FLOWERS", (60, 60, 35), flowers, "none", "bottom", []),
+    ("World/Props", "SM_PROP_MUSHROOM", (50, 50, 45), mushroom, "none", "bottom", []),
+    ("World/Props", "SM_PROP_RUIN_PILLAR", (90, 90, 400), ruin_pillar, "box", "bottom", []),
+    ("World/Props", "SM_PROP_RUIN_WALL", (400, 64, 300), ruin_wall, "box", "bottom", []),
+    ("World/Props", "SM_PROP_RUIN_STAIRS", (300, 300, 175), ruin_stairs, "none", "bottom", []),
+    ("World/Props", "SM_PROP_PLATFORM", (410, 410, 200), platform, "none", "bottom", []),
+    ("World/Props", "SM_PROP_STAIRS_WOOD", (300, 170, 220), stairs_wood, "none", "bottom", []),
+    ("World/Props", "SM_PROP_LADDER", (10, 60, 400), ladder, "box", "bottom", []),
+    ("World/Props", "SM_PROP_SCAFFOLD", (300, 200, 500), scaffold, "none", "bottom", []),
+    ("World/Props", "SM_PROP_TENT", (320, 300, 220), tent, "box", "bottom", []),
+    ("World/Props", "SM_PROP_CAMPFIRE", (120, 120, 60), campfire, "none", "bottom", [("Fx_Fire", (0, 0, 10))]),
+    ("World/Props", "SM_PROP_WORKBENCH", (210, 100, 140), workbench, "box", "bottom", []),
+    ("World/Props", "SM_PROP_WEAPON_RACK", (170, 60, 180), weapon_rack, "box", "bottom", []),
+    ("World/Props", "SM_PROP_SACKS", (130, 70, 90), sacks, "box", "bottom", []),
+    ("World/Props", "SM_PROP_BARRICADE", (300, 80, 160), barricade, "box", "bottom", []),
+    ("World/Props", "SM_PROP_LANTERN_POST", (100, 30, 360), lantern_post, "trunk", "bottom", [("Light", (75, 0, 120))]),
+    ("World/Props", "SM_ISLAND_LARGE", (6000, 6000, 3000), island_large, "none", "top", []),
+    ("World/Props", "SM_ISLAND_CLIFF_EDGE", (600, 340, 340), cliff_edge, "none", "top", []),
+]
+
+
 def apply_pivot(obj, size, pivot):
     """fit_to_box deja el centro en el origen; mueve la malla para poner el pivote donde corresponde."""
     dz = {"center": 0.0, "bottom": size[2] / 2, "top": -size[2] / 2, "top_deck": -size[2] / 2 + 0.1,
@@ -708,7 +910,7 @@ def main():
     root = os.path.abspath(argv[0] if argv else os.path.join(os.path.dirname(__file__), "..", ".."))
     preview_dir = os.path.abspath(argv[1]) if len(argv) > 1 else root
     lot = argv[2] if len(argv) > 2 else "lot2"
-    assets = {"lot3": LOT3, "lot4": LOT4, "lot5": LOT5}.get(lot, ASSETS)
+    assets = {"lot3": LOT3, "lot4": LOT4, "lot5": LOT5, "lot6": LOT6}.get(lot, ASSETS)
     if lot in ("lot2", "lot3"):  # las piezas de Building de los lotes 2 y 3 quedaron reemplazadas por LOT4 (medidas del código)
         assets = [a for a in assets if a[0] != "Building"]
     os.makedirs(preview_dir, exist_ok=True)
