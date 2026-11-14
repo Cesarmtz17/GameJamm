@@ -36,7 +36,15 @@
    ],
    "priority": "mvp",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "chassis",
+    "faces": [
+     "Top"
+    ],
+    "sym": "y",
+    "order": "center"
+   }
   },
   {
    "id": "PART_PANEL",
@@ -69,7 +77,17 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Front_Bottom",
+     "Left_Bottom",
+     "Back_Bottom"
+    ],
+    "sym": "y",
+    "order": "front"
+   }
   },
   {
    "id": "PART_WALL",
@@ -102,7 +120,17 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Left_Center_Front",
+     "Front",
+     "Back"
+    ],
+    "sym": "y",
+    "order": "front"
+   }
   },
   {
    "id": "PART_BEAM",
@@ -135,7 +163,16 @@
    ],
    "priority": "post",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Front_Bottom",
+     "Top"
+    ],
+    "sym": "y",
+    "order": "front"
+   }
   },
   {
    "id": "PART_BLOCK",
@@ -169,7 +206,21 @@
    ],
    "priority": "mvp",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "any",
+    "faces": [
+     "Top",
+     "Top_Back",
+     "Top_Front",
+     "Back_Bottom",
+     "Front_Bottom",
+     "Left_Center",
+     "Bottom"
+    ],
+    "sym": "y",
+    "order": "balance"
+   }
   },
   {
    "id": "PART_CYLINDER",
@@ -204,7 +255,16 @@
    ],
    "priority": "mvp",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "center",
+    "faces": [
+     "Top",
+     "Front_Bottom"
+    ],
+    "sym": "y",
+    "order": "center"
+   }
   },
   {
    "id": "PART_BALL",
@@ -237,7 +297,17 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Front_Bottom",
+     "Top_Front",
+     "Back_Bottom"
+    ],
+    "sym": "y",
+    "order": "front"
+   }
   },
   {
    "id": "PART_RAMP",
@@ -324,7 +394,17 @@
    "substitutes": [],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "top",
+    "faces": [
+     "Top_Back",
+     "Top_Front",
+     "Top"
+    ],
+    "sym": "y",
+    "order": "back"
+   }
   },
   {
    "id": "JOINT_TURNTABLE",
@@ -357,7 +437,17 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.3
+   "energy_cost_per_s": 0.3,
+   "place": {
+    "zone": "top",
+    "faces": [
+     "Top_Front",
+     "Top",
+     "Top_Back"
+    ],
+    "sym": "y",
+    "order": "center"
+   }
   },
   {
    "id": "JOINT_BALL",
@@ -417,7 +507,18 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "bottom",
+    "faces": [
+     "Left_Bottom",
+     "Back_Bottom",
+     "Front_Bottom"
+    ],
+    "sym": "xy",
+    "order": "outer",
+    "ground": "below"
+   }
   },
   {
    "id": "ANCHOR_ROPE",
@@ -481,7 +582,31 @@
    ],
    "priority": "mvp",
    "infinite": false,
-   "energy_cost_per_s": 0.2
+   "energy_cost_per_s": 0.2,
+   "place": {
+    "zone": "sides",
+    "faces": [
+     "Left_Front",
+     "Left",
+     "Left_Back"
+    ],
+    "odd": [
+     "Back",
+     "Front"
+    ],
+    "sym": "xy",
+    "order": "outer",
+    "ground": "touch",
+    "modes": {
+     "inline": {
+      "faces": [
+       "Front"
+      ],
+      "sym": "xy",
+      "order": "outer"
+     }
+    }
+   }
   },
   {
    "id": "DEV_WHEEL_L",
@@ -518,7 +643,31 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.2
+   "energy_cost_per_s": 0.2,
+   "place": {
+    "zone": "sides",
+    "faces": [
+     "Left_Front",
+     "Left",
+     "Left_Back"
+    ],
+    "odd": [
+     "Back",
+     "Front"
+    ],
+    "sym": "xy",
+    "order": "outer",
+    "ground": "touch",
+    "modes": {
+     "inline": {
+      "faces": [
+       "Front"
+      ],
+      "sym": "xy",
+      "order": "outer"
+     }
+    }
+   }
   },
   {
    "id": "DEV_CART",
@@ -584,7 +733,16 @@
    ],
    "priority": "post",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "bottom",
+    "faces": [
+     "Bottom"
+    ],
+    "sym": "xy",
+    "order": "center",
+    "ground": "below"
+   }
   },
   {
    "id": "DEV_SPRING",
@@ -618,7 +776,28 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "bottom",
+    "faces": [
+     "Bottom",
+     "Bottom_Front"
+    ],
+    "sym": "xy",
+    "order": "outer",
+    "ground": "below",
+    "modes": {
+     "launch": {
+      "faces": [
+       "Top_Front",
+       "Top",
+       "Top_Back"
+      ],
+      "sym": "y",
+      "order": "front"
+     }
+    }
+   }
   },
   {
    "id": "DEV_FAN",
@@ -659,7 +838,31 @@
    ],
    "priority": "mvp",
    "infinite": false,
-   "energy_cost_per_s": 1.5
+   "energy_cost_per_s": 1.5,
+   "place": {
+    "zone": "back",
+    "faces": [
+     "Back_Bottom_Back",
+     "Top_Back_Back",
+     "Left_Back_Back",
+     "Top_Center_Back"
+    ],
+    "sym": "y",
+    "order": "back",
+    "clear": 80,
+    "ground": "lift",
+    "modes": {
+     "lift": {
+      "faces": [
+       "Left_Front_Bottom",
+       "Bottom_Front",
+       "Bottom"
+      ],
+      "sym": "xy",
+      "order": "outer"
+     }
+    }
+   }
   },
   {
    "id": "DEV_ROCKET",
@@ -693,7 +896,30 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "back",
+    "faces": [
+     "Back_Bottom_Back",
+     "Top_Back_Back",
+     "Left_Back_Back",
+     "Top_Center_Back"
+    ],
+    "sym": "y",
+    "order": "back",
+    "clear": 120,
+    "ground": "lift",
+    "modes": {
+     "lift": {
+      "faces": [
+       "Left_Center_Bottom",
+       "Bottom"
+      ],
+      "sym": "xy",
+      "order": "center"
+     }
+    }
+   }
   },
   {
    "id": "DEV_JET",
@@ -727,7 +953,31 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 2.5
+   "energy_cost_per_s": 2.5,
+   "place": {
+    "zone": "back",
+    "faces": [
+     "Back_Bottom_Back",
+     "Top_Back_Back",
+     "Left_Back_Back",
+     "Top_Center_Back"
+    ],
+    "sym": "y",
+    "order": "back",
+    "clear": 80,
+    "ground": "lift",
+    "modes": {
+     "lift": {
+      "faces": [
+       "Left_Front_Bottom",
+       "Bottom_Front",
+       "Bottom"
+      ],
+      "sym": "xy",
+      "order": "outer"
+     }
+    }
+   }
   },
   {
    "id": "DEV_TURBINE",
@@ -759,7 +1009,31 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 2.5
+   "energy_cost_per_s": 2.5,
+   "place": {
+    "zone": "back",
+    "faces": [
+     "Back_Bottom_Back",
+     "Top_Back_Back",
+     "Left_Back_Back",
+     "Top_Center_Back"
+    ],
+    "sym": "y",
+    "order": "back",
+    "clear": 80,
+    "ground": "lift",
+    "modes": {
+     "lift": {
+      "faces": [
+       "Left_Front_Bottom",
+       "Bottom_Front",
+       "Bottom"
+      ],
+      "sym": "xy",
+      "order": "outer"
+     }
+    }
+   }
   },
   {
    "id": "DEV_WING",
@@ -793,7 +1067,18 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "sides",
+    "faces": [
+     "Left",
+     "Left_Front",
+     "Left_Back",
+     "Top"
+    ],
+    "sym": "xy",
+    "order": "center"
+   }
   },
   {
    "id": "DEV_SAIL",
@@ -824,7 +1109,17 @@
    ],
    "priority": "post",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "top",
+    "faces": [
+     "Top_Front",
+     "Top",
+     "Top_Back"
+    ],
+    "sym": "y",
+    "order": "center"
+   }
   },
   {
    "id": "DEV_BALLOON",
@@ -854,7 +1149,17 @@
    ],
    "priority": "post",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "top",
+    "faces": [
+     "Top",
+     "Top_Front"
+    ],
+    "sym": "xy",
+    "order": "center",
+    "up": 200
+   }
   },
   {
    "id": "DEV_HOVER",
@@ -888,7 +1193,17 @@
    ],
    "priority": "post",
    "infinite": false,
-   "energy_cost_per_s": 0.5
+   "energy_cost_per_s": 0.5,
+   "place": {
+    "zone": "bottom",
+    "faces": [
+     "Bottom_Front",
+     "Bottom"
+    ],
+    "sym": "xy",
+    "order": "outer",
+    "ground": "below"
+   }
   },
   {
    "id": "DEV_STABILIZER",
@@ -918,7 +1233,21 @@
    ],
    "priority": "post",
    "infinite": false,
-   "energy_cost_per_s": 0.3
+   "energy_cost_per_s": 0.3,
+   "place": {
+    "zone": "any",
+    "faces": [
+     "Top",
+     "Top_Back",
+     "Top_Front",
+     "Back_Bottom",
+     "Front_Bottom",
+     "Left_Center",
+     "Bottom"
+    ],
+    "sym": "y",
+    "order": "balance"
+   }
   },
   {
    "id": "CTRL_SEAT",
@@ -953,7 +1282,18 @@
    "substitutes": [],
    "priority": "mvp",
    "infinite": true,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "center",
+    "faces": [
+     "Top",
+     "Top_Back",
+     "Top_Front"
+    ],
+    "sym": "y",
+    "order": "center",
+    "up": 100
+   }
   },
   {
    "id": "CTRL_HEAD",
@@ -985,7 +1325,17 @@
    "substitutes": [],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.3
+   "energy_cost_per_s": 0.3,
+   "place": {
+    "zone": "top",
+    "faces": [
+     "Top_Front",
+     "Top",
+     "Top_Back"
+    ],
+    "sym": "y",
+    "order": "front"
+   }
   },
   {
    "id": "CTRL_TIMEBOMB",
@@ -1017,7 +1367,26 @@
    ],
    "priority": "post",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "any",
+    "faces": [
+     "Top",
+     "Top_Back",
+     "Top_Front",
+     "Back_Bottom",
+     "Front_Bottom",
+     "Left_Center",
+     "Bottom"
+    ],
+    "sym": "y",
+    "order": "balance",
+    "avoid": [
+     "Flame",
+     "Rocket",
+     "Fan"
+    ]
+   }
   },
   {
    "id": "PWR_BATTERY_S",
@@ -1049,7 +1418,21 @@
    "priority": "mvp",
    "infinite": false,
    "energy_cost_per_s": 0.0,
-   "energy_capacity": 30
+   "energy_capacity": 30,
+   "place": {
+    "zone": "any",
+    "faces": [
+     "Top",
+     "Top_Back",
+     "Top_Front",
+     "Back_Bottom",
+     "Front_Bottom",
+     "Left_Center",
+     "Bottom"
+    ],
+    "sym": "y",
+    "order": "balance"
+   }
   },
   {
    "id": "PWR_BATTERY_L",
@@ -1077,7 +1460,21 @@
    "priority": "post",
    "infinite": false,
    "energy_cost_per_s": 0.0,
-   "energy_capacity": 80
+   "energy_capacity": 80,
+   "place": {
+    "zone": "any",
+    "faces": [
+     "Top",
+     "Top_Back",
+     "Top_Front",
+     "Back_Bottom",
+     "Front_Bottom",
+     "Left_Center",
+     "Bottom"
+    ],
+    "sym": "y",
+    "order": "balance"
+   }
   },
   {
    "id": "DEV_FLAME",
@@ -1117,7 +1514,21 @@
    ],
    "priority": "mvp",
    "infinite": false,
-   "energy_cost_per_s": 2.0
+   "energy_cost_per_s": 2.0,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Top_Front_Front",
+     "Front_Bottom_Front",
+     "Top_Center_Front",
+     "Left_Front_Front",
+     "Left_Center_Front",
+     "Top_Back_Front"
+    ],
+    "sym": "y",
+    "order": "front",
+    "clear": 250
+   }
   },
   {
    "id": "DEV_FROST",
@@ -1152,7 +1563,21 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 2.0
+   "energy_cost_per_s": 2.0,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Top_Front_Front",
+     "Front_Bottom_Front",
+     "Top_Center_Front",
+     "Left_Front_Front",
+     "Left_Center_Front",
+     "Top_Back_Front"
+    ],
+    "sym": "y",
+    "order": "front",
+    "clear": 250
+   }
   },
   {
    "id": "DEV_SHOCK",
@@ -1188,7 +1613,21 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 2.0
+   "energy_cost_per_s": 2.0,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Top_Front_Front",
+     "Front_Bottom_Front",
+     "Top_Center_Front",
+     "Left_Front_Front",
+     "Left_Center_Front",
+     "Top_Back_Front"
+    ],
+    "sym": "y",
+    "order": "front",
+    "clear": 200
+   }
   },
   {
    "id": "DEV_LASER",
@@ -1220,7 +1659,21 @@
    ],
    "priority": "post",
    "infinite": false,
-   "energy_cost_per_s": 2.0
+   "energy_cost_per_s": 2.0,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Top_Front_Front",
+     "Front_Bottom_Front",
+     "Top_Center_Front",
+     "Left_Front_Front",
+     "Left_Center_Front",
+     "Top_Back_Front"
+    ],
+    "sym": "y",
+    "order": "front",
+    "clear": 400
+   }
   },
   {
    "id": "DEV_CANNON",
@@ -1258,7 +1711,21 @@
    ],
    "priority": "mvp",
    "infinite": false,
-   "energy_cost_per_s": 3.0
+   "energy_cost_per_s": 3.0,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Top_Front_Front",
+     "Front_Bottom_Front",
+     "Top_Center_Front",
+     "Left_Front_Front",
+     "Left_Center_Front",
+     "Top_Back_Front"
+    ],
+    "sym": "y",
+    "order": "front",
+    "clear": 300
+   }
   },
   {
    "id": "DEV_HYDRANT",
@@ -1288,7 +1755,21 @@
    "substitutes": [],
    "priority": "post",
    "infinite": false,
-   "energy_cost_per_s": 0.3
+   "energy_cost_per_s": 0.3,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Top_Front_Front",
+     "Front_Bottom_Front",
+     "Top_Center_Front",
+     "Left_Front_Front",
+     "Left_Center_Front",
+     "Top_Back_Front"
+    ],
+    "sym": "y",
+    "order": "front",
+    "clear": 250
+   }
   },
   {
    "id": "DEV_LIGHT",
@@ -1318,7 +1799,21 @@
    "substitutes": [],
    "priority": "post",
    "infinite": false,
-   "energy_cost_per_s": 0.2
+   "energy_cost_per_s": 0.2,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Top_Front_Front",
+     "Front_Bottom_Front",
+     "Top_Center_Front",
+     "Left_Front_Front",
+     "Left_Center_Front",
+     "Top_Back_Front"
+    ],
+    "sym": "y",
+    "order": "front",
+    "clear": 150
+   }
   },
   {
    "id": "DEV_MIRROR",
@@ -1859,5 +2354,36 @@
   "min_guaranteed": 50,
   "rocket_cost_per_ignite": 6,
   "rocket_cooldown_s": 8
+ },
+ "coherence": {
+  "_doc": "Puntaje 0-100 de UJamAssembler::Coherence (8 chequeos sin mundo). 85+ pasa, 70-84 construye con aviso, <70 se repara recomponiendo la bolsa; nunca bloquea.",
+  "weights": {
+   "conexion": 10,
+   "solapes": 15,
+   "simetria": 15,
+   "apoyo": 15,
+   "empuje": 10,
+   "tiro": 15,
+   "masa": 15,
+   "potencia": 5
+  },
+  "pass": 85,
+  "repair_below": 70,
+  "cap_grave": 69,
+  "cap_overlap": 40,
+  "wheel_ground_gap_cm": 2,
+  "avoid_gap_cm": 30,
+  "contact_min_cm2": 25,
+  "lift_ratio": 1.2,
+  "lift_auto_add_max": 4,
+  "wheel_load_kg": {
+   "Wheel": 60,
+   "BigWheel": 150
+  },
+  "com_margin": 0.2,
+  "thrust_yaw_max": 0.15,
+  "lift_offset_max": 0.15,
+  "tip_ratio_mobile": 0.75,
+  "tip_ratio_static": 1.5
  }
 }

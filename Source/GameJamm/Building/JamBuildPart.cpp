@@ -47,6 +47,7 @@ namespace
 	const TCHAR* SphereMesh = TEXT("/Engine/BasicShapes/Sphere.Sphere");
 	const TCHAR* ConeMesh = TEXT("/Engine/BasicShapes/Cone.Cone");
 	const FName ProjectileTag(TEXT("JamProjectile"));
+	const FName ArmedTag(TEXT("JamArmed"));
 
 	typedef EJamPartKind K;
 
@@ -280,10 +281,11 @@ void AJamBuildPart::Explode(const FVector& At, float Radius, float Speed, float 
 	PlaySfx(TEXT("SFX_Explosion"));
 	AJamTestCharacter::AddTrauma(GetWorld(), At, Radius > 300.f ? 0.6f : 0.25f, Radius, Radius * 5.f);
 	TArray<UPrimitiveComponent*> Hits;
-	Nearby(At, Radius, Hits);
+	Nearby(At, Radius, Hits, &At);
 	for (UPrimitiveComponent* H : Hits)
 	{
-		if (H->IsSimulatingPhysics())
+		const bool bMine = IsMine(H->GetOwner()); // ni la bala ni la bomba empujan o dañan a su propia construccion, a su dueño ni a aliados
+		if (H->IsSimulatingPhysics() && !bMine)
 		{
 			H->AddRadialImpulse(At, Radius, Speed, ERadialImpulseFalloff::RIF_Linear, true);
 		}
@@ -295,9 +297,9 @@ void AJamBuildPart::Explode(const FVector& At, float Radius, float Speed, float 
 				P->SetActive(true);
 			}
 		}
-		if (!IsMine(H->GetOwner()) || Kind == EJamPartKind::Bomb)
+		if (!bMine)
 		{
-			EffectHits += IsMine(H->GetOwner()) ? 0 : 1;
+			++EffectHits;
 			UGameplayStatics::ApplyDamage(H->GetOwner(), Damage, nullptr, this, nullptr);
 		}
 	}
@@ -450,6 +452,10 @@ bool AJamBuildPart::IsMine(const AActor* Other) const
 	{
 		return true;
 	}
+	if (Other && Build.IsValid() && Build->Owner.Get() == Other)
+	{
+		return true; // quien la pidio: sus propias bombas, balas y llamas no lo tocan
+	}
 	const EJamTeam Mine = Build.IsValid() ? Build->Team : EJamTeam::Neutral;
 	if (Mine == EJamTeam::Neutral || !Other)
 	{
@@ -458,8 +464,15 @@ bool AJamBuildPart::IsMine(const AActor* Other) const
 	return ((P && P->Build.IsValid()) ? P->Build->Team : UJamStatics::GetActorTeam(Other)) == Mine;
 }
 
-void AJamBuildPart::Nearby(const FVector& Center, float Radius, TArray<UPrimitiveComponent*>& Out) const
+void AJamBuildPart::Nearby(const FVector& Center, float Radius, TArray<UPrimitiveComponent*>& Out, const FVector* SightFrom) const
 {
+	// SightFrom: el efecto sale de ese punto y solo alcanza lo que ve. Un muro, un escudo o cualquier cuerpo en medio lo para
+	// (las piezas propias no tapan: de eso se encarga la colocacion). ponytail: un rayo al centro del cuerpo, no un cono.
+	FCollisionQueryParams Sight(NAME_None, false, this);
+	if (SightFrom && Build.IsValid())
+	{
+		for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts) { if (P.IsValid()) { Sight.AddIgnoredActor(P.Get()); } }
+	}
 	FCollisionObjectQueryParams Obj;
 	Obj.AddObjectTypesToQuery(ECC_PhysicsBody);
 	Obj.AddObjectTypesToQuery(ECC_WorldDynamic);
@@ -470,6 +483,16 @@ void AJamBuildPart::Nearby(const FVector& Center, float Radius, TArray<UPrimitiv
 	{
 		if (UPrimitiveComponent* C = H.GetComponent())
 		{
+			if (SightFrom)
+			{
+				FCollisionQueryParams Q = Sight;
+				Q.AddIgnoredActor(C->GetOwner());
+				FHitResult Block;
+				if (GetWorld()->LineTraceSingleByChannel(Block, *SightFrom, C->GetComponentLocation(), ECC_Visibility, Q) && !(Block.GetActor() && Block.GetActor()->ActorHasTag(ProjectileTag)))
+				{
+					continue; // tapado
+				}
+			}
 			Out.AddUnique(C);
 		}
 	}
@@ -554,6 +577,11 @@ void AJamBuildPart::SetActive(bool bNewActive)
 	if (Kind == EJamPartKind::Bomb && bNewActive)
 	{
 		BurnLeft = 4.f; // mecha de 4 s
+		// Se suelta de la construccion (cae donde vas pasando) en vez de explotar pegada a tu propio carro.
+		TArray<UPhysicsConstraintComponent*> Joints;
+		GetComponents<UPhysicsConstraintComponent>(Joints);
+		for (UPhysicsConstraintComponent* J : Joints) { J->BreakConstraint(); }
+		if (Build.IsValid()) { Build->MassKg = FMath::Max(1.f, Build->MassKg - Mesh->GetMass()); }
 	}
 	if (Kind == EJamPartKind::Hover && bNewActive)
 	{
@@ -716,6 +744,29 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			BallVel.RemoveAtSwap(i);
 			continue;
 		}
+		if (!B->ActorHasTag(ArmedTag))
+		{
+			// Recien disparada no choca con nada; se "arma" al salir de las cajas de su propia construccion (o a los 0.3 s).
+			bool bInside = false;
+			if (Build.IsValid() && B->GetGameTimeSinceCreation() < 0.3f)
+			{
+				for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts)
+				{
+					bInside |= P.IsValid() && P->Mesh->Bounds.GetBox().ExpandBy(15.0).IsInside(B->GetActorLocation());
+				}
+			}
+			if (!bInside)
+			{
+				B->Tags.Add(ArmedTag);
+				if (UPrimitiveComponent* BC = Cast<UPrimitiveComponent>(B->GetRootComponent()))
+				{
+					BC->SetCollisionProfileName(TEXT("PhysicsActor"));
+					BC->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+				}
+			}
+			BallVel[i] = B->GetVelocity();
+			continue;
+		}
 		const FVector V = B->GetVelocity();
 		const FVector Prev = BallVel[i];
 		BallVel[i] = V;
@@ -869,7 +920,9 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 	case EJamPartKind::Balloon:
 		// Fuego cerca (cualquier lanzallamas) = sube el doble. El globo frena con el aire: sube y avanza despacio.
 		Mesh->AddForce(FVector(0, 0, Power * (Now < HeatedUntil ? 2.f : 1.f)));
-		RootMesh->AddForce(RootMesh->GetPhysicsLinearVelocity() * -50.f); // el freno va en la raiz: sobre el globo (1 kg) seria inestable
+		// El freno va en la raiz (sobre el globo de 1 kg seria inestable). Vertical fuerte (sube despacio, sirve de paracaidas);
+		// horizontal suave para no comerse el empuje del cohete o la helice. ponytail: 15 a ojo; afinar jugando.
+		RootMesh->AddForce(RootMesh->GetPhysicsLinearVelocity() * FVector(-15.f, -15.f, -50.f));
 		break;
 	case EJamPartKind::Hover:
 	{
@@ -914,7 +967,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			Puff(Nozzle + WorldDir * D + FMath::VRand() * D * 0.12f, 12.f + D * 0.16f, FLinearColor(1.f, FMath::FRandRange(0.15f, 0.6f), 0.02f), 0.22f);
 		}
 		TArray<UPrimitiveComponent*> Hits;
-		Nearby(C, 150.f, Hits);
+		Nearby(C, 150.f, Hits, &Nozzle);
 		for (UPrimitiveComponent* H : Hits)
 		{
 			AJamBuildPart* P = Cast<AJamBuildPart>(H->GetOwner());
@@ -1005,7 +1058,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			Puff(Nozzle + WorldDir * D + FMath::VRand() * D * 0.3f, 14.f + D * 0.12f, FLinearColor(0.6f, 0.95f, 1.f), 0.3f);
 		}
 		TArray<UPrimitiveComponent*> Hits;
-		Nearby(C, 150.f, Hits);
+		Nearby(C, 150.f, Hits, &Nozzle);
 		for (UPrimitiveComponent* H : Hits)
 		{
 			if (H->IsSimulatingPhysics() && !IsMine(H->GetOwner()))
@@ -1057,7 +1110,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		{
 			FireTimer = 0.f;
 			TArray<UPrimitiveComponent*> Hits;
-			Nearby(Nozzle, 300.f, Hits);
+			Nearby(Nozzle, 300.f, Hits, &Nozzle);
 			UPrimitiveComponent* Best = nullptr;
 			for (UPrimitiveComponent* H : Hits)
 			{
@@ -1105,11 +1158,11 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			Puff(Nozzle + WorldDir * D - FVector(0, 0, D * D * 0.0006f), 16.f, FLinearColor(0.1f, 0.35f, 1.f), 0.25f);
 		}
 		TArray<UPrimitiveComponent*> Hits;
-		Nearby(C, 100.f, Hits);
+		Nearby(C, 100.f, Hits, &Nozzle);
 		for (UPrimitiveComponent* H : Hits)
 		{
 			AJamBuildPart* P = Cast<AJamBuildPart>(H->GetOwner());
-			if (P && P->Kind == EJamPartKind::Flame && P->bActive)
+			if (P && P->Kind == EJamPartKind::Flame && P->bActive && !IsMine(P)) // el chorro no apaga el lanzallamas propio ni el aliado
 			{
 				P->SetActive(false);
 			}
@@ -1152,10 +1205,14 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		{
 			const FVector Axis = GetActorUpVector();
 			const FVector To = FVector::VectorPlaneProject(Target->GetActorLocation() - GetActorLocation(), Axis).GetSafeNormal();
-			const FVector Fwd = FVector::VectorPlaneProject(WorldDir, Axis).GetSafeNormal();
+			// Pegada en una cara de arriba su "Mira" es el eje de giro y no sirve de referencia: se usa el frente de la cabeza
+			// (lo montado en mount:Top_Center_Front mira hacia ahi). Antes el error salia 0 y la cabeza no giraba.
+			const FVector Ref = FMath::Abs(FVector::DotProduct(WorldDir, Axis)) > 0.9 ? GetActorForwardVector() : WorldDir;
+			const FVector Fwd = FVector::VectorPlaneProject(Ref, Axis).GetSafeNormal();
 			const double Err = FMath::Atan2(FVector::DotProduct(FVector::CrossProduct(Fwd, To), Axis), FVector::DotProduct(Fwd, To));
 			const double Spin = FVector::DotProduct(Mesh->GetPhysicsAngularVelocityInRadians(), Axis);
 			Mesh->AddTorqueInRadians(Axis * (Err * Power - Spin * Power * 0.17), NAME_None, true);
+			if (Build.IsValid()) { Build->AimTarget = Target; }
 			DrawDebugLine(World, GetActorLocation(), Target->GetActorLocation(), FColor::White, false, 0.f, 0, 1.f);
 		}
 		break;
@@ -1165,7 +1222,26 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		if (FireTimer >= 1.5f)
 		{
 			FireTimer = 0.f;
-			Balls.Add(SpawnBall(Nozzle + WorldDir * 15.f, WorldDir * Power));
+			FVector Shot = WorldDir;
+			if (const AActor* Aim = Build.IsValid() ? Build->AimTarget.Get() : nullptr)
+			{
+				// Hay una cabeza apuntando: el cañon sube el tiro lo justo para que la bala (que cae) llegue al objetivo.
+				const FVector To = Aim->GetActorLocation() - Nozzle;
+				const double X = FVector(To.X, To.Y, 0).Size(), Y = To.Z, V2 = (double)Power * Power, G = -World->GetGravityZ();
+				const double Disc = V2 * V2 - G * (G * X * X + 2.0 * Y * V2);
+				const FVector Flat = FVector(WorldDir.X, WorldDir.Y, 0).GetSafeNormal();
+				if (X > 50.0 && Disc > 0.0 && FVector::DotProduct(Flat, FVector(To.X, To.Y, 0).GetSafeNormal()) > 0.7)
+				{
+					const double Ang = FMath::Atan2(V2 - FMath::Sqrt(Disc), G * X);
+					Shot = Flat * FMath::Cos(Ang) + FVector::UpVector * FMath::Sin(Ang);
+				}
+			}
+			AActor* Ball = SpawnBall(Nozzle + Shot * 15.f, Shot * Power);
+			if (UPrimitiveComponent* BC = Ball ? Cast<UPrimitiveComponent>(Ball->GetRootComponent()) : nullptr)
+			{
+				BC->SetCollisionResponseToAllChannels(ECR_Ignore); // fantasma hasta salir de la construccion propia (ver bucle de Balls)
+			}
+			Balls.Add(Ball);
 			PlaySfx(TEXT("SFX_Cannon"));
 			Puff(Nozzle + WorldDir * 10.f, 30.f, FLinearColor(0.6f, 0.6f, 0.6f), 0.2f);
 		}

@@ -173,7 +173,7 @@ void AJamBuildSpawner::BuildNow()
 	Realize(Recipe, TEXT("keywords ") + Note);
 }
 
-void AJamBuildSpawner::Realize(const FBuildRecipe& Recipe, const FString& Note)
+void AJamBuildSpawner::Realize(const FBuildRecipe& InRecipe, const FString& InNote)
 {
 	UWorld* World = GetWorld();
 	if (!World)
@@ -181,6 +181,33 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& Recipe, const FString& Note)
 		return;
 	}
 	ClearBuild();
+
+	// Validador de sentido: toda receta (compositor, JSON fijo, plantilla, planificador) se puntua 0-100; por debajo del minimo
+	// se recompone su bolsa con las reglas. Nunca bloquea: se construye lo mejor que haya y se le dice al jugador que paso.
+	FBuildRecipe Recipe = InRecipe;
+	FString Note = InNote;
+	LastCoherence = -1;
+	LastCoherenceNote.Reset();
+	if (UJamAssembler::CoherenceMode() > 0)
+	{
+		FString What;
+		const FJamCoherence Coh = UJamBuildGenerator::Repair(Recipe, What);
+		LastCoherence = Coh.Score;
+		TArray<FString> Msg;
+		if (!What.IsEmpty()) { Msg.Add(What); Note += FString::Printf(TEXT(" repair=[%s] %s"), *What, *Coh.ToText()); }
+		else if (!Note.Contains(TEXT("coh="))) { Note += TEXT(" ") + Coh.ToText(); }
+		FString Left, Warn;
+		if (Note.Split(TEXT("aviso=["), &Left, &Warn) && Warn.Split(TEXT("]"), &Warn, &Left)) { Msg.Add(Warn); }
+		if (Coh.Score < 85)
+		{
+			TArray<FString> Why = Coh.Grave;
+			Why.Append(Coh.Minor);
+			if (Why.Num() > 2) { Why.SetNum(2); }
+			Msg.Add((Coh.Score < UJamAssembler::MinCoherence() ? TEXT("No quedo bien: ") : TEXT("Ojo: ")) + FString::Join(Why, TEXT("; ")));
+		}
+		LastCoherenceNote = FString::Join(Msg, TEXT(". "));
+		if (!LastCoherenceNote.IsEmpty()) { Announce(FString::Printf(TEXT("Jam: %s"), *LastCoherenceNote), Coh.Score >= UJamAssembler::MinCoherence()); }
+	}
 
 	LastRecipeJson = UBuildRecipeLibrary::RecipeToJson(Recipe);
 

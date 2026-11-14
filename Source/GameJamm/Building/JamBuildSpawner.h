@@ -68,6 +68,14 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	FString LastStatus;
 
+	/** Coherencia 0..100 de lo ultimo construido (-1 = sin puntuar). 85+ pasa, 70-84 con aviso, <70 no quedo bien. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	int32 LastCoherence = -1;
+
+	/** Aviso corto para el HUD: que se cambio o que no quedo bien (vacio = nada que decir). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	FString LastCoherenceNote;
+
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Build")
 	void BuildNow();
 

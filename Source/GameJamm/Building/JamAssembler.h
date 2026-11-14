@@ -7,6 +7,21 @@
 
 class AJamBuildPart;
 
+/**
+ * Puntaje de coherencia 0..100 de una receta (sin mundo): que lo armado TENGA SENTIDO.
+ * 85+ pasa, 70-84 se construye con aviso, <70 se repara recomponiendo (nunca bloquea).
+ */
+struct FJamCoherence
+{
+	int32 Score = 0;
+	float Sub[8] = {};               // conexion, solapes, simetria, apoyo, empuje, tiro, masa, potencia (0..1)
+	TArray<FString> Grave, Minor;    // textos para HUD y reporte
+	TArray<FName> Offenders;         // piezas culpables
+	bool bNoLift = false;            // volador que no despega (< 1.2 x peso): la reparacion agrega sustentacion
+	/** "coh=97" o "coh=69 GRAVE tapado: gun; ..." */
+	FString ToText() const;
+};
+
 /** Arma una FBuildRecipe en el mundo: piezas físicas + constraints. */
 UCLASS()
 class GAMEJAMM_API UJamAssembler : public UBlueprintFunctionLibrary
@@ -39,6 +54,14 @@ public:
 	 * Lo usan el generador (para elegir una cara libre) y los tests.
 	 */
 	static bool HasOverlap(const FBuildRecipe& Recipe, FName PartId, FString& OutInfo);
+
+	/** Ocho chequeos sin mundo ni render: conexion, solapes, simetria, apoyo, empuje, tiro y aire, centro de masa, potencia. */
+	static FJamCoherence Coherence(const FBuildRecipe& Recipe);
+
+	/** jam.Build.Coherence: 0 apagado, 1 puntua y avisa, 2 puntua y repara (por defecto). */
+	static int32 CoherenceMode();
+	/** jam.Build.MinCoherence (70): por debajo se repara. */
+	static int32 MinCoherence();
 };
 
 /**
@@ -86,11 +109,28 @@ struct FJamPieceCount
  * Regla de colocacion de un tipo de pieza: la funcion sale de la capacidad de la pieza (EJamPartKind);
  * aqui solo esta DONDE va y como preguntarle por ella al modelo.
  */
+struct FJamPlaceMode
+{
+	TArray<FString> Faces;
+	FString Sym, Order;
+};
+
 struct FJamPieceRule
 {
 	FName Type;
-	TArray<FString> Slots;      // caras candidatas; la pieza i usa Slots[i % Num] (dos listas = pares espejados)
-	TArray<FString> LiftSlots;  // caras en modo "lift"/"launch"
+	TArray<FString> Slots;      // (compositor viejo por extras) caras candidatas
+	TArray<FString> LiftSlots;  // no vacio = la pieza tiene modo "lift"/"launch" (se le pregunta al modelo)
+	// --- colocacion con sentido (BuildKnowledge.json: bloque "place" de cada elemento) ---
+	int32 PlaceOrder = 999;     // orden de colocacion: apoyo, sustentacion, asiento, monturas, empuje, armas, alas, escudo, equilibrio, anclas
+	TArray<FString> Faces;      // caras candidatas en orden; solo lado izquierdo/delantero: el espejo las completa
+	TArray<FString> Odd;        // caras de linea central para la pieza impar
+	FString Sym;                // "xy", "y" o vacio: la cara solo vale junto con sus espejos
+	FString Order;              // tramos del chasis: outer | center | front | back | balance
+	float ClearCm = 0.f;        // distancia libre hacia donde mira (linea de tiro, chorro, tobera)
+	float UpCm = 0.f;           // columna libre hacia arriba (asiento, globo)
+	FString Ground;             // touch (rueda) | below (puede ir bajo las ruedas) | lift (puede ir abajo si mira al suelo)
+	TArray<FName> Avoid;        // tipos que no pueden quedar a menos de 30 cm
+	TMap<FName, FJamPlaceMode> Modes; // lift | launch | inline
 	FName Chain;                // si no es None: las repetidas se encadenan por esa cara (fila, pila)
 	int32 DefaultCount = 1;     // cuantas van si se pide sin numero
 	bool bCountable = false;    // se le pregunta al modelo cuantas
@@ -154,8 +194,21 @@ public:
 	 */
 	static void ApplyNumerals(const FString& Prompt, TArray<FJamPieceCount>& InOutBag, bool bResetCounts = false);
 
-	/** Bolsa de piezas -> receta: elige chasis, lo alarga si hace falta y coloca cada pieza en una cara libre. */
+	/**
+	 * Bolsa de piezas -> receta CON SENTIDO: el chasis se decide completo (1, 3, 5... tramos), cada pieza va en la primera cara
+	 * que pasa Fits (sin solape, tiro/chorro/columna libres, nada bajo las ruedas) y en grupos espejados. Si un volador no
+	 * despega se agrega sustentacion (hasta 4). La nota trae pieces=[], skipped=[], aviso=[] y coh=NN.
+	 */
 	static bool ComposeFromBag(const TArray<FJamPieceCount>& Bag, FBuildRecipe& OutRecipe, FString& OutNote);
+
+	/** Receta ajena (JSON fijo, plantilla, planificador) -> bolsa (tipo, cantidad, modo) para recomponerla con sentido. */
+	static void BagOfRecipe(const FBuildRecipe& Recipe, TArray<FJamPieceCount>& OutBag);
+
+	/**
+	 * Validador de Realize: si la receta puntua menos de MinCoherence, recompone su bolsa y se queda con la mejor.
+	 * Devuelve la coherencia final; OutWhat dice que cambio (vacio = sin cambios).
+	 */
+	static FJamCoherence Repair(FBuildRecipe& InOutRecipe, FString& OutWhat);
 
 	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
 	static bool GenerateRecipe(const FString& Prompt, FBuildRecipe& OutRecipe, FString& OutNote);

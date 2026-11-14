@@ -1,5 +1,6 @@
 #include "Building/JamAssembler.h"
 
+#include "Algo/Reverse.h"
 #include "Building/JamBuildPart.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -193,6 +194,382 @@ bool UJamAssembler::HasOverlap(const FBuildRecipe& Recipe, FName PartId, FString
 		}
 	}
 	return false;
+}
+
+// ---------------------------------------------------------------------------------------------
+// SENTIDO: hechos de una receta (layout + quien gira/apunta), rayos tapados, piezas bajo el suelo y
+// puntaje de coherencia. Todo sin mundo: geometria y estatica sobre las cajas del catalogo.
+// ---------------------------------------------------------------------------------------------
+
+static TAutoConsoleVariable<int32> CVarJamCoherence(TEXT("jam.Build.Coherence"), 2, TEXT("0 = apagado, 1 = puntua y avisa, 2 = puntua y repara (recompone la bolsa si < jam.Build.MinCoherence)."));
+static TAutoConsoleVariable<int32> CVarJamMinCoherence(TEXT("jam.Build.MinCoherence"), 70, TEXT("Coherencia minima: por debajo, la receta se recompone antes de construir."));
+
+int32 UJamAssembler::CoherenceMode() { return CVarJamCoherence.GetValueOnGameThread(); }
+int32 UJamAssembler::MinCoherence() { return CVarJamMinCoherence.GetValueOnGameThread(); }
+
+namespace
+{
+	const FJamPieceRule* RuleOf(FName Type)
+	{
+		return UJamBuildGenerator::PieceTable().FindByPredicate([Type](const FJamPieceRule& R) { return R.Type == Type; });
+	}
+
+	struct FFacts
+	{
+		TMap<FName, FPlaced> Pl;
+		TArray<FName> Ids;          // en el orden de la receta
+		FName Root;
+		TSet<FName> Spun, Aimed;    // con un Turntable / Head de ancestro (o todas si la raiz es rueda)
+	};
+
+	bool MakeFacts(const FBuildRecipe& R, FFacts& F)
+	{
+		FString Err;
+		if (R.Parts.Num() == 0 || !LayoutAll(R, F.Pl, Err)) { return false; }
+		for (const FBuildRecipePart& P : R.Parts)
+		{
+			F.Ids.Add(P.Id);
+			if (P.AttachTo.IsNone() && F.Root.IsNone()) { F.Root = P.Id; }
+		}
+		if (F.Root.IsNone()) { return false; }
+		const bool bRootWheel = F.Pl[F.Root].Def.Kind == EJamPartKind::Wheel;
+		for (const FName& Id : F.Ids)
+		{
+			bool bSpun = bRootWheel, bAimed = false;
+			int32 Guard = 0;
+			for (FName A = F.Pl[Id].Parent; !A.IsNone() && Guard++ < 200; A = F.Pl[A].Parent)
+			{
+				bSpun |= F.Pl[A].Def.Kind == EJamPartKind::Turntable;
+				bAimed |= F.Pl[A].Def.Kind == EJamPartKind::Head;
+			}
+			if (bSpun) { F.Spun.Add(Id); }
+			if (bAimed) { F.Aimed.Add(Id); }
+		}
+		return true;
+	}
+
+	double LoOf(const FPlaced& A, int32 i) { return A.Center[i] - A.Size[i] * 0.5; }
+	double HiOf(const FPlaced& A, int32 i) { return A.Center[i] + A.Size[i] * 0.5; }
+
+	/** Segmento O -> O + D*Len contra la caja (encogida 1 cm). Metodo de las losas. */
+	bool RayHitsBox(const FVector& O, const FVector& D, double Len, const FPlaced& B)
+	{
+		// ponytail: rayo fino por el centro de la pieza, no un barrido de caja; barrido si llegan piezas a 45 grados.
+		double T0 = 0.0, T1 = Len;
+		for (int32 i = 0; i < 3; ++i)
+		{
+			const double Lo = LoOf(B, i) + 1.0, Hi = HiOf(B, i) - 1.0;
+			if (FMath::Abs(D[i]) < 1e-6)
+			{
+				if (O[i] < Lo || O[i] > Hi) { return false; }
+			}
+			else
+			{
+				double A = (Lo - O[i]) / D[i], C = (Hi - O[i]) / D[i];
+				if (A > C) { Swap(A, C); }
+				T0 = FMath::Max(T0, A);
+				T1 = FMath::Min(T1, C);
+				if (T0 > T1) { return false; }
+			}
+		}
+		return true;
+	}
+
+	/** Piezas cuya linea de tiro / chorro / columna libre choca con una pieza propia. Lo girado por un Turntable no se revisa (barre 360). */
+	void BlockedRays(const FFacts& F, TArray<FName>& Out)
+	{
+		for (const FName& Id : F.Ids)
+		{
+			const FPlaced& A = F.Pl[Id];
+			const FJamPieceRule* Rule = RuleOf(A.Def.Type);
+			if (!Rule) { continue; }
+			TArray<TPair<FVector, double>, TInlineAllocator<2>> Rays;
+			if (Rule->ClearCm > 0.f && !F.Spun.Contains(Id) && !A.Parent.IsNone()) { Rays.Emplace(A.Facing, (double)Rule->ClearCm); }
+			if (Rule->UpCm > 0.f) { Rays.Emplace(FVector::UpVector, (double)Rule->UpCm); }
+			for (const TPair<FVector, double>& Ray : Rays)
+			{
+				const FVector O = A.Center + Ray.Key * (A.Size * 0.5 + FVector(1.0));
+				bool bHit = false;
+				for (const FName& J : F.Ids)
+				{
+					if (J != Id && RayHitsBox(O, Ray.Key, Ray.Value, F.Pl[J])) { bHit = true; break; }
+				}
+				if (bHit) { Out.Add(Id); break; }
+			}
+		}
+	}
+
+	/**
+	 * Piezas mas bajas de lo que deben: con ruedas, por debajo de las ruedas + 2 cm; sin ruedas, por debajo de la estructura.
+	 * Exentas por dato (rule.Ground): touch (ruedas), below (piedra flotante, resorte, estaca, trineo) y lift si mira al suelo.
+	 */
+	void GroundBad(const FFacts& F, TArray<FName>& Out)
+	{
+		double WheelMin = TNumericLimits<double>::Max(), StructMin = TNumericLimits<double>::Max();
+		for (const FName& Id : F.Ids)
+		{
+			const FPlaced& A = F.Pl[Id];
+			const EJamPartKind Kd = A.Def.Kind;
+			if (Kd == EJamPartKind::Wheel && Id != F.Root) { WheelMin = FMath::Min(WheelMin, LoOf(A, 2)); }
+			if (Kd == EJamPartKind::Structural || Kd == EJamPartKind::Slide || Kd == EJamPartKind::Wheel) { StructMin = FMath::Min(StructMin, LoOf(A, 2)); }
+		}
+		if (WheelMin == TNumericLimits<double>::Max() && StructMin == TNumericLimits<double>::Max()) { return; }
+		const double Ref = WheelMin != TNumericLimits<double>::Max() ? WheelMin + 2.0 : StructMin - 1.0;
+		for (const FName& Id : F.Ids)
+		{
+			const FPlaced& A = F.Pl[Id];
+			const FJamPieceRule* Rule = RuleOf(A.Def.Type);
+			const FString G = Rule ? Rule->Ground : FString();
+			const bool bExempt = A.Def.Kind == EJamPartKind::Wheel || G == TEXT("touch") || G == TEXT("below") || (G == TEXT("lift") && A.Facing.Z < -0.5);
+			if (!bExempt && LoOf(A, 2) < Ref) { Out.Add(Id); }
+		}
+	}
+
+	FString JoinIds(const TArray<FName>& Ids, int32 Max = 3)
+	{
+		TArray<FString> S;
+		for (int32 i = 0; i < Ids.Num() && i < Max; ++i) { S.Add(Ids[i].ToString()); }
+		return FString::Join(S, TEXT(","));
+	}
+}
+
+FString FJamCoherence::ToText() const
+{
+	FString S = FString::Printf(TEXT("coh=%d"), Score);
+	for (const FString& G : Grave) { S += TEXT(" GRAVE ") + G + TEXT(";"); }
+	for (const FString& G : Minor) { S += TEXT(" ") + G + TEXT(";"); }
+	return S;
+}
+
+FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
+{
+	// Pesos y umbrales = BuildKnowledge.json, bloque "coherence".
+	static const float W8[8] = { 10, 15, 15, 15, 10, 15, 15, 5 };
+	FJamCoherence C;
+	FFacts F;
+	if (!MakeFacts(Recipe, F))
+	{
+		C.Grave.Add(TEXT("receta invalida"));
+		return C;
+	}
+	const int32 N = F.Ids.Num();
+	double M = 0.0;
+	FVector Com = FVector::ZeroVector, Lo(TNumericLimits<double>::Max()), Hi(-TNumericLimits<double>::Max());
+	for (const auto& KV : F.Pl)
+	{
+		M += KV.Value.Def.MassKg;
+		Com += KV.Value.Center * KV.Value.Def.MassKg;
+		for (int32 i = 0; i < 3; ++i) { Lo[i] = FMath::Min(Lo[i], LoOf(KV.Value, i)); Hi[i] = FMath::Max(Hi[i], HiOf(KV.Value, i)); }
+	}
+	M = FMath::Max(M, 0.001);
+	Com /= M;
+	const double L = Hi.X - Lo.X, Wd = Hi.Y - Lo.Y, Z0 = Lo.Z;
+	const FPlaced& RootP = F.Pl[F.Root];
+	const bool bRootWheel = RootP.Def.Kind == EJamPartKind::Wheel;
+
+	// C1 conexion: toda pieza toca a su padre (area >= 25 cm2). ponytail: 10 cm de holgura por los sockets Attach_* de las mallas de arte.
+	int32 Loose = 0;
+	for (const FName& Id : F.Ids)
+	{
+		const FPlaced& A = F.Pl[Id];
+		if (A.Parent.IsNone()) { continue; }
+		const FPlaced& B = F.Pl[A.Parent];
+		double Ov[3];
+		for (int32 j = 0; j < 3; ++j) { Ov[j] = FMath::Min(HiOf(A, j), HiOf(B, j)) - FMath::Max(LoOf(A, j), LoOf(B, j)); }
+		if (Ov[0] > Ov[1]) { Swap(Ov[0], Ov[1]); }
+		if (Ov[1] > Ov[2]) { Swap(Ov[1], Ov[2]); }
+		if (Ov[0] > Ov[1]) { Swap(Ov[0], Ov[1]); }
+		if (Ov[0] < -10.0 || FMath::Max(Ov[1], 0.0) * FMath::Max(Ov[2], 0.0) < 25.0) { ++Loose; C.Offenders.AddUnique(Id); }
+	}
+	C.Sub[0] = 1.f - (float)Loose / FMath::Max(1, N - 1);
+	if (Loose) { C.Minor.Add(FString::Printf(TEXT("%d sin contacto"), Loose)); }
+
+	// C2 solapes
+	int32 Pairs = 0;
+	for (int32 x = 0; x < N; ++x)
+	{
+		for (int32 y = x + 1; y < N; ++y)
+		{
+			if (BoxesOverlap(F.Pl[F.Ids[x]], F.Pl[F.Ids[y]])) { ++Pairs; C.Offenders.AddUnique(F.Ids[y]); }
+		}
+	}
+	C.Sub[1] = 1.f - FMath::Min(1.f, Pairs / FMath::Max(1.f, N / 4.f));
+	if (Pairs) { C.Minor.Add(FString::Printf(TEXT("%d solapes"), Pairs)); }
+
+	// C3 simetria izquierda-derecha
+	int32 Sym = 0;
+	for (const FName& Id : F.Ids)
+	{
+		const FPlaced& A = F.Pl[Id];
+		if (FMath::Abs(A.Center.Y) <= 1.0 || F.Spun.Contains(Id)) { ++Sym; continue; }
+		for (const auto& KV : F.Pl)
+		{
+			const FPlaced& B = KV.Value;
+			if (B.Def.Type == A.Def.Type && FMath::Abs(B.Center.X - A.Center.X) < 2 && FMath::Abs(B.Center.Y + A.Center.Y) < 2 && FMath::Abs(B.Center.Z - A.Center.Z) < 2
+				&& FMath::Abs(B.Facing.Y + A.Facing.Y) < 0.1 && FMath::Abs(B.Facing.X - A.Facing.X) < 0.1)
+			{
+				++Sym;
+				break;
+			}
+		}
+	}
+	C.Sub[2] = (float)(0.5 * Sym / N + 0.5 * FMath::Max(0.0, 1.0 - FMath::Abs(Com.Y) / FMath::Max(1.0, 0.15 * Wd)));
+	if (Sym < N) { C.Minor.Add(FString::Printf(TEXT("%d sin espejo"), N - Sym)); }
+	if (FMath::Abs(Com.Y) > 0.15 * Wd) { C.Grave.Add(FString::Printf(TEXT("ladeado: centro de masa %.0f cm a un lado"), Com.Y)); }
+
+	// C4 apoyo: las ruedas tocan el suelo y nada arrastra; sin ruedas, lo mas bajo es algo que puede apoyarse
+	TArray<const FPlaced*> Wheels;
+	double WheelMin = TNumericLimits<double>::Max();
+	for (const FName& Id : F.Ids)
+	{
+		const FPlaced& A = F.Pl[Id];
+		if (A.Def.Kind == EJamPartKind::Wheel && Id != F.Root) { Wheels.Add(&A); WheelMin = FMath::Min(WheelMin, LoOf(A, 2)); }
+	}
+	int32 Touch = 0;
+	for (const FPlaced* Wh : Wheels) { Touch += LoOf(*Wh, 2) <= WheelMin + 3.0 ? 1 : 0; }
+	const float TouchFrac = Wheels.Num() ? (float)Touch / Wheels.Num() : 1.f;
+	TArray<FName> Drag;
+	GroundBad(F, Drag);
+	C.Sub[3] = TouchFrac * (Drag.Num() ? 0.5f : 1.f);
+	if (TouchFrac < 1.f) { C.Grave.Add(TEXT("ruedas en el aire")); }
+	if (Drag.Num()) { C.Grave.Add((Wheels.Num() ? TEXT("arrastra: ") : TEXT("se apoya en: ")) + JoinIds(Drag)); C.Offenders.Append(Drag); }
+
+	// C5 empuje: lo que empuja, empuja hacia +X sin par de guiñada; lo que sustenta, sobre el centro de masa
+	struct FForce { const FPlaced* P; FVector Fv; };
+	TArray<FForce> Prop, Lift;
+	bool bDown = false, bAnyForce = false;
+	for (const FName& Id : F.Ids)
+	{
+		const FPlaced& A = F.Pl[Id];
+		const EJamPartKind Kd = A.Def.Kind;
+		FVector Fv;
+		if ((Kd == EJamPartKind::Fan || Kd == EJamPartKind::Rocket) && !F.Spun.Contains(Id) && !A.Parent.IsNone()) { Fv = -A.Facing * A.Def.Power; }
+		else if (Kd == EJamPartKind::Balloon || Kd == EJamPartKind::Hover) { Fv = FVector(0, 0, A.Def.Power); }
+		else { continue; }
+		bAnyForce = true;
+		if (FMath::Abs(Fv.Z) < 1.0) { Prop.Add({ &A, Fv }); }
+		else if (Fv.Z > 1.0) { Lift.Add({ &A, Fv }); }
+		else { bDown = true; C.Offenders.AddUnique(Id); }
+	}
+	double E = 1.0;
+	if (Prop.Num())
+	{
+		double Sx = 0, Tot = 0, Yaw = 0;
+		for (const FForce& P : Prop)
+		{
+			Sx += P.Fv.X;
+			Tot += FMath::Sqrt(P.Fv.X * P.Fv.X + P.Fv.Y * P.Fv.Y);
+			Yaw += (P.P->Center.X - Com.X) * P.Fv.Y - (P.P->Center.Y - Com.Y) * P.Fv.X;
+		}
+		const double YawRel = FMath::Abs(Yaw) / FMath::Max(1.0, Tot * L / 2);
+		E = FMath::Min3(E, FMath::Max(0.0, Sx / Tot), FMath::Max(0.0, 1.0 - YawRel / 0.3));
+		if (Sx / Tot < 0.9) { C.Grave.Add(TEXT("el empuje no va al frente")); }
+		if (YawRel > 0.15) { C.Grave.Add(TEXT("empuje descentrado")); }
+	}
+	double Up = 0.0;
+	for (const FForce& P : Lift) { Up += P.Fv.Z; }
+	if (Lift.Num())
+	{
+		double Cx = 0, Cy = 0;
+		for (const FForce& P : Lift) { Cx += P.P->Center.X * P.Fv.Z; Cy += P.P->Center.Y * P.Fv.Z; }
+		const double Dist = FMath::Sqrt(FMath::Square(Cx / Up - Com.X) + FMath::Square(Cy / Up - Com.Y));
+		const double Off = Dist / FMath::Max(1.0, L / 2) * FMath::Min(1.0, Up / (M * 980.0)); // pesa segun cuanto del peso carga
+		E = FMath::Min(E, FMath::Max(0.0, 1.0 - Off / 0.3));
+		if (Off > 0.15) { C.Grave.Add(FString::Printf(TEXT("sustentacion descentrada (%.0f cm del centro de masa)"), Dist)); }
+	}
+	if (bDown) { E = 0.0; C.Grave.Add(TEXT("empuja contra el suelo")); }
+	C.Sub[4] = (float)E;
+
+	// C6 linea de tiro, chorro y columna libre + armas hacia el frente
+	const bool bMobile = Wheels.Num() > 0 || bAnyForce || F.Pl.Array().ContainsByPredicate([](const TPair<FName, FPlaced>& KV) { return KV.Value.Def.Kind == EJamPartKind::Sail || KV.Value.Def.Kind == EJamPartKind::Slide; });
+	int32 Need = 0;
+	TArray<FName> Blocked, Back;
+	BlockedRays(F, Blocked);
+	for (const FName& Id : F.Ids)
+	{
+		const FPlaced& A = F.Pl[Id];
+		const FJamPieceRule* Rule = RuleOf(A.Def.Type);
+		if (!Rule) { continue; }
+		const bool bSpun = F.Spun.Contains(Id);
+		if ((Rule->ClearCm > 0.f && !bSpun && !A.Parent.IsNone()) || Rule->UpCm > 0.f) { ++Need; }
+		if (Rule->bWeapon && !bSpun && !F.Aimed.Contains(Id) && !A.Parent.IsNone() && (A.Facing.Z < -0.5 || (bMobile && A.Facing.X < -0.5))) { Back.Add(Id); }
+	}
+	TSet<FName> BadRay(Blocked);
+	BadRay.Append(Back);
+	C.Sub[5] = 1.f - (float)BadRay.Num() / FMath::Max(1, Need);
+	if (Blocked.Num()) { C.Grave.Add(TEXT("tapado: ") + JoinIds(Blocked)); C.Offenders.Append(Blocked); }
+	if (Back.Num()) { C.Grave.Add(TEXT("arma hacia atras/abajo: ") + JoinIds(Back)); C.Offenders.Append(Back); }
+
+	// C7 centro de masa dentro del apoyo. ponytail: apoyo = rectangulo (todo va alineado a ejes); casco convexo si llegan piezas a 45 grados.
+	double R4[4] = { TNumericLimits<double>::Max(), -TNumericLimits<double>::Max(), TNumericLimits<double>::Max(), -TNumericLimits<double>::Max() };
+	if (Wheels.Num() >= 2)
+	{
+		for (const FPlaced* Wh : Wheels)
+		{
+			R4[0] = FMath::Min(R4[0], Wh->Center.X); R4[1] = FMath::Max(R4[1], Wh->Center.X);
+			R4[2] = FMath::Min(R4[2], Wh->Center.Y); R4[3] = FMath::Max(R4[3], Wh->Center.Y);
+		}
+	}
+	else
+	{
+		for (const auto& KV : F.Pl)
+		{
+			if (LoOf(KV.Value, 2) > Z0 + 3.0) { continue; }
+			R4[0] = FMath::Min(R4[0], LoOf(KV.Value, 0)); R4[1] = FMath::Max(R4[1], HiOf(KV.Value, 0));
+			R4[2] = FMath::Min(R4[2], LoOf(KV.Value, 1)); R4[3] = FMath::Max(R4[3], HiOf(KV.Value, 1));
+		}
+	}
+	const bool bStab = F.Pl.Array().ContainsByPredicate([](const TPair<FName, FPlaced>& KV) { return KV.Value.Def.Kind == EJamPartKind::Stabilizer; });
+	double Mm = 1.0;
+	for (int32 Axis = 0; Axis < 2; ++Axis)
+	{
+		const TCHAR* Name = Axis == 0 ? TEXT("largo") : TEXT("ancho");
+		const double A0 = R4[Axis * 2], A1 = R4[Axis * 2 + 1], Half = (A1 - A0) / 2;
+		double Mg;
+		if (Half < 10.0) // apoyo en linea (moto, rueda sola): lo sostiene el estabilizador, el giro o la sustentacion
+		{
+			Mg = (bStab || bRootWheel || Up > 0) ? 1.0 : 0.5;
+			if (Mg < 1.0) { C.Minor.Add(FString::Printf(TEXT("se balancea: apoyo en linea (%s) sin estabilizador"), Name)); }
+		}
+		else
+		{
+			Mg = FMath::Clamp((Half - FMath::Abs(Com[Axis] - (A0 + A1) / 2)) / Half / 0.2, 0.0, 1.0);
+			if (Mg <= 0.0) { C.Grave.Add(FString::Printf(TEXT("centro de masa fuera del apoyo (%s)"), Name)); }
+			else if (Mg < 1.0) { C.Minor.Add(FString::Printf(TEXT("centro de masa al borde (%s)"), Name)); }
+		}
+		Mm = FMath::Min(Mm, Mg);
+	}
+	const double Track = FMath::Max(R4[3] - R4[2], 1.0), H = Com.Z - Z0;
+	if (H > (bMobile ? 0.75 : 1.5) * Track && !bStab && Up == 0.0 && !bRootWheel)
+	{
+		Mm *= bMobile ? 0.5 : 0.7;
+		C.Minor.Add(FString::Printf(TEXT("alto, puede caerse: centro de masa a %.0f cm sobre %.0f de ancho"), H, Track));
+	}
+	C.Sub[6] = (float)Mm;
+
+	// C8 potencia: sustentacion contra peso y carga por rueda
+	double Pw = 1.0;
+	if (Up > 0 && Wheels.Num() == 0 && Up < 1.2 * M * 980.0)
+	{
+		Pw = FMath::Max(0.0, (Up / (M * 980.0) - 0.6) / 0.6);
+		C.bNoLift = true;
+		(Up < M * 980.0 ? C.Grave : C.Minor).Add(FString::Printf(TEXT("no despega: pesa %.0f kg y levanta %.0f"), M, Up / 980.0));
+	}
+	if (Wheels.Num())
+	{
+		double Cap = 0;
+		for (const FPlaced* Wh : Wheels) { Cap += Wh->Def.Type == "BigWheel" ? 150.0 : 60.0; }
+		if (M > Cap) { Pw = FMath::Min(Pw, 0.5); C.Minor.Add(FString::Printf(TEXT("sobrecarga: %.0f kg sobre %d ruedas"), M, Wheels.Num())); }
+	}
+	C.Sub[7] = (float)Pw;
+
+	double Total = 0;
+	for (int32 i = 0; i < 8; ++i) { Total += W8[i] * C.Sub[i]; }
+	if (C.Sub[0] < 1.f) { Total = 0; }                               // pieza suelta: fatal
+	else if (Pairs) { Total = FMath::Min(Total, 40.0); }             // solape: fatal
+	else if (C.Grave.Num()) { Total = FMath::Min(Total, 69.0); }     // grave: no pasa sin reparar
+	C.Score = FMath::RoundToInt(Total);
+	return C;
 }
 
 bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Recipe, const FTransform& Origin,
@@ -893,6 +1270,65 @@ const TArray<FJamPieceRule>& UJamBuildGenerator::PieceTable()
 			if (N == TEXT("Girder")) { R.Chain = "Front"; R.Words.Add(TEXT("palo")); }
 			if (N == TEXT("Ball")) { R.Words.Add(TEXT("roca")); R.Words.Add(TEXT("piedra")); }
 		}
+		// --- COLOCACION CON SENTIDO: mismo bloque "place" de cada elemento en BuildKnowledge.json (la prueba de tablas los compara). ---
+		// Orden = orden de colocacion: apoyo -> sustentacion -> empuje -> asiento -> monturas -> armas -> alas/vela -> escudo -> estructura -> equilibrio -> anclas.
+		// Solo se escriben las caras del lado izquierdo/delantero: el espejo (Sym) las completa.
+		{
+			int32 OrderN = 0;
+			auto Find = [&X](const TCHAR* Type) -> FJamPieceRule& { return *X.FindByPredicate([Type](const FJamPieceRule& R) { return R.Type == FName(Type); }); };
+			auto Place = [&](std::initializer_list<const TCHAR*> Types, TArray<FString> Faces, const TCHAR* Sym, const TCHAR* Ord, float Clear = 0.f, const TCHAR* Ground = TEXT(""))
+			{
+				for (const TCHAR* T : Types)
+				{
+					FJamPieceRule& R = Find(T);
+					R.PlaceOrder = ++OrderN; R.Faces = Faces; R.Sym = Sym; R.Order = Ord; R.ClearCm = Clear; R.Ground = Ground;
+				}
+			};
+			auto Mode = [&](std::initializer_list<const TCHAR*> Types, const TCHAR* Name, TArray<FString> Faces, const TCHAR* Sym, const TCHAR* Ord)
+			{
+				for (const TCHAR* T : Types) { Find(T).Modes.Add(Name, FJamPlaceMode{ Faces, Sym, Ord }); }
+			};
+			const TArray<FString> Thrust = K({TEXT("Back_Bottom_Back"), TEXT("Top_Back_Back"), TEXT("Left_Back_Back"), TEXT("Top_Center_Back")});
+			const TArray<FString> Weapon = K({TEXT("Top_Front_Front"), TEXT("Front_Bottom_Front"), TEXT("Top_Center_Front"), TEXT("Left_Front_Front"), TEXT("Left_Center_Front"), TEXT("Top_Back_Front")});
+			const TArray<FString> Balance = K({TEXT("Top"), TEXT("Top_Back"), TEXT("Top_Front"), TEXT("Back_Bottom"), TEXT("Front_Bottom"), TEXT("Left_Center"), TEXT("Bottom")});
+			Place({TEXT("Wheel"), TEXT("BigWheel")}, K({TEXT("Left_Front"), TEXT("Left"), TEXT("Left_Back")}), TEXT("xy"), TEXT("outer"), 0.f, TEXT("touch"));
+			Place({TEXT("HoverStone")}, K({TEXT("Bottom_Front"), TEXT("Bottom")}), TEXT("xy"), TEXT("outer"), 0.f, TEXT("below"));
+			Place({TEXT("Balloon")}, K({TEXT("Top"), TEXT("Top_Front")}), TEXT("xy"), TEXT("center"));
+			Place({TEXT("Fan"), TEXT("Jet"), TEXT("Turbine")}, Thrust, TEXT("y"), TEXT("back"), 80.f, TEXT("lift"));
+			Place({TEXT("Rocket")}, Thrust, TEXT("y"), TEXT("back"), 120.f, TEXT("lift"));
+			Place({TEXT("Spring")}, K({TEXT("Bottom"), TEXT("Bottom_Front")}), TEXT("xy"), TEXT("outer"), 0.f, TEXT("below"));
+			Place({TEXT("Sled")}, K({TEXT("Bottom")}), TEXT("xy"), TEXT("center"), 0.f, TEXT("below"));
+			Place({TEXT("Seat")}, K({TEXT("Top"), TEXT("Top_Back"), TEXT("Top_Front")}), TEXT("y"), TEXT("center"));
+			Place({TEXT("Head")}, K({TEXT("Top_Front"), TEXT("Top"), TEXT("Top_Back")}), TEXT("y"), TEXT("front"));
+			Place({TEXT("Turntable")}, K({TEXT("Top_Front"), TEXT("Top"), TEXT("Top_Back")}), TEXT("y"), TEXT("center"));
+			Place({TEXT("Cannon")}, Weapon, TEXT("y"), TEXT("front"), 300.f);
+			Place({TEXT("Flamethrower"), TEXT("Frost")}, Weapon, TEXT("y"), TEXT("front"), 250.f);
+			Place({TEXT("Beam")}, Weapon, TEXT("y"), TEXT("front"), 400.f);
+			Place({TEXT("Shock")}, Weapon, TEXT("y"), TEXT("front"), 200.f);
+			Place({TEXT("Hydrant")}, Weapon, TEXT("y"), TEXT("front"), 250.f);
+			Place({TEXT("Light")}, Weapon, TEXT("y"), TEXT("front"), 150.f);
+			Place({TEXT("Wing")}, K({TEXT("Left"), TEXT("Left_Front"), TEXT("Left_Back"), TEXT("Top")}), TEXT("xy"), TEXT("center"));
+			Place({TEXT("Sail")}, K({TEXT("Top_Front"), TEXT("Top"), TEXT("Top_Back")}), TEXT("y"), TEXT("center"));
+			Place({TEXT("Panel")}, K({TEXT("Front_Bottom"), TEXT("Left_Bottom"), TEXT("Back_Bottom")}), TEXT("y"), TEXT("front")); // despues de las armas: no les tapa el tiro
+			Place({TEXT("Ball")}, K({TEXT("Front_Bottom"), TEXT("Top_Front"), TEXT("Back_Bottom")}), TEXT("y"), TEXT("front"));
+			Place({TEXT("Girder")}, K({TEXT("Front_Bottom"), TEXT("Top")}), TEXT("y"), TEXT("front"));
+			Place({TEXT("Hinge")}, K({TEXT("Top_Back"), TEXT("Top_Front"), TEXT("Top")}), TEXT("y"), TEXT("back"));
+			Place({TEXT("Plank")}, K({TEXT("Top")}), TEXT("y"), TEXT("center"));
+			Place({TEXT("Block")}, Balance, TEXT("y"), TEXT("balance"));
+			Place({TEXT("Wall")}, K({TEXT("Left_Center_Front"), TEXT("Front"), TEXT("Back")}), TEXT("y"), TEXT("front"));
+			Place({TEXT("Cylinder")}, K({TEXT("Top"), TEXT("Front_Bottom")}), TEXT("y"), TEXT("center"));
+			Place({TEXT("Battery"), TEXT("BigBattery"), TEXT("Stabilizer"), TEXT("Bomb")}, Balance, TEXT("y"), TEXT("balance")); // pesos moviles: equilibran el centro de masa
+			Place({TEXT("Stake")}, K({TEXT("Left_Bottom"), TEXT("Back_Bottom"), TEXT("Front_Bottom")}), TEXT("xy"), TEXT("outer"), 0.f, TEXT("below"));
+			Mode({TEXT("Wheel"), TEXT("BigWheel")}, TEXT("inline"), K({TEXT("Front")}), TEXT("xy"), TEXT("outer")); // moto
+			Mode({TEXT("Fan"), TEXT("Jet"), TEXT("Turbine")}, TEXT("lift"), K({TEXT("Left_Front_Bottom"), TEXT("Bottom_Front"), TEXT("Bottom")}), TEXT("xy"), TEXT("outer")); // 4 = cuadricoptero
+			Mode({TEXT("Rocket")}, TEXT("lift"), K({TEXT("Left_Center_Bottom"), TEXT("Bottom")}), TEXT("xy"), TEXT("center"));
+			Mode({TEXT("Spring")}, TEXT("launch"), K({TEXT("Top_Front"), TEXT("Top"), TEXT("Top_Back")}), TEXT("y"), TEXT("front"));
+			Find(TEXT("Wheel")).Odd = Find(TEXT("BigWheel")).Odd = K({TEXT("Back"), TEXT("Front")}); // la llanta 25 va en la linea central
+			Find(TEXT("Seat")).UpCm = 100.f;     // nada encima del piloto
+			Find(TEXT("Balloon")).UpCm = 200.f;
+			Find(TEXT("Bomb")).Avoid = N({TEXT("Flame"), TEXT("Rocket"), TEXT("Fan")});
+			Find(TEXT("Wall")).Chain = NAME_None; // los muros van en U (pares espejados), no en fila
+		}
 		// Criterios para el modelo: cada pieza dice para QUE COSAS hace falta (no solo cuando se la nombra).
 		// Asi "un dron" -> helices + estabilizador, "una catapulta" -> resorte + palo + bola + bloque, sin plantilla.
 		auto Ask = [&X](const TCHAR* Type, const TCHAR* True, const TCHAR* False)
@@ -1055,20 +1491,324 @@ void UJamBuildGenerator::BagFromKeywords(const FString& Prompt, TArray<FJamPiece
 	}
 }
 
+namespace
+{
+	EJamPartKind KindOfType(FName T)
+	{
+		FJamPartDef D;
+		UJamPartCatalog::Find(T, D);
+		return D.Kind;
+	}
+
+	/** Espejo de una cara: intercambia dos tokens ("Left_Front_Bottom" con Left<->Right = "Right_Front_Bottom"). */
+	FString SwapTokens(const FString& Socket, const TCHAR* A, const TCHAR* B)
+	{
+		TArray<FString> T;
+		Socket.ParseIntoArray(T, TEXT("_"));
+		for (FString& X : T) { X = X == A ? FString(B) : X == B ? FString(A) : X; }
+		return FString::Join(T, TEXT("_"));
+	}
+
+	/**
+	 * Una cara candidata vale si la pieza nueva no se encima Y la receta entera sigue con todas las lineas de tiro,
+	 * chorros y columnas libres, nada por debajo de las ruedas y nada a menos de 30 cm de lo que debe evitar.
+	 */
+	bool FitsParts(const FBuildRecipe& R, const TArray<FName>& NewIds)
+	{
+		FFacts F;
+		if (!MakeFacts(R, F)) { return false; }
+		for (const FName& A : NewIds)
+		{
+			for (const FName& B : F.Ids)
+			{
+				if (A != B && BoxesOverlap(F.Pl[A], F.Pl[B])) { return false; }
+			}
+		}
+		TArray<FName> Bad;
+		BlockedRays(F, Bad);
+		GroundBad(F, Bad);
+		if (Bad.Num() > 0) { return false; }
+		auto Avoids = [&F](FName X, FName Y)
+		{
+			const FPlaced& PX = F.Pl[X];
+			const FPlaced& PY = F.Pl[Y];
+			const FJamPieceRule* Rule = RuleOf(PX.Def.Type);
+			if (X == Y || !Rule || !Rule->Avoid.Contains(FName(*StaticEnum<EJamPartKind>()->GetNameStringByValue((int64)PY.Def.Kind)))) { return false; }
+			const FVector D = Abs(PX.Center - PY.Center), H = (PX.Size + PY.Size) * 0.5 + FVector(30.0);
+			return D.X < H.X && D.Y < H.Y && D.Z < H.Z;
+		};
+		for (const FName& A : NewIds)
+		{
+			for (const FName& B : F.Ids)
+			{
+				if (Avoids(A, B) || Avoids(B, A)) { return false; }
+			}
+		}
+		return true;
+	}
+
+	struct FComposeOut
+	{
+		FBuildRecipe R;
+		TArray<TPair<FName, int32>> Skipped;   // lo que no cupo: tipo, cuantas
+		int32 Miss = 0;
+		FJamCoherence Coh;
+	};
+
+	/** Compone la bolsa (ya sin la raiz) sobre un chasis de NSeg tramos decidido ANTES de colocar. */
+	void ComposeN(TArray<FJamPieceCount> Bag, FName RootType, int32 NSeg, FComposeOut& Out)
+	{
+		typedef TPair<FName, FString> FSpot; // (padre, cara)
+		const int32 Max = UJamAssembler::GetMaxParts();
+		FBuildRecipe& R = Out.R;
+		R.Parts.Add(Pt(TEXT("body"), *RootType.ToString()));
+		const bool bRootWheel = KindOfType(RootType) == EJamPartKind::Wheel;
+		auto Has = [&R](FName Id) { return R.Parts.ContainsByPredicate([Id](const FBuildRecipePart& P) { return P.Id == Id; }); };
+
+		// Chasis: las tablas pedidas cuentan como tramos; se alterna frente / atras para que la raiz quede en el centro.
+		if (RootType == "Plank")
+		{
+			if (const FJamPieceCount* Pl = Bag.FindByPredicate([](const FJamPieceCount& I) { return I.Type == "Plank"; })) { NSeg = FMath::Max(NSeg, 1 + Pl->Count); }
+			Bag.RemoveAll([](const FJamPieceCount& I) { return I.Type == "Plank"; });
+		}
+		TArray<FName> Segs = { FName("body") };
+		FName Ends[2] = { FName("body"), FName("body") }; // frente, atras
+		for (int32 k = 1; k < NSeg && !bRootWheel && R.Parts.Num() < Max; ++k)
+		{
+			const bool bFront = k % 2 == 1;
+			const FName Id(*FString::Printf(TEXT("seg%d"), k));
+			R.Parts.Add(Pt(*Id.ToString(), TEXT("Plank"), *Ends[bFront ? 0 : 1].ToString(), bFront ? TEXT("Front") : TEXT("Back")));
+			if (!FitsParts(R, { Id })) { R.Parts.Pop(); break; }
+			Ends[bFront ? 0 : 1] = Id;
+			Segs.Add(Id);
+		}
+		TMap<FName, double> SegX;
+		{
+			FFacts F;
+			MakeFacts(R, F);
+			for (const FName& S : Segs) { SegX.Add(S, F.Pl[S].Center.X); }
+		}
+		Segs.Sort([&SegX](const FName& A, const FName& B) { return SegX[A] < SegX[B]; }); // de atras hacia delante
+		const double Xc = (SegX[Segs[0]] + SegX[Segs.Last()]) / 2;
+		TMap<FName, FName> Mirror;
+		for (int32 i = 0; i < Segs.Num(); ++i) { Mirror.Add(Segs[i], Segs[Segs.Num() - 1 - i]); }
+
+		auto SegOrder = [&](const FString& Order)
+		{
+			TArray<FName> O = Segs;
+			if (Order == TEXT("front")) { Algo::Reverse(O); }
+			else if (Order == TEXT("outer")) // extremos primero; a igual distancia, el de delante
+			{
+				O.StableSort([&](const FName& A, const FName& B) { const double DA = FMath::Abs(SegX[A] - Xc), DB = FMath::Abs(SegX[B] - Xc); return DA != DB ? DA > DB : SegX[A] > SegX[B]; });
+			}
+			else if (Order != TEXT("back")) // center / balance
+			{
+				O.StableSort([&](const FName& A, const FName& B) { const double DA = FMath::Abs(SegX[A] - Xc), DB = FMath::Abs(SegX[B] - Xc); return DA != DB ? DA < DB : SegX[A] > SegX[B]; });
+			}
+			return O;
+		};
+		// Grupo espejado: la cara + su espejo izquierda-derecha (y) + su espejo frente-atras (x). "Top" es su propio espejo.
+		auto Group = [&Mirror](FName Seg, const FString& Sock, const FString& Sym)
+		{
+			TArray<FSpot> G = { FSpot(Seg, Sock) };
+			if (Sym.Contains(TEXT("y"))) { for (int32 i = 0, n = G.Num(); i < n; ++i) { G.AddUnique(FSpot(G[i].Key, SwapTokens(G[i].Value, TEXT("Left"), TEXT("Right")))); } }
+			if (Sym.Contains(TEXT("x"))) { for (int32 i = 0, n = G.Num(); i < n; ++i) { const FName* Ms = Mirror.Find(G[i].Key); G.AddUnique(FSpot(Ms ? *Ms : G[i].Key, SwapTokens(G[i].Value, TEXT("Front"), TEXT("Back")))); } }
+			return G;
+		};
+		int32 NextId = 0;
+		// Coloca el grupo entero o nada.
+		auto Put = [&](const FJamPieceRule& Rule, const TArray<FSpot>& G) -> TArray<FName>
+		{
+			TArray<FName> Ids;
+			for (const FSpot& S : G)
+			{
+				const FName Id = !Rule.MountSockets.IsEmpty() ? FName("mount") : (Rule.Type == "Seat" && !Has("seat")) ? FName("seat")
+					: FName(*FString::Printf(TEXT("%s%d"), *Rule.Type.ToString().ToLower(), NextId++));
+				R.Parts.Add(Pt(*Id.ToString(), *Rule.Type.ToString(), *S.Key.ToString(), *S.Value));
+				Ids.Add(Id);
+			}
+			if (R.Parts.Num() <= Max && FitsParts(R, Ids)) { return Ids; }
+			R.Parts.SetNum(R.Parts.Num() - G.Num());
+			return TArray<FName>();
+		};
+		// Distancia del centro de masa al centro del apoyo (ruedas) o del chasis: lo que minimizan las piezas "balance".
+		auto BalanceCost = [&]()
+		{
+			FFacts F;
+			MakeFacts(R, F);
+			double M = 0;
+			FVector Com = FVector::ZeroVector, Wc = FVector::ZeroVector;
+			int32 Nw = 0;
+			for (const auto& KV : F.Pl)
+			{
+				M += KV.Value.Def.MassKg;
+				Com += KV.Value.Center * KV.Value.Def.MassKg;
+				if (KV.Value.Def.Kind == EJamPartKind::Wheel && KV.Key != F.Root) { Wc += KV.Value.Center; ++Nw; }
+			}
+			Com /= FMath::Max(M, 0.001);
+			const FVector Ctr = Nw ? Wc / Nw : FVector(Xc, 0, 0);
+			return FMath::Sqrt(FMath::Square(Com.X - Ctr.X) + FMath::Square(Com.Y - Ctr.Y));
+		};
+
+		TArray<const FJamPieceRule*> Rules;
+		for (const FJamPieceRule& Rl : UJamBuildGenerator::PieceTable()) { Rules.Add(&Rl); }
+		Rules.StableSort([](const FJamPieceRule& A, const FJamPieceRule& B) { return A.PlaceOrder < B.PlaceOrder; });
+		FString MountSockets;
+		static const TArray<FString> RootWheelFaces = { TEXT("Left") };
+		for (const FJamPieceRule* RulePtr : Rules)
+		{
+			const FJamPieceRule& Rule = *RulePtr;
+			const FJamPieceCount* Item = Bag.FindByPredicate([&Rule](const FJamPieceCount& X) { return X.Type == Rule.Type; });
+			if (!Item || Item->Count <= 0) { continue; }
+			const FJamPlaceMode* Mode = Rule.Modes.Find(Item->Mode);
+			const TArray<FString>* Faces = Mode ? &Mode->Faces : &Rule.Faces;
+			FString Sym = Mode ? Mode->Sym : Rule.Sym, Order = Mode ? Mode->Order : Rule.Order;
+			if (bRootWheel) { Faces = &RootWheelFaces; Sym = TEXT("y"); Order = TEXT("center"); } // rueda raiz: todo va en el eje, en pares
+			int32 Left = Item->Count;
+			FName LastId = Rule.Type == RootType ? FName("body") : NAME_None;
+			while (Left > 0)
+			{
+				TArray<FName> Done;
+				if (!Rule.MountSockets.IsEmpty() && !MountSockets.IsEmpty()) { break; } // un solo mount
+				if (!Rule.Chain.IsNone() && !LastId.IsNone()) // estructura repetida: fila / pila
+				{
+					Done = Put(Rule, { FSpot(LastId, Rule.Chain.ToString()) });
+				}
+				if (Done.Num() == 0 && Rule.bWeapon && !MountSockets.IsEmpty()) // armas: primero en la montura (cabeza / plato)
+				{
+					TArray<FString> Ms;
+					MountSockets.ParseIntoArray(Ms, TEXT("|"));
+					for (const FString& S : Ms)
+					{
+						Done = Put(Rule, { FSpot(FName("mount"), S) });
+						if (Done.Num()) { break; }
+					}
+				}
+				if (Done.Num() == 0 && Order == TEXT("balance")) // equilibrio: la cara valida que deja el centro de masa mas cerca del apoyo
+				{
+					double BestCost = TNumericLimits<double>::Max();
+					TArray<FSpot> BestG;
+					for (const FName& Seg : SegOrder(Order))
+					{
+						for (const FString& Face : *Faces)
+						{
+							const TArray<FSpot> G = Group(Seg, Face, Sym);
+							if (G.Num() > Left || Put(Rule, G).Num() == 0) { continue; }
+							const double Cost = BalanceCost();
+							R.Parts.SetNum(R.Parts.Num() - G.Num());
+							if (Cost < BestCost - 0.5) { BestCost = Cost; BestG = G; }
+						}
+					}
+					if (BestG.Num()) { Done = Put(Rule, BestG); }
+				}
+				else if (Done.Num() == 0)
+				{
+					// A: espejo completo y paridad (cantidad par -> solo grupos pares); B: espejo completo; C: sin espejo frente-atras + caras impares.
+					for (int32 Pass = 0; Pass < 3 && Done.Num() == 0; ++Pass)
+					{
+						TArray<FString> PassFaces = *Faces;
+						if (Pass == 2) { PassFaces.Append(Rule.Odd); }
+						const FString PassSym = Pass == 2 ? Sym.Replace(TEXT("x"), TEXT("")) : Sym;
+						for (const FName& Seg : SegOrder(Order))
+						{
+							for (const FString& Face : PassFaces)
+							{
+								const TArray<FSpot> G = Group(Seg, Face, PassSym);
+								if (G.Num() <= Left && !(Pass == 0 && Left % 2 == 0 && G.Num() % 2 == 1)) { Done = Put(Rule, G); }
+								if (Done.Num()) { break; }
+							}
+							if (Done.Num()) { break; }
+						}
+					}
+				}
+				if (Done.Num() == 0) { break; }
+				Left -= Done.Num();
+				LastId = Done.Last();
+				if (!Rule.MountSockets.IsEmpty()) { MountSockets = Rule.MountSockets; }
+				if (!Rule.ChildType.IsNone() && R.Parts.Num() < Max)
+				{
+					const FName ChildId(*(Done[0].ToString() + TEXT("c")));
+					R.Parts.Add(Pt(*ChildId.ToString(), *Rule.ChildType.ToString(), *Done[0].ToString(), *Rule.ChildSocket.ToString()));
+					if (!FitsParts(R, { ChildId })) { R.Parts.Pop(); }
+				}
+			}
+			if (Left > 0) { Out.Skipped.Emplace(Rule.Type, Left); Out.Miss += Left; }
+		}
+		Out.Coh = UJamAssembler::Coherence(R);
+	}
+
+	/** Crece el chasis (1, 3, 5... tramos) mientras ayude. Gana: sin fallo grave, menos piezas sin colocar, mas puntaje, mas corto. */
+	void ComposeGrow(const TArray<FJamPieceCount>& Bag, FName RootType, FComposeOut& Best)
+	{
+		const int32 MinScore = UJamAssembler::MinCoherence();
+		auto Better = [MinScore](const FComposeOut& A, const FComposeOut& B)
+		{
+			const bool BadA = A.Coh.Score < MinScore, BadB = B.Coh.Score < MinScore;
+			if (BadA != BadB) { return !BadA; }
+			if (A.Miss != B.Miss) { return A.Miss < B.Miss; }
+			return A.Coh.Score > B.Coh.Score; // a igualdad gana el primero = el mas corto
+		};
+		int32 Worse = 0;
+		for (int32 NSeg = 1; NSeg < 17; NSeg += 2)
+		{
+			FComposeOut Cur;
+			ComposeN(Bag, RootType, NSeg, Cur);
+			if (NSeg == 1 || Better(Cur, Best)) { Best = MoveTemp(Cur); Worse = 0; }
+			else { ++Worse; }
+			if ((Best.Miss == 0 && Best.Coh.Score >= 85) || Worse >= 2) { break; }
+		}
+	}
+}
+
+void UJamBuildGenerator::BagOfRecipe(const FBuildRecipe& Recipe, TArray<FJamPieceCount>& OutBag)
+{
+	OutBag.Reset();
+	FFacts F;
+	const bool bLayout = MakeFacts(Recipe, F);
+	for (const FBuildRecipePart& P : Recipe.Parts)
+	{
+		FJamPartDef D;
+		if (!UJamPartCatalog::Find(P.Type, D)) { continue; }
+		FJamPieceCount& I = BagItem(OutBag, P.Type);
+		++I.Count;
+		const FString Sock = P.Socket.ToString();
+		if (P.AttachTo.IsNone()) { continue; }
+		if ((D.Kind == EJamPartKind::Fan || D.Kind == EJamPartKind::Rocket) && bLayout && F.Pl[P.Id].Facing.Z < -0.5) { I.Mode = "lift"; }
+		if (D.Kind == EJamPartKind::Spring && Sock.StartsWith(TEXT("Top"))) { I.Mode = "launch"; }
+		if (D.Kind == EJamPartKind::Wheel && (Sock == TEXT("Front") || Sock == TEXT("Back"))) { I.Mode = "inline"; }
+	}
+}
+
+FJamCoherence UJamBuildGenerator::Repair(FBuildRecipe& Recipe, FString& OutWhat)
+{
+	OutWhat.Reset();
+	const FJamCoherence C = UJamAssembler::Coherence(Recipe);
+	if (C.Score >= UJamAssembler::MinCoherence() || UJamAssembler::CoherenceMode() < 2) { return C; }
+	// Reparacion universal: recomponer la misma bolsa con las reglas (cubre reorientar, mover y quitar). Se queda con la mejor.
+	TArray<FJamPieceCount> Bag;
+	BagOfRecipe(Recipe, Bag);
+	FBuildRecipe R2;
+	FString Note;
+	if (!ComposeFromBag(Bag, R2, Note)) { return C; }
+	const FJamCoherence C2 = UJamAssembler::Coherence(R2);
+	if (C2.Score <= C.Score) { return C; }
+	R2.Name = Recipe.Name;
+	Recipe = R2;
+	OutWhat = FString::Printf(TEXT("la rearme (%s)"), C.Grave.Num() ? *C.Grave[0] : C.Minor.Num() ? *C.Minor[0] : TEXT("no tenia sentido"));
+	return C2;
+}
+
 bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBuildRecipe& R, FString& Note)
 {
 	R = FBuildRecipe();
-	R.Name = TEXT("Construccion");
 	TArray<FJamPieceCount> Bag = InBag;
 	Bag.RemoveAll([](const FJamPieceCount& I) { FJamPartDef D; return I.Count <= 0 || !UJamPartCatalog::Find(I.Type, D); });
-	const int32 Max = UJamAssembler::GetMaxParts();
 	auto CountOf = [&Bag](FName T) { const FJamPieceCount* I = Bag.FindByPredicate([T](const FJamPieceCount& X) { return X.Type == T; }); return I ? I->Count : 0; };
-	auto KindOf = [](FName T) { FJamPartDef D; UJamPartCatalog::Find(T, D); return D.Kind; };
 
 	// 1) Raiz: una rueda sola rueda sola; si no, la primera pieza de estructura pedida; si no hay, una tabla.
 	FName RootType = "Plank";
 	const int32 Wheels = CountOf("Wheel") + CountOf("BigWheel");
-	const bool bAnyChassis = Bag.ContainsByPredicate([&](const FJamPieceCount& I) { return KindOf(I.Type) == EJamPartKind::Structural || KindOf(I.Type) == EJamPartKind::Slide; });
+	const bool bAnyChassis = Bag.ContainsByPredicate([](const FJamPieceCount& I) { return KindOfType(I.Type) == EJamPartKind::Structural || KindOfType(I.Type) == EJamPartKind::Slide; });
 	if (Wheels == 1 && !bAnyChassis)
 	{
 		RootType = CountOf("BigWheel") ? FName("BigWheel") : FName("Wheel");
@@ -1081,102 +1821,68 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 		}
 	}
 	if (CountOf(RootType) > 0) { BagItem(Bag, RootType).Count -= 1; }
-	R.Parts.Add(Pt(TEXT("body"), *RootType.ToString()));
+	const int32 AskedPlanks = CountOf("Plank");
 
 	// Asiento gratis en todo lo que se mueve (GDD: el asiento es infinito), para poder montarse y dirigir.
-	const bool bMoves = Bag.ContainsByPredicate([&](const FJamPieceCount& I)
+	const bool bMoves = Bag.ContainsByPredicate([](const FJamPieceCount& I)
 	{
-		const EJamPartKind Kd = KindOf(I.Type);
-		return Kd == EJamPartKind::Wheel || Kd == EJamPartKind::Fan || Kd == EJamPartKind::Rocket || Kd == EJamPartKind::Balloon || Kd == EJamPartKind::Hover || Kd == EJamPartKind::Sail;
+		const EJamPartKind Kd = KindOfType(I.Type);
+		return I.Count > 0 && (Kd == EJamPartKind::Wheel || Kd == EJamPartKind::Fan || Kd == EJamPartKind::Rocket || Kd == EJamPartKind::Balloon || Kd == EJamPartKind::Hover || Kd == EJamPartKind::Sail);
 	});
-	if (bMoves && KindOf(RootType) != EJamPartKind::Wheel && CountOf("Seat") == 0) { BagItem(Bag, "Seat").Count = 1; }
-
-	// 2) Colocar. El chasis se alarga con tablas (adelante/atras) cuando ya no caben piezas.
-	TArray<FString> Segs = { TEXT("body") };
-	FString FrontEnd = TEXT("body"), BackEnd = TEXT("body");
-	TMap<FName, FString> LastOf;      // ultima pieza colocada de cada tipo (para encadenar)
-	LastOf.Add(RootType, TEXT("body"));
-	TMap<FName, int32> Placed, Asked;
-	FString MountSockets;
-	int32 NextId = 0;
-	auto Extend = [&]() -> bool
+	if (bMoves && KindOfType(RootType) != EJamPartKind::Wheel && CountOf("Seat") == 0) { BagItem(Bag, "Seat").Count = 1; }
+	// Dos ruedas + estabilizador = moto: las ruedas van en linea (delante y atras), no a los lados.
+	if (Wheels == 2 && CountOf("Stabilizer") > 0)
 	{
-		if (R.Parts.Num() >= Max - 1 || Segs.Num() >= 16 || KindOf(RootType) == EJamPartKind::Wheel) { return false; }
-		const bool bFront = Segs.Num() % 2 == 1;
-		const FString Id = FString::Printf(TEXT("seg%d"), Segs.Num());
-		if (!TryAdd(R, FName(*Id), "Plank", (bFront ? FrontEnd : BackEnd) + (bFront ? TEXT(":Front") : TEXT(":Back")))) { return false; }
-		(bFront ? FrontEnd : BackEnd) = Id;
-		Segs.Add(Id);
-		return true;
-	};
-	auto PlaceOne = [&](const FJamPieceRule& Rule, const FJamPieceCount& Item, int32 Index) -> bool
-	{
-		if (R.Parts.Num() >= Max) { return false; }
-		const FString Id = !Rule.MountSockets.IsEmpty() ? FString(TEXT("mount"))
-			: (Rule.Type == "Seat" && !LastOf.Contains("Seat")) ? FString(TEXT("seat")) // el primer asiento se llama "seat": hay caras "seat:Top"
-			: FString::Printf(TEXT("%s%d"), *Rule.Type.ToString().ToLower(), NextId++);
-		if (!Rule.MountSockets.IsEmpty() && !MountSockets.IsEmpty()) { return false; } // un solo mount
-		// Repetidas de estructura: se encadenan a la anterior del mismo tipo (fila / pila).
-		if (!Rule.Chain.IsNone())
-		{
-			if (const FString* Prev = LastOf.Find(Rule.Type))
-			{
-				if (TryAdd(R, FName(*Id), Rule.Type, *Prev + TEXT(":") + Rule.Chain.ToString())) { LastOf.Add(Rule.Type, Id); return true; }
-			}
-		}
-		const TArray<FString>& Slots = (!Item.Mode.IsNone() && Rule.LiftSlots.Num() > 0) ? Rule.LiftSlots : Rule.Slots;
-		if (Slots.Num() == 0) { return false; }
-		const FString& Slot = Slots[Index % Slots.Num()];
-		for (int32 Pass = 0; Pass < 2; ++Pass)
-		{
-			// Armas: primero sobre el mount (cabeza / plato), si hay.
-			if (Pass == 0 && Rule.bWeapon && !MountSockets.IsEmpty() && TryAdd(R, FName(*Id), Rule.Type, WithPrefix(MountSockets, TEXT("mount:")))) { return true; }
-			for (const FString& Seg : Segs)
-			{
-				// Los candidatos sin padre explicito ("seat:Top") van sobre este segmento del chasis.
-				TArray<FString> Opts;
-				Slot.ParseIntoArray(Opts, TEXT("|"));
-				for (FString& O : Opts) { if (!O.Contains(TEXT(":"))) { O = Seg + TEXT(":") + O; } }
-				if (TryAdd(R, FName(*Id), Rule.Type, FString::Join(Opts, TEXT("|"))))
-				{
-					LastOf.Add(Rule.Type, Id);
-					if (!Rule.ChildType.IsNone() && R.Parts.Num() < Max) { TryAdd(R, FName(*(Id + TEXT("c"))), Rule.ChildType, Id + TEXT(":") + Rule.ChildSocket.ToString()); }
-					if (!Rule.MountSockets.IsEmpty()) { MountSockets = Rule.MountSockets; }
-					return true;
-				}
-			}
-			if (!Extend()) { break; }
-		}
-		return false;
-	};
-	for (const FJamPieceRule& Rule : PieceTable())
-	{
-		const FJamPieceCount* Item = Bag.FindByPredicate([&Rule](const FJamPieceCount& X) { return X.Type == Rule.Type; });
-		if (!Item || Item->Count <= 0) { continue; }
-		Asked.Add(Rule.Type, Item->Count);
-		for (int32 i = 0; i < Item->Count; ++i)
-		{
-			if (!PlaceOne(Rule, *Item, i)) { break; }
-			++Placed.FindOrAdd(Rule.Type);
-		}
+		for (FJamPieceCount& I : Bag) { if (KindOfType(I.Type) == EJamPartKind::Wheel && I.Mode.IsNone()) { I.Mode = "inline"; } }
 	}
 
-	// 3) Nota: lo que se armo y lo que no cupo.
-	TArray<FString> Got, Miss;
-	Got.Add(FString::Printf(TEXT("%s x%d"), *RootType.ToString(), 1 + Placed.FindRef(RootType) + (RootType == "Plank" ? Segs.Num() - 1 : 0)));
-	for (const auto& KV : Asked)
+	// 2) Componer con sentido. Reparacion global: volador que no despega -> el codigo agrega sustentacion (hasta 4) y avisa.
+	TArray<FString> Warn;
+	FComposeOut Best;
+	for (int32 Round = 0; Round < 5; ++Round)
 	{
-		const int32 P = Placed.FindRef(KV.Key);
-		if (KV.Key != RootType && P > 0) { Got.Add(FString::Printf(TEXT("%s x%d"), *KV.Key.ToString(), P)); }
-		if (P < KV.Value) { Miss.Add(FString::Printf(TEXT("%s x%d"), *KV.Key.ToString(), KV.Value - P)); }
+		Best = FComposeOut();
+		ComposeGrow(Bag, RootType, Best);
+		if (!Best.Coh.bNoLift || Round == 4) { break; }
+		FJamPieceCount* LiftItem = Bag.FindByPredicate([](const FJamPieceCount& I)
+		{
+			const EJamPartKind Kd = KindOfType(I.Type);
+			return I.Count > 0 && (Kd == EJamPartKind::Balloon || Kd == EJamPartKind::Hover || ((Kd == EJamPartKind::Fan || Kd == EJamPartKind::Rocket) && I.Mode == "lift"));
+		});
+		if (!LiftItem) { break; }
+		++LiftItem->Count;
+		Warn.Add(FString::Printf(TEXT("+1 %s para despegar"), *LiftItem->Type.ToString()));
 	}
-	if (RootType != "Plank" && Segs.Num() > 1) { Got.Add(FString::Printf(TEXT("Plank x%d"), Segs.Num() - 1)); }
-	Note = FString::Printf(TEXT("pieces=[%s]"), *FString::Join(Got, TEXT(", ")));
-	if (Miss.Num() > 0) { Note += FString::Printf(TEXT(" skipped=[%s]"), *FString::Join(Miss, TEXT(", "))); }
+	R = Best.R;
+	R.Name = TEXT("Construccion");
+
+	// 3) Nota: lo que se armo, lo que no cupo, avisos y coherencia.
+	TArray<FName> Types;
+	TMap<FName, int32> Got;
+	bool bWeapon = false, bShieldAway = false;
+	int32 Segs = 0;
+	for (const FBuildRecipePart& P : R.Parts)
+	{
+		Types.AddUnique(P.Type);
+		++Got.FindOrAdd(P.Type);
+		Segs += P.Id.ToString().StartsWith(TEXT("seg")) ? 1 : 0;
+		const FJamPieceRule* Rule = RuleOf(P.Type);
+		bWeapon |= Rule && Rule->bWeapon;
+		bShieldAway |= P.Type == "Panel" && !P.Socket.ToString().StartsWith(TEXT("Front")) && !P.Id.ToString().EndsWith(TEXT("c"));
+	}
+	TArray<FString> GotS, MissS;
+	for (const FName& T : Types) { GotS.Add(FString::Printf(TEXT("%s x%d"), *T.ToString(), Got[T])); }
+	for (const TPair<FName, int32>& S : Best.Skipped) { MissS.Add(FString::Printf(TEXT("%s x%d"), *S.Key.ToString(), S.Value)); }
+	if (RootType == "Plank" ? Segs > AskedPlanks : Segs > 0) { Warn.Add(FString::Printf(TEXT("chasis mas largo: +%d tablas para que todo quepa con sentido"), RootType == "Plank" ? Segs - AskedPlanks : Segs)); }
+	if (bWeapon && bShieldAway) { Warn.Add(TEXT("el escudo va atras o a los lados para no tapar el arma")); }
+	Note = FString::Printf(TEXT("pieces=[%s]"), *FString::Join(GotS, TEXT(", ")));
+	if (MissS.Num() > 0) { Note += FString::Printf(TEXT(" skipped=[%s]"), *FString::Join(MissS, TEXT(", "))); }
+	if (Warn.Num() > 0) { Note += FString::Printf(TEXT(" aviso=[%s]"), *FString::Join(Warn, TEXT("; "))); }
+	Note += TEXT(" ") + Best.Coh.ToText();
 
 	for (const FBuildRecipePart& P : R.Parts)
 	{
-		const EJamPartKind Kd = KindOf(P.Type);
+		const EJamPartKind Kd = KindOfType(P.Type);
 		if (Kd != EJamPartKind::Structural && Kd != EJamPartKind::Slide && Kd != EJamPartKind::Seat && Kd != EJamPartKind::Battery && Kd != EJamPartKind::Hinge)
 		{
 			R.Activate.Add(P.Id);

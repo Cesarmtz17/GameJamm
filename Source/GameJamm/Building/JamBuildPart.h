@@ -55,6 +55,7 @@ struct FJamBuildState
 	TArray<TWeakObjectPtr<AJamBuildPart>> Stunned;          // piezas que estaban encendidas y hay que reencender
 	float LastPowerSound = -100.f;
 	TWeakObjectPtr<AActor> Owner;                           // quien la pidio: la cabeza nunca le apunta
+	TWeakObjectPtr<AActor> AimTarget;                       // a quien apunta la cabeza: el cañon eleva el tiro hacia el
 };
 
 /** Definición de un tipo de pieza (POC: tabla en C++, después DataAsset). */
@@ -192,7 +193,7 @@ public:
 private:
 	bool IsMine(const AActor* Other) const;
 	/** Componentes fisicos/peones dentro de una esfera (sin esta pieza). */
-	void Nearby(const FVector& Center, float Radius, TArray<UPrimitiveComponent*>& Out) const;
+	void Nearby(const FVector& Center, float Radius, TArray<UPrimitiveComponent*>& Out, const FVector* SightFrom = nullptr) const;
 	AActor* SpawnBall(const FVector& At, const FVector& Velocity);
 	/** Explosion: empuja, daña y enciende dispositivos apagados dentro del radio. */
 	void Explode(const FVector& At, float Radius, float Speed, float Damage);

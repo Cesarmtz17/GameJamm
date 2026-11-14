@@ -9,6 +9,10 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/MultiLineEditableTextBox.h"
 #include "Engine/Canvas.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "GameFramework/Character.h"
 #include "Building/JamAssembler.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SpotLightComponent.h"
@@ -35,6 +39,10 @@ namespace
 	const FName SayTag(TEXT("JamSay"));
 	TWeakObjectPtr<AJamBuildSpawner> GLastSay;   // ultima construccion pedida (para el HUD)
 	bool GTyping = false;                        // caja de texto abierta: el personaje no lee teclas
+	// Entrada simulada (Jam.Drive / Jam.Fire y la bateria Jam.Test): entra por el mismo camino que el teclado.
+	float GDriveThrottle = 0.f, GDriveSteer = 0.f;
+	double GDriveUntil = 0.0, GFireUntil = 0.0;
+	bool GBoostOnce = false;
 
 	void Screen(const FString& Msg, FColor Color = FColor::Yellow)
 	{
@@ -128,7 +136,7 @@ namespace
 	}
 
 	// ---- Jam.Test: pruebas aisladas por mecanica + bateria de frases -> docs/building/REPORTE-POC.md -------------
-	struct FJamCase
+	struct FJamCaseDef
 	{
 		const TCHAR* Key;     // aislada: clave de la mecanica (coincide con el extra o la plantilla); frase: nullptr
 		const TCHAR* Text;    // frase para Jev, o descripcion de la prueba aislada
@@ -136,7 +144,7 @@ namespace
 		const TCHAR* Expect;  // frase de composicion: piezas exigidas, "Wheel=25,Cannon=4" (nullptr = no se exige)
 	};
 
-	const FJamCase TestCases[] = {
+	const FJamCaseDef BuiltinCases[] = {
 		// --- aisladas: una mecanica, receta fija, metrica propia ---
 		{ TEXT("Roller"), TEXT("Rueda sola (raiz): debe rodar de pie"),
 			TEXT("{\"name\":\"Rueda\",\"parts\":[{\"id\":\"body\",\"type\":\"BigWheel\"}],\"activate\":[\"body\"]}") },
@@ -178,7 +186,18 @@ namespace
 		{ nullptr, TEXT("un trineo con vela") }, { nullptr, TEXT("un carro con ventilador y una bateria") },
 		{ nullptr, TEXT("un muro defensivo con escudo") }, { nullptr, TEXT("un carro con resorte que salte") },
 	};
-	const int32 NumCases = UE_ARRAY_COUNT(TestCases);
+
+	/** Caso en ejecucion: los de la tabla de arriba o los de una bateria externa (JSON: frase, must, forbid, counts, capability). */
+	struct FJamCase
+	{
+		FString Key, Text, Recipe, Expect;       // Expect = "Wheel=25,Cannon=4"
+		TArray<FString> Must, Forbid, Caps;      // piezas que deben / no deben estar; canales que deben responder
+		bool IsIso() const { return !Recipe.IsEmpty(); }
+	};
+	TArray<FJamCase> GCases;
+	FString GReportPath, GBatteryName;
+	#define NumCases GCases.Num()
+	void JamSeat(const TArray<FString>&, UWorld* World);
 
 	struct FJamTestRun
 	{
@@ -200,6 +219,13 @@ namespace
 		double AimErrSum = 0, AimYawMin = 0, AimYawMax = 0, HingeMax = 0, HingeSep = 0, HingeDist0 = -1, MinUpZ = 1, LastUpZ = 1, Energy0 = -1, EnergyEnd = -1, PlayerEnergyMin = 100;
 		int32 AimN = 0, Frames = 0;
 		bool bLightOn = false, bRootWheel = false;
+		// "utilizable": fases con entrada simulada (mando -> quieta -> disparar -> soltar -> acelerar -> girar -> turbo)
+		double BuiltAt = -1, IdleDisp = 0, DriveFwd = 0, SteerDeg = 0;
+		int32 Phase = 0, IdleWeapons = 0, FireOn = 0, WeaponsAfter = 0, Fx0 = 0, FireFx = 0;
+		bool bBoostOn = false, bPushPart = false, bLiftPart = false, bSeat = false;
+		FVector P0 = FVector::ZeroVector, Fwd0 = FVector::ForwardVector;
+		FTransform Home;                   // donde estaba el jugador al empezar (vuelve ahi tras cada caso)
+		int32 CohSum = 0, CohPass = 0, UsablePass = 0, DecisionPass = 0;
 		TSet<FName> Types;                 // tipos de pieza presentes
 		TMap<FName, int32> TypeCount;      // cuantas de cada tipo (maximo visto)
 		// resultados
@@ -220,11 +246,11 @@ namespace
 	}
 
 	/** "Wheel=25,Cannon=4": true si la construccion tiene esas cantidades. */
-	bool CheckExpect(const FJamTestRun& T, const TCHAR* Expect, FString& Out)
+	bool CheckExpect(const FJamTestRun& T, const FString& Expect, FString& Out)
 	{
-		if (!Expect) { return true; }
+		if (Expect.IsEmpty()) { return true; }
 		TArray<FString> Items;
-		FString(Expect).ParseIntoArray(Items, TEXT(","));
+		Expect.ParseIntoArray(Items, TEXT(","));
 		bool bAll = true;
 		TArray<FString> Txt;
 		for (const FString& I : Items)
@@ -235,7 +261,63 @@ namespace
 			bAll &= Have == FCString::Atoi(*Num);
 			Txt.Add(FString::Printf(TEXT("%s %d/%s"), *Type, Have, *Num));
 		}
-		Out = TEXT("piezas pedidas: ") + FString::Join(Txt, TEXT(", "));
+		Out = FString::Join(Txt, TEXT(", "));
+		return bAll;
+	}
+
+	/** Canal de control que pide una "capability" de la bateria externa (texto libre en es/en). */
+	FString ChannelOfCap(const FString& Cap)
+	{
+		const FString C = Cap.ToLower();
+		auto Any = [&C](std::initializer_list<const TCHAR*> Ws) { for (const TCHAR* W : Ws) { if (C.Contains(W)) { return true; } } return false; };
+		if (Any({TEXT("driv"), TEXT("mov"), TEXT("conduc"), TEXT("manej"), TEXT("rod"), TEXT("steer")})) { return TEXT("MOVER"); }
+		if (Any({TEXT("fire"), TEXT("dispar"), TEXT("shoot"), TEXT("fuego"), TEXT("arma"), TEXT("weapon"), TEXT("attack")})) { return TEXT("FUEGO"); }
+		if (Any({TEXT("fly"), TEXT("vol"), TEXT("lift"), TEXT("altura"), TEXT("subir"), TEXT("flot"), TEXT("hover")})) { return TEXT("ALTURA"); }
+		if (Any({TEXT("boost"), TEXT("turbo"), TEXT("cohete"), TEXT("rocket"), TEXT("lanzar"), TEXT("launch")})) { return TEXT("TURBO"); }
+		if (Any({TEXT("power"), TEXT("encend"), TEXT("activ")})) { return TEXT("ENCENDER"); }
+		return FString();
+	}
+
+	/**
+	 * UTILIZABLE: cada canal de control que la construccion tiene (por las capacidades de sus piezas) o que la frase exige
+	 * responde a la entrada simulada, y sin entrada las armas se quedan quietas.
+	 */
+	bool UsableVerdict(const FJamTestRun& T, const FJamCase& Case, FString& Out)
+	{
+		auto Has = [&T](std::initializer_list<const TCHAR*> Types) { for (const TCHAR* X : Types) { if (T.Types.Contains(FName(X))) { return true; } } return false; };
+		const bool bWheels = Has({TEXT("Wheel"), TEXT("BigWheel")});
+		const bool bWeapon = Has({TEXT("Cannon"), TEXT("Flamethrower"), TEXT("Frost"), TEXT("Beam"), TEXT("Shock"), TEXT("Hydrant")});
+		const bool bBoost = Has({TEXT("Rocket"), TEXT("Bomb")});
+		TSet<FString> Need;
+		if (bWheels || T.bPushPart) { Need.Add(TEXT("MOVER")); Need.Add(TEXT("GIRAR")); }
+		if (bWeapon) { Need.Add(TEXT("FUEGO")); }
+		if (bBoost) { Need.Add(TEXT("TURBO")); }
+		if (T.bLiftPart) { Need.Add(TEXT("ALTURA")); }
+		for (const FString& Cap : Case.Caps) { const FString Ch = ChannelOfCap(Cap); if (!Ch.IsEmpty()) { Need.Add(Ch); } }
+		bool bAll = true;
+		TArray<FString> Txt;
+		auto Chan = [&](const TCHAR* Name, bool bOk, const FString& Detail)
+		{
+			if (!Need.Contains(Name)) { return; }
+			bAll &= bOk;
+			Txt.Add(FString::Printf(TEXT("%s %s (%s)"), Name, bOk ? TEXT("ok") : TEXT("NO"), *Detail));
+		};
+		Chan(TEXT("MOVER"), T.DriveFwd > 100, FString::Printf(TEXT("W: %.0f cm al frente"), T.DriveFwd));
+		Chan(TEXT("GIRAR"), T.SteerDeg > 15, FString::Printf(TEXT("D: %.0f grados"), T.SteerDeg));
+		Chan(TEXT("FUEGO"), T.FireOn > 0 && T.WeaponsAfter == 0, FString::Printf(TEXT("clic: %d armas; %s; al soltar %d"), T.FireOn, T.FireFx > 0 ? TEXT("su efecto toco al objetivo") : TEXT("no toco al objetivo"), T.WeaponsAfter));
+		Chan(TEXT("TURBO"), T.bBoostOn, T.bExploded ? TEXT("Espacio: la bomba se solto y exploto") : TEXT("Espacio: cohete/bomba"));
+		Chan(TEXT("ALTURA"), T.MaxUp > 30, FString::Printf(TEXT("subio %.0f cm"), T.MaxUp));
+		Chan(TEXT("ENCENDER"), T.MaxOn > 0, FString::Printf(TEXT("C: %d encendidas"), T.MaxOn));
+		if (T.IdleWeapons > 0) { bAll = false; Txt.Add(FString::Printf(TEXT("sin entrada disparaban %d armas"), T.IdleWeapons)); }
+		if (bWheels && !T.bLiftPart && !Has({TEXT("Sail")}) && T.IdleDisp > 50) { bAll = false; Txt.Add(FString::Printf(TEXT("sin entrada se fue %.0f cm"), T.IdleDisp)); }
+		if (Need.Num() == 0)
+		{
+			const bool bStill = T.MaxOn > 0 || (T.Disp < 20 && FMath::Abs(T.LastUpZ) > 0.7);
+			bAll &= bStill;
+			Txt.Add(T.MaxOn > 0 ? FString::Printf(TEXT("C enciende %d dispositivos"), T.MaxOn) : FString::Printf(TEXT("estructura: se movio %.0f cm, %s"), T.Disp, bStill ? TEXT("en pie") : TEXT("se cayo")));
+		}
+		if (!T.bSeat && Need.Num() > 0) { Txt.Add(TEXT("sin asiento: mando desde la pieza")); }
+		Out = FString::Join(Txt, TEXT("; "));
 		return bAll;
 	}
 
@@ -290,66 +372,69 @@ namespace
 	void TestFinishCase()
 	{
 		FJamTestRun& T = GTest;
-		const FJamCase& Case = TestCases[T.Index];
+		const FJamCase& Case = GCases[T.Index];
 		const FString Status = T.Cur.IsValid() ? T.Cur->LastStatus : FString(TEXT("(sin construir)"));
 		const bool bBuilt = Status.StartsWith(TEXT("OK"));
-		if (Case.Recipe)
+		const int32 Coh = T.Cur.IsValid() ? T.Cur->LastCoherence : -1;
+		if (Case.IsIso())
 		{
 			FString What;
 			const bool bPass = bBuilt && IsoVerdict(T, Case.Key, What);
 			T.Iso.Add(Case.Key, bPass);
 			++T.IsoCount;
 			T.IsoPass += bPass ? 1 : 0;
-			T.IsoRows += FString::Printf(TEXT("| `%s` | %s | %d | %s | %s |\n"), Case.Key, Case.Text, T.Parts, bBuilt ? *What : *Status, bPass ? TEXT("PASA") : TEXT("FALLA"));
-			UE_LOG(LogTemp, Display, TEXT("JamTest %d/%d ISO %s | %s | %s"), T.Index + 1, NumCases, bPass ? TEXT("PASA") : TEXT("FALLA"), Case.Key, bBuilt ? *What : *Status);
+			T.IsoRows += FString::Printf(TEXT("| `%s` | %s | %d | %s | %s |\n"), *Case.Key, *Case.Text, T.Parts, bBuilt ? *What : *Status, bPass ? TEXT("PASA") : TEXT("FALLA"));
+			UE_LOG(LogTemp, Display, TEXT("JamTest %d/%d ISO %s | %s | %s"), T.Index + 1, NumCases, bPass ? TEXT("PASA") : TEXT("FALLA"), *Case.Key, bBuilt ? *What : *Status);
 			return;
 		}
-		const TCHAR* Backend = Status.Contains(TEXT("fallback")) ? TEXT("respaldo (fallo Jev)") : Status.Contains(TEXT("(jev")) ? TEXT("Jev") : Status.Contains(TEXT("keywords")) ? TEXT("palabras clave") : TEXT("?");
+		const TCHAR* Backend = Status.Contains(TEXT("fallback")) ? TEXT("respaldo (fallo Jev)") : Status.Contains(TEXT("(jev")) ? TEXT("Jev") : Status.Contains(TEXT("(fal")) ? TEXT("planificador LLM") : Status.Contains(TEXT("keywords")) ? TEXT("palabras clave") : TEXT("?");
+		// 1) Decision: piezas que deben estar, las que no, y cantidades exactas.
+		TArray<FString> Dec;
+		bool bDecision = bBuilt;
+		auto HasType = [&T](const FString& Type) { for (const FName& X : T.Types) { if (X.ToString().Equals(Type, ESearchCase::IgnoreCase)) { return true; } } return false; };
+		for (const FString& M : Case.Must) { if (!HasType(M)) { bDecision = false; Dec.Add(TEXT("falta ") + M); } }
+		for (const FString& F : Case.Forbid) { if (HasType(F)) { bDecision = false; Dec.Add(TEXT("sobra ") + F); } }
+		FString CountWhy;
+		if (!CheckExpect(T, Case.Expect, CountWhy)) { bDecision = false; }
+		if (!CountWhy.IsEmpty()) { Dec.Add(CountWhy); }
+		if (Status.Contains(TEXT("skipped=["))) { Dec.Add(TEXT("no todo cupo")); }
+		// 2) Coherencia (sentido) y 3) utilizable (canales con entrada simulada).
+		const bool bCoh = Coh >= 85;
+		FString Use;
+		const bool bUsable = bBuilt && UsableVerdict(T, Case, Use);
 		TArray<FString> Seen;
-		if (T.Disp > 60) { Seen.Add(FString::Printf(TEXT("se movio %.0f cm (max %.0f cm/s)"), T.Disp, T.MaxSpeed)); }
-		if (T.MaxUp > 40) { Seen.Add(FString::Printf(TEXT("subio %.0f cm"), T.MaxUp)); }
-		if (T.MaxSpin > 2) { Seen.Add(FString::Printf(TEXT("algo gira a %.1f rad/s"), T.MaxSpin)); }
-		if (T.MaxBalls > 0) { Seen.Add(FString::Printf(TEXT("disparo/lanzo %d bolas"), T.MaxBalls)); }
-		if (T.Hits > 0) { Seen.Add(FString::Printf(TEXT("su efecto toco al objetivo (%d)"), T.Hits)); }
+		if (T.Hits > 0) { Seen.Add(FString::Printf(TEXT("efecto sobre el objetivo x%d"), T.Hits)); }
 		if (T.bFrozen) { Seen.Add(TEXT("objetivo congelado")); }
 		if (T.DummyMoved > 30) { Seen.Add(FString::Printf(TEXT("objetivo empujado %.0f cm"), T.DummyMoved)); }
-		if (T.bExploded) { Seen.Add(TEXT("la bomba exploto")); }
-		if (T.Types.Contains("Stake") && T.Disp < 15) { Seen.Add(FString::Printf(TEXT("anclada: se movio %.1f cm"), T.Disp)); }
+		if (T.MaxBalls > 0) { Seen.Add(FString::Printf(TEXT("%d bolas"), T.MaxBalls)); }
 		if (T.Parts >= 25 && T.Timer > 1.f) { Seen.Add(FString::Printf(TEXT("%d piezas a %.0f fps"), T.Parts, T.Frames / T.Timer)); }
-		const bool bPass = bBuilt && (Seen.Num() > 0 || T.MaxOn == 0);
-		if (bBuilt && Seen.Num() == 0) { Seen.Add(T.MaxOn == 0 ? TEXT("estructura estatica, se mantuvo en pie") : TEXT("nada medible")); }
-		// Mecanicas de esta construccion que tienen prueba aislada (por extra elegido o por pieza de la plantilla).
-		TArray<FString> IsoCol;
-		auto Has = [&T](const TCHAR* Type) { return T.Types.Contains(FName(Type)); };
-		auto Add = [&](const TCHAR* Key, bool bUsed)
-		{
-			if (bUsed) { IsoCol.AddUnique(FString::Printf(TEXT("%s: %s"), Key, T.Iso.FindRef(Key) ? TEXT("PASA") : TEXT("FALLA"))); }
-		};
-		Add(TEXT("Roller"), T.bRootWheel);
-		Add(TEXT("head"), Has(TEXT("Head")));
-		Add(TEXT("hinge"), Has(TEXT("Hinge")));
-		Add(TEXT("stake"), Has(TEXT("Stake")));
-		Add(TEXT("light"), Has(TEXT("Light")));
-		Add(TEXT("stabilizer"), Has(TEXT("Stabilizer")));
-		Add(TEXT("cannon"), Has(TEXT("Cannon")));
-		Add(TEXT("battery"), Has(TEXT("Battery")) || Has(TEXT("BigBattery")));
-		// Composicion: las cantidades pedidas en la frase tienen que estar en la construccion.
-		FString CountWhy;
-		const bool bCounts = CheckExpect(T, Case.Expect, CountWhy);
-		if (Case.Expect) { Seen.Add(CountWhy); }
-		const bool bPassAll = bPass && bCounts;
+		if (FMath::Abs(T.LastUpZ) < 0.5 && !T.bRootWheel) { Seen.Add(TEXT("termino volcada")); }
+		const bool bPassAll = bBuilt && bDecision && bCoh && bUsable;
 		++T.PhraseCount;
 		T.Pass += bPassAll ? 1 : 0;
-		T.Rows += FString::Printf(TEXT("| %d | %s | %s | `%s` | %d | %d | %s | %s | %s |\n"), T.PhraseCount, Case.Text, Backend,
-			*Status.Replace(TEXT("|"), TEXT("/")), T.Parts, T.MaxOn, *FString::Join(Seen, TEXT("; ")), IsoCol.Num() > 0 ? *FString::Join(IsoCol, TEXT("; ")) : TEXT("-"), bPassAll ? TEXT("PASA") : TEXT("FALLA"));
-		UE_LOG(LogTemp, Display, TEXT("JamTest %d/%d %s | %s | %s | %s"), T.Index + 1, NumCases, bPassAll ? TEXT("PASA") : TEXT("FALLA"), Case.Text, *Status, *FString::Join(Seen, TEXT("; ")));
+		T.CohSum += FMath::Max(Coh, 0);
+		T.CohPass += bCoh ? 1 : 0;
+		T.UsablePass += bUsable ? 1 : 0;
+		T.DecisionPass += bDecision ? 1 : 0;
+		const FString CohNote = T.Cur.IsValid() ? T.Cur->LastCoherenceNote : FString();
+		T.Rows += FString::Printf(TEXT("| %d | %s | %s | `%s` | %d | %s %s | %d%s | %s %s%s | %s |\n"), T.PhraseCount, *Case.Text, Backend,
+			*Status.Replace(TEXT("|"), TEXT("/")), T.Parts,
+			bDecision ? TEXT("ok") : TEXT("NO"), *FString::Join(Dec, TEXT("; ")),
+			Coh, CohNote.IsEmpty() ? TEXT("") : *(TEXT(" (") + CohNote.Replace(TEXT("|"), TEXT("/")) + TEXT(")")),
+			bUsable ? TEXT("SI:") : TEXT("NO:"), *Use, Seen.Num() ? *(TEXT(". Visto: ") + FString::Join(Seen, TEXT("; "))) : TEXT(""),
+			bPassAll ? TEXT("PASA") : TEXT("FALLA"));
+		UE_LOG(LogTemp, Display, TEXT("JamTest %d/%d %s | %s | coh=%d | decision=%d %s | utilizable=%d %s | %s"), T.Index + 1, NumCases, bPassAll ? TEXT("PASA") : TEXT("FALLA"), *Case.Text, Coh,
+			bDecision, *FString::Join(Dec, TEXT("; ")), bUsable, *Use, *Status);
 	}
 
 	void TestMeasure(FJamTestRun& T, UWorld* World)
 	{
-		const FJamCase& Case = TestCases[T.Index];
-		const FString Key = Case.Key ? FString(Case.Key) : FString();
+		const FJamCase& Case = GCases[T.Index];
+		const FString Key = Case.Key;
 		AStaticMeshActor* D = T.Dummy.Get();
+		int32 Balls = 0;
+		for (TActorIterator<AStaticMeshActor> It(World); It; ++It) { Balls += It->ActorHasTag(TEXT("JamProjectile")) ? 1 : 0; }
+		T.MaxBalls = FMath::Max(T.MaxBalls, Balls);
 		// Cabeza: el objetivo va y viene de lado delante de la construccion.
 		if (D && Key == TEXT("head"))
 		{
@@ -359,7 +444,7 @@ namespace
 		if (AJamBuildSpawner* S = T.Cur.Get())
 		{
 			const TArray<TObjectPtr<AJamBuildPart>>& Parts = S->GetParts();
-			int32 On = 0, Hits = 0;
+			int32 On = 0, Hits = 0, WeaponsOn = 0, RocketsOn = 0;
 			bool bBomb = false;
 			TMap<FName, int32> Now;
 			for (const AJamBuildPart* P : Parts)
@@ -370,6 +455,16 @@ namespace
 				On += P->bActive ? 1 : 0;
 				Hits += P->EffectHits;
 				bBomb |= P->Kind == EJamPartKind::Bomb;
+				const EJamPartKind Kd = P->Kind;
+				const double DirZ = FMath::Abs(P->GetActorQuat().RotateVector(P->LocalDirection).Z);
+				WeaponsOn += (P->bActive && (Kd == EJamPartKind::Cannon || Kd == EJamPartKind::Flame || Kd == EJamPartKind::Frost || Kd == EJamPartKind::Beam || Kd == EJamPartKind::Shock || Kd == EJamPartKind::Hydrant)) ? 1 : 0;
+				RocketsOn += (P->bActive && Kd == EJamPartKind::Rocket) ? 1 : 0;
+				T.bSeat |= Kd == EJamPartKind::Seat;
+				if (T.Phase < 2) // orientacion al armar (antes de que nada la vuelque)
+				{
+					T.bPushPart |= Kd == EJamPartKind::Fan && DirZ < 0.5;
+					T.bLiftPart |= Kd == EJamPartKind::Balloon || Kd == EJamPartKind::Hover || ((Kd == EJamPartKind::Fan || Kd == EJamPartKind::Rocket) && DirZ > 0.5 && P != Parts[0]);
+				}
 				T.MaxSpin = FMath::Max(T.MaxSpin, P->Mesh->GetPhysicsAngularVelocityInRadians().Size());
 				if (const USpotLightComponent* L = P->FindComponentByClass<USpotLightComponent>())
 				{
@@ -404,7 +499,9 @@ namespace
 				{
 					if (const AJamBuildPart* Head = PartById(Parts, "mount"))
 					{
-						const FVector Fwd = Head->GetActorQuat().RotateVector(Head->LocalDirection).GetSafeNormal2D();
+						// Pegada arriba, la "Mira" de la cabeza es su eje de giro: el frente es el de su malla (igual que en AJamBuildPart::Tick).
+						const FVector HeadDir = Head->GetActorQuat().RotateVector(Head->LocalDirection);
+						const FVector Fwd = (FMath::Abs(HeadDir.Z) > 0.9 ? Head->GetActorForwardVector() : HeadDir).GetSafeNormal2D();
 						const FVector To = (D->GetActorLocation() - Head->GetActorLocation()).GetSafeNormal2D();
 						const double Yaw = FMath::RadiansToDegrees(FMath::Atan2(FVector::DotProduct(Fwd, T.At.GetUnitAxis(EAxis::Y)), FVector::DotProduct(Fwd, T.At.GetUnitAxis(EAxis::X))));
 						if (T.Timer > 3.f)
@@ -415,6 +512,30 @@ namespace
 							T.AimYawMax = T.AimN == 1 ? Yaw : FMath::Max(T.AimYawMax, Yaw);
 						}
 					}
+				}
+				if (!Case.IsIso())
+				{
+					// Fases de "utilizable" (escala de 12 s desde que aparecio la construccion). La entrada simulada entra por
+					// el mismo camino que el teclado: Jam.Seat, y los globales de Jam.Drive / Jam.Fire que lee AJamTestCharacter::Tick.
+					if (T.BuiltAt < 0) { T.BuiltAt = T.Timer; }
+					const double K = T.Duration / 12.0, t = (T.Timer - T.BuiltAt) / K, NowS = FPlatformTime::Seconds();
+					const FVector Fwd = Root->GetActorQuat().RotateVector(Root->LocalDirection).GetSafeNormal2D();
+					const int32 Fx = Hits + T.MaxBalls + (T.DummyMoved > 10 ? 1 : 0) + (T.bFrozen ? 1 : 0);
+					auto Enter = [&T](int32 Ph) { if (T.Phase < Ph) { T.Phase = Ph; return true; } return false; };
+					if (t >= 1.0 && Enter(1)) // tomar el mando
+					{
+						const APlayerController* PC = World->GetFirstPlayerController();
+						if (PC && PC->GetPawn() && !PC->GetPawn()->GetAttachParentActor()) { JamSeat(TArray<FString>(), World); }
+					}
+					if (t >= 2.0 && Enter(2)) { T.P0 = L; }                                          // quieta: sin entrada
+					if (T.Phase == 2 && t >= 2.3) { T.IdleWeapons = FMath::Max(T.IdleWeapons, WeaponsOn); }
+					if (t >= 3.5 && Enter(3)) { T.IdleDisp = FVector::Dist2D(L, T.P0); T.Fx0 = Fx; GFireUntil = NowS + 2.5 * K; }   // clic
+					if (T.Phase == 3) { T.FireOn = FMath::Max(T.FireOn, WeaponsOn); }
+					if (t >= 6.0 && Enter(4)) { T.FireFx = Fx - T.Fx0; GFireUntil = 0.0; }           // soltar
+					if (t >= 6.5 && Enter(5)) { T.WeaponsAfter = WeaponsOn; T.P0 = L; T.Fwd0 = Fwd; GDriveThrottle = 1.f; GDriveSteer = 0.f; GDriveUntil = NowS + 4.0 * K; } // W
+					if (t >= 9.0 && Enter(6)) { T.DriveFwd = FVector::DotProduct(L - T.P0, T.Fwd0); T.Fwd0 = Fwd; GDriveSteer = 1.f; }          // W + D
+					if (t >= 10.5 && Enter(7)) { T.SteerDeg = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(Fwd, T.Fwd0), -1.0, 1.0))); GDriveUntil = 0.0; GBoostOnce = true; } // Espacio
+					if (T.Phase == 7) { T.bBoostOn |= RocketsOn > 0 || T.bExploded || (T.bHadBomb && !bBomb); }
 				}
 				if (Key == TEXT("hinge"))
 				{
@@ -444,9 +565,6 @@ namespace
 				}
 			}
 		}
-		int32 Balls = 0;
-		for (TActorIterator<AStaticMeshActor> It(World); It; ++It) { Balls += It->ActorHasTag(TEXT("JamProjectile")) ? 1 : 0; }
-		T.MaxBalls = FMath::Max(T.MaxBalls, Balls);
 		if (D)
 		{
 			if (Key != TEXT("head")) { T.DummyMoved = FMath::Max(T.DummyMoved, FVector::Dist(D->GetActorLocation(), T.DummyStart)); }
@@ -456,22 +574,32 @@ namespace
 
 	void TestWriteReport(FJamTestRun& T)
 	{
+		const int32 Np = FMath::Max(T.PhraseCount, 1);
 		FString Md = TEXT("---\ntitle: Reporte del POC de construccion por lenguaje natural\ntags:\n  - building\n  - pruebas\nstatus: generado\n---\n\n# Reporte del POC: frase -> modelo de decision -> construccion\n\n");
 		Md += TEXT("> [!info]\n> Archivo GENERADO por el comando de consola `Jam.Test` (en PIE, `Source/GameJamm/Building/JamPlayConsole.cpp`). No editar a mano: volver a correr el comando.\n");
-		Md += FString::Printf(TEXT("> Fecha: %s. Cada caso se construye delante del jugador y se mide durante %.0f s.\n\n"), *FDateTime::Now().ToString(TEXT("%Y-%m-%d %H:%M")), T.Duration);
-		Md += FString::Printf(TEXT("**Resultado: %d de %d pruebas aisladas y %d de %d frases pasan.**\n\n"), T.IsoPass, T.IsoCount, T.Pass, T.PhraseCount);
-		Md += TEXT("## 1. Mecanicas verificadas aisladas\n\nUna mecanica por prueba, con receta fija (sin modelo de decision) y una metrica propia.\n\n");
-		Md += TEXT("| Mecanica | Prueba | Piezas | Medido | Veredicto |\n|---|---|---|---|---|\n");
-		Md += T.IsoRows;
-		Md += TEXT("\n## 2. Frases completas\n\nCamino completo: frase -> modelo de decision -> receta -> ensamblador, con un cubo-objetivo de 20 kg a 3.5 m al frente. ");
-		Md += TEXT("\"PASA\" = se construyo y se midio al menos una mecanica (o es una estructura estatica sin dispositivos). No juzga si la plantilla elegida es la que una persona esperaria: eso se lee en la columna de decision.\n\n");
-		Md += TEXT("| # | Frase | Backend | Decision y receta (estado del spawner) | Piezas | Encendidas | Mecanica observada | Mecanica verificada aislada | Veredicto |\n|---|---|---|---|---|---|---|---|---|\n");
+		Md += FString::Printf(TEXT("> Fecha: %s. Bateria: %s. Cada caso se construye delante del jugador y se mide durante %.0f s.\n\n"), *FDateTime::Now().ToString(TEXT("%Y-%m-%d %H:%M")), *GBatteryName, T.Duration);
+		Md += FString::Printf(TEXT("**Resultado: %d de %d pruebas aisladas pasan. Frases: %d de %d pasan TODO (construida + decision + coherencia + utilizable).**\n\n"), T.IsoPass, T.IsoCount, T.Pass, T.PhraseCount);
+		Md += TEXT("| Medida (frases) | Resultado |\n|---|---|\n");
+		Md += FString::Printf(TEXT("| Decision correcta (piezas pedidas, prohibidas y cantidades) | %d de %d |\n"), T.DecisionPass, T.PhraseCount);
+		Md += FString::Printf(TEXT("| Coherencia media (0-100) | %.1f |\n| Coherencia 85 o mas | %d de %d |\n"), (float)T.CohSum / Np, T.CohPass, T.PhraseCount);
+		Md += FString::Printf(TEXT("| Utilizable (todos sus canales responden a la entrada simulada) | %d de %d |\n\n"), T.UsablePass, T.PhraseCount);
+		if (T.IsoCount > 0)
+		{
+			Md += TEXT("## 1. Mecanicas verificadas aisladas\n\nUna mecanica por prueba, con receta fija (sin modelo de decision) y una metrica propia.\n\n");
+			Md += TEXT("| Mecanica | Prueba | Piezas | Medido | Veredicto |\n|---|---|---|---|---|\n");
+			Md += T.IsoRows;
+		}
+		Md += TEXT("\n## 2. Frases completas\n\nCamino completo: frase -> modelo de decision (piezas y cantidades) -> compositor con sentido -> validador de coherencia -> ensamblador, con un cubo-objetivo de 20 kg a 3.5 m al frente.\n\n");
+		Md += TEXT("| # | Frase | Backend | Decision y receta (estado del spawner) | Piezas | Decision | Coherencia | Utilizable (canales) | Veredicto |\n|---|---|---|---|---|---|---|---|---|\n");
 		Md += T.Rows;
-		Md += TEXT("\n## Como leerlo\n\n- **Backend**: `Jev` = decidio el modelo de decision; `respaldo` = fallo la llamada y se uso el generador por palabras clave.\n- **Decision**: plantilla (`archetype`), `skipped=[...]` = extras pedidos que no cupieron o no aplican, `extras=[...]` = extras que el modelo marco.\n- **Mecanica observada**: medido en el juego (posicion, velocidad, giro, proyectiles, efecto sobre el cubo-objetivo).\n- **Mecanica verificada aislada**: resultado de la seccion 1 para las mecanicas que lleva esa construccion (por extra elegido o por pieza de la plantilla).\n");
-		const FString Path = FPaths::ProjectDir() / TEXT("docs/building/REPORTE-POC.md");
-		const bool bSaved = FFileHelper::SaveStringToFile(Md, *Path, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
-		Screen(FString::Printf(TEXT("Jam.Test terminado: aisladas %d/%d, frases %d/%d. Reporte %s: %s"), T.IsoPass, T.IsoCount, T.Pass, T.PhraseCount, bSaved ? TEXT("guardado") : TEXT("NO guardado"), *Path), FColor::Green);
-		UE_LOG(LogTemp, Display, TEXT("JamTest DONE iso=%d/%d frases=%d/%d saved=%d"), T.IsoPass, T.IsoCount, T.Pass, T.PhraseCount, bSaved);
+		Md += TEXT("\n## Como leerlo\n\n- **Backend**: `Jev` = decidio el modelo de decision; `respaldo` = fallo la llamada y se uso el generador por palabras clave.\n");
+		Md += TEXT("- **Decision**: `ok` si estan las piezas exigidas (`must`), no estan las prohibidas (`forbid`) y las cantidades pedidas coinciden (`tipo tengo/pedido`).\n");
+		Md += TEXT("- **Coherencia**: puntaje 0-100 de `UJamAssembler::Coherence` (conexion, solapes, simetria, apoyo, empuje, tiro y aire libres, centro de masa, potencia). 85 o mas pasa; 70-84 se construye con aviso; menos de 70 se rearma. Entre parentesis, lo que se le dijo al jugador.\n");
+		Md += TEXT("- **Utilizable**: el jugador toma el mando (asiento) y se simula la entrada por el mismo camino que el teclado. Fases: 2-3.5 s sin entrada (las armas deben estar quietas), 3.5-6 s clic (FUEGO), 6.5-9 s W (MOVER: mas de 100 cm al frente), 9-10.5 s W+D (GIRAR: mas de 15 grados), 10.5 s Espacio (TURBO: cohete o bomba). ALTURA = subio mas de 30 cm. Solo se exigen los canales que la construccion tiene por sus piezas (o los que la frase pide).\n");
+		Md += TEXT("- **Veredicto**: PASA = construida + decision + coherencia 85 o mas + utilizable.\n");
+		const bool bSaved = FFileHelper::SaveStringToFile(Md, *GReportPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+		Screen(FString::Printf(TEXT("Jam.Test terminado: aisladas %d/%d, frases %d/%d (coherencia media %.1f, utilizables %d). Reporte %s: %s"), T.IsoPass, T.IsoCount, T.Pass, T.PhraseCount, (float)T.CohSum / Np, T.UsablePass, bSaved ? TEXT("guardado") : TEXT("NO guardado"), *GReportPath), FColor::Green);
+		UE_LOG(LogTemp, Display, TEXT("JamTest DONE iso=%d/%d frases=%d/%d decision=%d coh_media=%.1f coh85=%d utilizable=%d saved=%d"), T.IsoPass, T.IsoCount, T.Pass, T.PhraseCount, T.DecisionPass, (float)T.CohSum / Np, T.CohPass, T.UsablePass, bSaved);
 	}
 
 	bool TestTick(float Dt)
@@ -483,7 +611,9 @@ namespace
 			return false;
 		}
 		T.Timer += Dt;
-		if (T.Index >= 0 && T.Timer < T.Duration)
+		// Las frases se miden Duration segundos desde que APARECE la construccion (Jev tarda); 10 s de espera como mucho.
+		const bool bWaitBuild = T.Index >= 0 && !GCases[T.Index].IsIso();
+		if (T.Index >= 0 && T.Timer < (bWaitBuild ? (T.BuiltAt >= 0 ? T.BuiltAt + T.Duration : T.Duration + 10.0) : T.Duration))
 		{
 			++T.Frames;
 			TestMeasure(T, World);
@@ -494,6 +624,18 @@ namespace
 		if (T.Index >= 0)
 		{
 			TestFinishCase();
+		}
+		// Soltar la entrada simulada, bajar del asiento y volver al punto de partida.
+		GDriveUntil = GFireUntil = 0.0;
+		GBoostOnce = false;
+		if (const APlayerController* PC = World->GetFirstPlayerController())
+		{
+			if (ACharacter* Me = Cast<ACharacter>(PC->GetPawn()))
+			{
+				if (Me->GetAttachParentActor()) { JamSeat(TArray<FString>(), World); }
+				Me->SetActorLocationAndRotation(T.Home.GetLocation(), T.Home.GetRotation(), false, nullptr, ETeleportType::TeleportPhysics);
+				Me->GetCharacterMovement()->Velocity = FVector::ZeroVector;
+			}
 		}
 		ClearAll(World);
 		if (T.Dummy.IsValid()) { T.Dummy->Destroy(); }
@@ -506,18 +648,19 @@ namespace
 			return false;
 		}
 		// Siguiente caso: energia llena, objetivo nuevo, metricas a cero (se conservan los resultados acumulados).
-		const FJamCase& Case = TestCases[T.Index];
-		const FString Key = Case.Key ? FString(Case.Key) : FString();
+		const FJamCase& Case = GCases[T.Index];
+		const FString Key = Case.Key;
 		AJamBuildPart::SetPlayerEnergy(World, 100.f);
 		{
 			FJamTestRun Fresh;
 			Fresh.World = T.World; Fresh.At = T.At; Fresh.Index = T.Index; Fresh.Duration = T.Duration; Fresh.Handle = T.Handle;
 			Fresh.Pass = T.Pass; Fresh.IsoPass = T.IsoPass; Fresh.IsoCount = T.IsoCount; Fresh.PhraseCount = T.PhraseCount;
+			Fresh.Home = T.Home; Fresh.CohSum = T.CohSum; Fresh.CohPass = T.CohPass; Fresh.UsablePass = T.UsablePass; Fresh.DecisionPass = T.DecisionPass;
 			Fresh.Iso = MoveTemp(T.Iso); Fresh.Rows = MoveTemp(T.Rows); Fresh.IsoRows = MoveTemp(T.IsoRows);
 			T = MoveTemp(Fresh);
 		}
 		// Cubo-objetivo: en las frases, y en las aisladas que lo necesitan (cabeza y cañon).
-		if (!Case.Recipe || Key == TEXT("head") || Key == TEXT("cannon"))
+		if (!Case.IsIso() || Key == TEXT("head") || Key == TEXT("cannon"))
 		{
 			T.DummyStart = T.At.TransformPosition(FVector(350, 0, 40));
 			FActorSpawnParameters P;
@@ -534,13 +677,79 @@ namespace
 				T.Dummy = D;
 			}
 		}
-		Screen(FString::Printf(TEXT("Jam.Test %d/%d: %s"), T.Index + 1, NumCases, Case.Text), FColor::Cyan);
-		T.Cur = SpawnSay(World, Case.Text, T.At, Case.Recipe);
+		Screen(FString::Printf(TEXT("Jam.Test %d/%d: %s"), T.Index + 1, NumCases, *Case.Text), FColor::Cyan);
+		T.Cur = SpawnSay(World, Case.Text, T.At, Case.IsIso() ? *Case.Recipe : nullptr);
 		return true;
+	}
+
+	/**
+	 * Bateria externa: JSON con una lista (o {"phrases":[...]}) de frases. Cada una: texto ("frase"/"phrase"/"text"),
+	 * "must" (tipos que deben estar; como objeto = cantidades exactas), "forbid"/"must_not", "counts" {Tipo: n} y
+	 * "capability" (canal o lista de canales que deben responder: conducir, disparar, volar, turbo, encender).
+	 */
+	bool LoadBattery(const FString& Path, TArray<FJamCase>& Out, FString& Err)
+	{
+		FString Json;
+		TSharedPtr<FJsonValue> Root;
+		if (!FFileHelper::LoadFileToString(Json, *Path) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Json), Root) || !Root.IsValid())
+		{
+			Err = TEXT("no se pudo leer o no es JSON: ") + Path;
+			return false;
+		}
+		const TArray<TSharedPtr<FJsonValue>>* List = nullptr;
+		if (Root->Type == EJson::Array) { List = &Root->AsArray(); }
+		else if (Root->Type == EJson::Object)
+		{
+			for (const TCHAR* K : { TEXT("phrases"), TEXT("frases"), TEXT("cases"), TEXT("tests") })
+			{
+				if (!List) { Root->AsObject()->TryGetArrayField(K, List); }
+			}
+		}
+		if (!List) { Err = TEXT("el JSON no trae una lista de frases"); return false; }
+		auto Strings = [](const TSharedPtr<FJsonObject>& O, std::initializer_list<const TCHAR*> Keys, TArray<FString>& To)
+		{
+			for (const TCHAR* K : Keys)
+			{
+				const TSharedPtr<FJsonValue> V = O->TryGetField(K);
+				if (!V.IsValid()) { continue; }
+				if (V->Type == EJson::String) { To.Add(V->AsString()); }
+				else if (V->Type == EJson::Array) { for (const TSharedPtr<FJsonValue>& X : V->AsArray()) { if (X->Type == EJson::String) { To.Add(X->AsString()); } } }
+			}
+		};
+		for (const TSharedPtr<FJsonValue>& V : *List)
+		{
+			FJamCase C;
+			if (V->Type == EJson::String) { C.Text = V->AsString(); }
+			else if (V->Type == EJson::Object)
+			{
+				const TSharedPtr<FJsonObject> O = V->AsObject();
+				for (const TCHAR* K : { TEXT("frase"), TEXT("phrase"), TEXT("text"), TEXT("prompt") }) { if (C.Text.IsEmpty()) { O->TryGetStringField(K, C.Text); } }
+				Strings(O, { TEXT("must") }, C.Must);
+				Strings(O, { TEXT("forbid"), TEXT("must_not") }, C.Forbid);
+				Strings(O, { TEXT("capability"), TEXT("capabilities"), TEXT("caps") }, C.Caps);
+				TArray<FString> Counts;
+				for (const TCHAR* K : { TEXT("counts"), TEXT("must") })
+				{
+					const TSharedPtr<FJsonObject>* Obj = nullptr;
+					if (O->TryGetObjectField(K, Obj))
+					{
+						for (const auto& KV : (*Obj)->Values)
+						{
+							double Num = 0;
+							if (KV.Value.IsValid() && KV.Value->TryGetNumber(Num)) { Counts.Add(FString::Printf(TEXT("%s=%d"), *FString(KV.Key), (int32)Num)); }
+						}
+					}
+				}
+				C.Expect = FString::Join(Counts, TEXT(","));
+			}
+			if (!C.Text.IsEmpty()) { Out.Add(C); }
+		}
+		return Out.Num() > 0;
 	}
 
 	void JamTest(const TArray<FString>& Args, UWorld* World)
 	{
+		// Jam.Test [segundos] [iso | frases | ruta.json [desde] [cuantas]]
 		if (!World || !World->IsGameWorld())
 		{
 			Screen(TEXT("Jam.Test: correr dentro del juego (PIE)"), FColor::Red);
@@ -550,9 +759,62 @@ namespace
 		GTest = FJamTestRun();
 		GTest.World = World;
 		GTest.At = SayTransform(World);
-		if (Args.Num() > 0) { GTest.Duration = FMath::Clamp(FCString::Atof(*Args[0]), 3.f, 60.f); }
-		GTest.Timer = GTest.Duration; // arranca ya con el primer caso
+		GTest.Duration = 12.f;
+		int32 Arg = 0;
+		if (Args.Num() > 0 && Args[0].IsNumeric()) { GTest.Duration = FMath::Clamp(FCString::Atof(*Args[0]), 3.f, 60.f); Arg = 1; }
+		const FString Mode = Args.Num() > Arg ? Args[Arg] : FString();
+		GCases.Reset();
+		GBatteryName = TEXT("interna (aisladas + frases del POC)");
+		GReportPath = FPaths::ProjectDir() / TEXT("docs/building/REPORTE-POC.md");
+		if (Mode.EndsWith(TEXT(".json")))
+		{
+			TArray<FJamCase> All;
+			FString Err;
+			if (!LoadBattery(Mode, All, Err))
+			{
+				Screen(TEXT("Jam.Test: ") + Err, FColor::Red);
+				return;
+			}
+			const int32 From = Args.Num() > Arg + 1 ? FMath::Clamp(FCString::Atoi(*Args[Arg + 1]), 0, All.Num()) : 0;
+			const int32 Count = Args.Num() > Arg + 2 ? FCString::Atoi(*Args[Arg + 2]) : All.Num();
+			for (int32 i = From; i < All.Num() && i < From + Count; ++i) { GCases.Add(All[i]); }
+			GBatteryName = FString::Printf(TEXT("`%s` (frases %d a %d de %d)"), *FPaths::GetCleanFilename(Mode), From, From + GCases.Num() - 1, All.Num());
+			GReportPath = FPaths::ProjectDir() / TEXT("docs/building/REPORTE-BATERIA.md");
+		}
+		else
+		{
+			for (const FJamCaseDef& D : BuiltinCases)
+			{
+				FJamCase C;
+				C.Key = D.Key ? D.Key : TEXT(""); C.Text = D.Text; C.Recipe = D.Recipe ? D.Recipe : TEXT(""); C.Expect = D.Expect ? D.Expect : TEXT("");
+				if ((Mode == TEXT("iso") && !C.IsIso()) || (Mode == TEXT("frases") && C.IsIso())) { continue; }
+				GCases.Add(C);
+			}
+		}
+		if (const APlayerController* PC = World->GetFirstPlayerController())
+		{
+			if (const APawn* Me = PC->GetPawn()) { GTest.Home = Me->GetActorTransform(); }
+		}
+		GTest.Timer = 1000.f; // arranca ya con el primer caso
 		GTest.Handle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&TestTick));
+	}
+
+	/** Jam.Coh: las ocho notas de coherencia de la ultima construccion. */
+	void JamCoh(const TArray<FString>&, UWorld*)
+	{
+		AJamBuildSpawner* S = GLastSay.Get();
+		FBuildRecipe R;
+		FString Err;
+		if (!S || !UBuildRecipeLibrary::ParseRecipeJson(S->LastRecipeJson, R, Err))
+		{
+			Screen(TEXT("Jam.Coh: no hay construccion"), FColor::Red);
+			return;
+		}
+		const FJamCoherence C = UJamAssembler::Coherence(R);
+		const FString Msg = FString::Printf(TEXT("Coherencia %d/100 | conexion %.2f solapes %.2f simetria %.2f apoyo %.2f empuje %.2f tiro %.2f masa %.2f potencia %.2f | %s"),
+			C.Score, C.Sub[0], C.Sub[1], C.Sub[2], C.Sub[3], C.Sub[4], C.Sub[5], C.Sub[6], C.Sub[7], *C.ToText());
+		Screen(Msg, C.Score >= 85 ? FColor::Green : FColor::Orange);
+		UE_LOG(LogTemp, Display, TEXT("JamCoh %s"), *Msg);
 	}
 
 	void JamSeat(const TArray<FString>&, UWorld* World)
@@ -646,9 +908,6 @@ namespace
 	}
 
 	// Jam.Drive <acelerador> <giro> [segundos]: simula W/S y A/D estando montado (para pruebas sin teclado).
-	float GDriveThrottle = 0.f, GDriveSteer = 0.f;
-	double GDriveUntil = 0.0, GFireUntil = 0.0;   // Jam.Drive / Jam.Fire: entrada simulada
-	bool GBoostOnce = false;
 	void JamDrive(const TArray<FString>& Args, UWorld*)
 	{
 		GDriveThrottle = Args.Num() > 0 ? FCString::Atof(*Args[0]) : 0.f;
@@ -670,7 +929,8 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs CmdSay(TEXT("Jam.Say"), TEXT("Jam.Say <texto libre>: construye lo que pidas delante del jugador (modelo de decision Jev; respaldo por palabras clave)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamSay));
 	FAutoConsoleCommandWithWorldAndArgs CmdClear(TEXT("Jam.Clear"), TEXT("Borra todas las construcciones."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamClear));
 	FAutoConsoleCommandWithWorldAndArgs CmdEnergy(TEXT("Jam.Energy"), TEXT("Jam.Energy [valor]: muestra (o fija) la barra de energia del jugador."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamEnergy));
-	FAutoConsoleCommandWithWorldAndArgs CmdTest(TEXT("Jam.Test"), TEXT("Jam.Test [segundos por frase]: corre la bateria de frases y escribe docs/building/REPORTE-POC.md."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamTest));
+	FAutoConsoleCommandWithWorldAndArgs CmdTest(TEXT("Jam.Test"), TEXT("Jam.Test [segundos] [iso | frases | ruta.json [desde] [cuantas]]: bateria con coherencia y 'utilizable' (entrada simulada); escribe docs/building/REPORTE-POC.md (o REPORTE-BATERIA.md con JSON externo)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamTest));
+	FAutoConsoleCommandWithWorldAndArgs CmdCoh(TEXT("Jam.Coh"), TEXT("Imprime las ocho notas de coherencia (sentido) de la ultima construccion."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamCoh));
 	FAutoConsoleCommandWithWorldAndArgs CmdSeat(TEXT("Jam.Seat"), TEXT("Sube al asiento de la construccion mas cercana, o baja."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamSeat));
 }
 
@@ -1233,6 +1493,11 @@ void AJamTestHUD::DrawHUD()
 				{
 					FString Sk = St.Mid(Skip + 9); int32 End; if (Sk.FindChar(TEXT(']'), End)) { Sk = Sk.Left(End); }
 					Lines.Add(TEXT("#No cupo / no aplica: ") + Sk.Left(44));
+				}
+				if (S->LastCoherence >= 0)
+				{
+					Lines.Add(FString::Printf(TEXT("%sSentido: %d / 100"), S->LastCoherence >= 85 ? TEXT("") : TEXT("#"), S->LastCoherence));
+					for (int32 c = 0; c < S->LastCoherenceNote.Len() && c < 168; c += 56) { Lines.Add(TEXT("#") + S->LastCoherenceNote.Mid(c, 56)); }
 				}
 				// Controles disponibles segun las capacidades que tiene ESTA construccion.
 				{
