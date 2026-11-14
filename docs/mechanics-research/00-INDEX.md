@@ -14,7 +14,7 @@ status: listo
 > Investigación de mecánicas + ingeniería inversa de un **juego de referencia** (aventura
 > de mundo abierto con física sandbox, 2023), dirigida a la implementación del GameJamm
 > (UE 5.8): fusión de armas, construcción de artefactos y asistente IA.
-> Branch: `research/mechanics-research`.
+> Integrado en `main` (2026-11-13).
 
 **Deadline del jam: sáb 15 nov 8:59 PM EST — feature freeze sáb 15 12:00 CDMX.**
 Este documento existe para *atajar decisiones de diseño*, no para leerse por placer.
@@ -32,11 +32,14 @@ Cada doc termina en una sección "→ aplicable a GameJamm" con lo accionable.
 | [06-re-formatos-herramientas.md](06-re-formatos-herramientas.md) | BYML/AAMP/Phive/RESTBL, repos GitHub, data mining | ✅ |
 | [07-guia-rea.md](07-guia-rea.md) | **REA (Reverse Engineer Anything)**: cómo usarlo sobre el binario | ✅ |
 | [08-mapeo-ue5-impl.md](08-mapeo-ue5-impl.md) | Traducción mecánica→UE5 + implementación de referencia | ✅ |
+| [09-auditoria-fuentes-publicas.md](09-auditoria-fuentes-publicas.md) | Qué documenta el mundo exterior (durabilidad MaxLife, huecos de reglas, plan de tests) | ✅ |
+| [10-repo-open-source-fusion.md](10-repo-open-source-fusion.md) | ComponentFuseMechanic a fondo: bugs, licencias, qué adoptar/no | ✅ |
+| [11-diseno-ensamblado-open-source.md](11-diseno-ensamblado-open-source.md) | Más repos open source + diseño del ensamblado (grafo, joints, JSON del LLM) | ✅ |
 | [FUENTES.md](FUENTES.md) | Lista maestra de todas las fuentes | ✅ |
 
 ## TL;DR para el equipo (decisión rápida)
 
-> [!tip] Resumen en 5 puntos
+> [!tip] Resumen en 6 puntos
 > 1. **La construcción se puede replicar** con: piezas con sockets "Attach*" + snap por
 >    proximidad de superficies + **pegar = soldar** (la referencia: *"every single thing
 >    without exception is built with dynamic rigid bodies and constraints"*, GDC 2024).
@@ -55,6 +58,9 @@ Cada doc termina en una sección "→ aplicable a GameJamm" con lo accionable.
 > 5. **Implementación UE de referencia ya existe**:
 >    [ComponentFuseMechanic](https://github.com/EvelynSchwab/ComponentFuseMechanic)
 >    (doc 08 §7).
+> 6. **Las reglas del builder (attach, límites, pesos) NO son datos públicos**: son
+>    decisiones nuestras, calibradas con playtests (doc 09) y montadas sobre un grafo de
+>    ensamblado propio (docs 10-11).
 
 > [!warning] Aviso legal
 > Esta investigación usa solo conocimiento público: charlas GDC, artículos de prensa técnica,
@@ -67,4 +73,6 @@ Cada doc termina en una sección "→ aplicable a GameJamm" con lo accionable.
 > Esta carpeta se reescribió para no nombrar el juego fuente (repo público del jam): títulos,
 > personajes, lugares, objetos y URLs del ecosistema se reemplazaron por términos neutrales
 > ("el juego de referencia", "el predecesor"). Los valores, fórmulas y patrones son los de la
-> investigación original. Cómo citar cada afirmación → [FUENTES.md](FUENTES.md).
+> investigación original. Los docs 09–11 se incorporaron de una pasada de research adicional
+> del equipo (originalmente en `docs/research/`) y recibieron el mismo scrub: mismos datos,
+> sin términos ni URLs del ecosistema. Cómo citar cada afirmación → [FUENTES.md](FUENTES.md).
