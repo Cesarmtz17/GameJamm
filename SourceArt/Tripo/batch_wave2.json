@@ -77,7 +77,8 @@
    "sockets": "six",
    "fx": [],
    "tex": 1024,
-   "detail": "a low wooden sled: a flat plank deck on top of two long curved wooden runner skis with iron edges, long and low, more than twice as long as wide. Three-quarter view from above"
+   "detail": "a low wooden sled: a flat plank deck on top of two long curved wooden runner skis with iron edges, long and low, more than twice as long as wide. Three-quarter view from above",
+   "rot": "z180"
   },
   {
    "type": "Hinge",
