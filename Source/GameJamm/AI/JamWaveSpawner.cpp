@@ -73,10 +73,17 @@ void AJamWaveSpawner::SpawnWave()
 void AJamWaveSpawner::SpawnTeamWave(EJamTeam Team, bool bHeavy)
 {
 	int32 Alive = 0;
+	FString Where;
 	for (TActorIterator<AJamMinion> It(GetWorld()); It; ++It)
 	{
-		Alive += (!It->IsA<AJamBotHero>() && It->GetTeam() == Team && It->Health && !It->Health->IsDead()) ? 1 : 0;
+		if (It->GetTeam() == Team && It->Health && !It->Health->IsDead())
+		{
+			const FVector L = It->GetActorLocation();
+			Where += FString::Printf(TEXT("%s(%.0f,%.0f,%.0f) "), It->IsA<AJamBotHero>() ? TEXT("B") : TEXT("m"), L.X, L.Y, L.Z);
+			Alive += It->IsA<AJamBotHero>() ? 0 : 1;
+		}
 	}
+	UE_LOG(LogJam, Log, TEXT("Vivos %s: %s"), Team == EJamTeam::Red ? TEXT("Rojo") : TEXT("Azul"), *Where);
 	if (Alive >= MaxAlivePerTeam)
 	{
 		return;
@@ -119,14 +126,19 @@ namespace
 	void JamProfile(const TArray<FString>& Args, UWorld* World)
 	{
 		// Perfil del carril (Y=0): altura del primer piso y si hay techo encima (para diagnosticar atorones).
+		// Jam.Profile [X0 X1 Paso Y]: por defecto todo el carril cada 200.
+		const float X0 = Args.Num() > 0 ? FCString::Atof(*Args[0]) : -12400.f;
+		const float X1 = Args.Num() > 1 ? FCString::Atof(*Args[1]) : 12400.f;
+		const float StepX = Args.Num() > 2 ? FMath::Max(5.f, FCString::Atof(*Args[2])) : 200.f;
+		const float PY = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 0.f;
 		FString Line;
-		for (float X = -12400.f; X <= 12400.f; X += 200.f)
+		for (float X = X0; X <= X1; X += StepX)
 		{
 			FHitResult Down, Up;
-			const FVector Top(X, 0, 3000.f), Bot(X, 0, -3000.f);
+			const FVector Top(X, PY, 3000.f), Bot(X, PY, -3000.f);
 			const bool bD = World->LineTraceSingleByChannel(Down, Top, Bot, ECC_Pawn);
 			const bool bU = bD && World->LineTraceSingleByChannel(Up, Down.ImpactPoint + FVector(0, 0, 5), Down.ImpactPoint + FVector(0, 0, 200), ECC_Pawn);
-			Line += FString::Printf(TEXT("%.0f:%s%s "), X, bD ? *FString::Printf(TEXT("%.0f"), Down.ImpactPoint.Z) : TEXT("-"), bU ? TEXT("^") : TEXT(""));
+			Line += FString::Printf(TEXT("%.0f:%s%s "), X, bD ? *FString::Printf(TEXT("%.0f%s"), Down.ImpactPoint.Z, *(Down.GetComponent() && Cast<UStaticMeshComponent>(Down.GetComponent()) && Cast<UStaticMeshComponent>(Down.GetComponent())->GetStaticMesh() ? FString(TEXT("[")) + Cast<UStaticMeshComponent>(Down.GetComponent())->GetStaticMesh()->GetName().Replace(TEXT("SM_MAP_Dressed_"), TEXT("")) + TEXT("]") : FString())) : TEXT("-"), bU ? TEXT("^") : TEXT(""));
 			if (bU && Up.GetComponent())
 			{
 				const UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(Up.GetComponent());

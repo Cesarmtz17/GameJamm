@@ -1,4 +1,5 @@
 #include "AI/JamMinion.h"
+#include "GameJamm.h"
 #include "AIController.h"
 #include "Building/JamBuildPart.h"
 #include "Components/CapsuleComponent.h"
@@ -127,8 +128,24 @@ FVector AJamMinion::LaneGoal() const
 	// El carril es la linea Y = 0 entre las bases (puentes incluidos): se vuelve a ella y se avanza hacia la base enemiga.
 	const FVector Me = GetActorLocation();
 	const float EnemyX = BaseX(UJamStatics::GetOpposingTeam(GetTeam()));
-	const float Step = FMath::Sign(EnemyX - Me.X) * 800.f;
-	const float NextX = FMath::Abs(EnemyX - Me.X) < 800.f ? EnemyX : Me.X + Step;
+	const float Dir = FMath::Sign(EnemyX - Me.X);
+	const float NextX = FMath::Abs(EnemyX - Me.X) < 800.f ? EnemyX : Me.X + Dir * 800.f;
+	// Las torres propias estan sobre el carril y no hay navmesh: si una queda justo adelante, rodearla por un lado.
+	for (TActorIterator<ATeamStructure> It(GetWorld()); It; ++It)
+	{
+		if (It->GetTeam() != GetTeam())
+		{
+			continue; // las enemigas son blanco: se detiene antes a atacarlas
+		}
+		FVector O, E;
+		It->GetActorBounds(true, O, E);
+		const float Ahead = (O.X - Me.X) * Dir;
+		if (Ahead > -E.X - 40.f && Ahead < E.X + 450.f && FMath::Abs(O.Y - Me.Y) < E.Y + 110.f)
+		{
+			const float Side = (Me.Y >= O.Y) ? 1.f : -1.f;
+			return FVector(Me.X + Dir * (Ahead > E.X + 120.f ? 120.f : 400.f), O.Y + Side * (E.Y + 140.f), Me.Z);
+		}
+	}
 	return FVector(NextX, FMath::Abs(Me.Y) > 150.f ? 0.f : Me.Y * 0.5f, Me.Z);
 }
 
@@ -266,6 +283,8 @@ void AJamMinion::HandleDied(UHealthComponent* HealthComponent, AActor* Killer)
 {
 	GetWorldTimerManager().ClearTimer(ThinkTimer);
 	StopMoving();
+	UE_LOG(LogJam, Log, TEXT("Muere %s %s en X=%.0f Y=%.0f Z=%.0f por %s"), *GetName(), GetTeam() == EJamTeam::Red ? TEXT("Rojo") : TEXT("Azul"),
+		GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, *GetNameSafe(Killer));
 	// +3 de energia al jugador que lo mato (GDD 3).
 	const APawn* KillerPawn = Cast<APawn>(Killer);
 	if (EnergyReward > 0.f && KillerPawn && KillerPawn->IsPlayerControlled())
