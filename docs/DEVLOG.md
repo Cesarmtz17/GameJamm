@@ -38,6 +38,17 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 14 nov — Arte de Tripo probado en partida (Javier + Claude Code)
+- Qué: 15 construcciones reales en PIE (`Jam.Type`) que generan los 35 tipos de pieza con mallas de Tripo; capturas apagadas y prendidas desde el mismo ángulo.
+- Cómo con IA: Claude Code manejó el editor por **Unreal MCP** (iniciar/detener PIE, captura del editor) y corrió Python del editor desde la caja **Cmd** (`py script.py`) para construir, congelar la física de las piezas y encuadrar la cámara.
+- Qué falló: la cámara no obedecía porque el Tick del personaje reimpone el brazo con colisión y se encogía dentro del suelo; se resolvió poniendo al jugador invisible entre cámara y construcción y cerrando el FOV. `Jam.Say` enciende la construcción y el carro cohete se iba solo; se usó `Jam.Type` (sale apagada).
+- Resultado (**propuesta, no cerrado**): con la luz del mapa las piezas no se ven pálidas, así que por ahora no se toca `M_Tripo_Master`; ajustarlo sigue abierto. El brillo al prender (GlowStrength 0.6) casi no se nota de día.
+- Visto de paso: los minions usan el material por defecto (tablero gris) y el pasto no tiene textura.
+
+![Carro con cohete en partida, piezas de Tripo](devlog/2026-11-14-tripo-en-partida-carro.png)
+
+---
+
 ## 14 nov — Arte con Tripo y Rodin: las 45 piezas y las estructuras del mapa (Javier)
 - Qué: las 35 piezas de construcción (más 10 nuevas de solo datos) pasaron de primitivas de color plano a modelos texturizados a mano; después torres, fortalezas, banderas, barricadas y plataformas de spawn de cada equipo. Comparación en `SourceArt/Tripo/previews/_comparacion_vehiculo.png`.
 - Cómo con IA: referencia 2D por pieza en Tripo (Nano Banana, con el concepto 01-C como guía de estilo; gratis) → imagen a 3D (Tripo Modelo HD, 30 créditos, 5k polígonos) o **Rodin Gen-2.5 por el MCP oficial de Hyper3D** (0.5 créditos). Prompt base: *"Game asset, single object only: <pieza>, in the exact art style of the reference image (stylized hand-painted 3D game art, chunky toy-like proportions…)"*.
