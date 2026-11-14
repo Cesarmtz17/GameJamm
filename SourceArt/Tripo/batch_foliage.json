@@ -1,0 +1,13 @@
+{
+ "_doc": "Matas y flores para regar sobre el pasto (Rodin Gen-2.5 Medium, solo texto, quality_override 500). Pivote abajo (center = 0,0,alto/2), sin sockets, muy pocos triangulos: se instancian cientos con HISM (ue_scatter_foliage.py).",
+ "parts": [
+  {"name": "SM_FOL_GRASS_A", "size": [42, 38, 38], "center": [0, 0, 19], "auto_axis": false, "sockets": "none", "tris": 300, "tex": 512,
+   "prompt": "a small clump of short grass blades growing from a flat round base, bright lime green with warm yellow tips"},
+  {"name": "SM_FOL_GRASS_B", "size": [44, 34, 60], "center": [0, 0, 30], "auto_axis": false, "sockets": "none", "tris": 300, "tex": 512,
+   "prompt": "a tall tuft of wild meadow grass with a few thick curved blades, lime and olive green"},
+  {"name": "SM_FOL_FLOWERS_A", "size": [40, 40, 30], "center": [0, 0, 15], "auto_axis": false, "sockets": "none", "tris": 400, "tex": 512,
+   "prompt": "a small cluster of tiny yellow and white daisy wildflowers with green leaves on a flat base"},
+  {"name": "SM_FOL_FLOWERS_B", "size": [40, 40, 32], "center": [0, 0, 16], "auto_axis": false, "sockets": "none", "tris": 400, "tex": 512,
+   "prompt": "a small cluster of pink and red wildflowers with green stems and leaves on a flat base"}
+ ]
+}

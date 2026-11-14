@@ -49,6 +49,16 @@ siendo de su dueño: lo que el arte necesita de código se pide en la sección "
 - Script: `SourceArt/Tripo/scripts/ue_world_mats.py` (datos arriba del archivo). `M_Map_03` (agua) y `M_Map_06` (molino)
   no se tocaron. Si alguien regenera `MapDressed` con `gen_map_dressed.py` y reimporta los materiales, volver a correr el script.
 
+## Matas y flores 3D (14 nov, Rodin) — PROVISIONAL
+
+- 4 mallas en `Content/Game/Art/Tripo/Foliage/` (`SM_FOL_GRASS_A/B`, `SM_FOL_FLOWERS_A/B`, 290–390 tris, pivote abajo, sin
+  colisión) regadas sobre el pasto (`M_Map_00`/`M_Map_02`) con un solo actor nuevo en `L_Main`: **`FOL_Scatter`** (carpeta
+  `Dressing/Foliage`), un HISM por malla, ~1,560 instancias, **sin colisión** (no frenan vehículos ni bots), sin sombra, corte
+  a 45–65 m y siempre cargado.
+- Script re-ejecutable: `SourceArt/Tripo/scripts/ue_scatter_foliage.py` (borra y vuelve a regar con la misma semilla; solo
+  coloca donde el rayo pega en el pasto, así quedan fuera caminos, árboles y bases). Densidad: `CLUSTER_M2`.
+- Si algo estorba (p. ej. tapa una mecánica), se puede borrar el actor `FOL_Scatter` sin tocar nada más.
+
 ## No pisar
 
 - **No reimportar los FBX viejos** de `SourceArt/Building/FBX/` sobre `Content/Game/Building/Parts/`: reemplazaría el

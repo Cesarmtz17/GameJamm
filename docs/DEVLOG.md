@@ -38,6 +38,16 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 14 nov — Matas y flores 3D sobre el pasto (Javier + Claude Code) — provisional
+- Qué: 4 modelos de Rodin (2 matas de pasto, 2 racimos de flores) regados ~1,560 veces sobre el pasto de islas y pradera; es lo que más rompe la repetición de la textura.
+- Cómo con IA: Rodin por su MCP oficial (solo texto, 0.5 créditos c/u) → Blender headless (290–390 tris, pivote abajo) → importador de Python → un script del editor (`ue_scatter_foliage.py`) que traza rayos y solo coloca donde pega en el pasto (fuera caminos, árboles y bases).
+- Cuidados de rendimiento para una GTX 1650: instancias jerárquicas (HISM), sin colisión, sin sombra, corte a 45–65 m.
+- Qué falló: la primera pasada salió muy rala (un racimo por cada 55 m²; se dejó en 28); el estiramiento por eje marcó las matas (caja más ancha que el modelo) y se corrigió con la caja a sus proporciones reales. Falta medir FPS.
+
+![Matas y flores](devlog/2026-11-14-matas-flores.png)
+
+---
+
 ## 14 nov — Islas con materiales de PBRgen (Javier + Claude Code) — provisional
 - Qué: pasto de islas y pradera, roca de abajo, tablas de puente y caminos pasaron de color plano a detalle pintado a mano, sin salir de la paleta de `docs/ART.md`: el material conserva su `Color` y la textura solo suma variación (`Color × textura / su promedio`).
 - Cómo con IA: 4 materiales en **PBRgen** (estilo Hand-painted Game Art; 18 créditos c/u) manejado por Claude Code con el MCP de Chrome; un script de Python del editor (`SourceArt/Tripo/scripts/ue_world_mats.py`) reconstruye los `M_Map_XX` en su lugar con proyección en el mundo (las islas no tienen UVs fiables): desde arriba en pasto y caminos, triplanar en roca.

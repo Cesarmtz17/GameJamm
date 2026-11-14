@@ -75,3 +75,9 @@ Comparación antes/después del lote 1: `previews/_comparacion_vehiculo.png`.
 | Honey Wood Grain | "plain wood grain surface, long straight grain lines with a few small knots, warm honey brown, one continuous board, no plank seams, no nails" | `M_Map_04` | 18 |
 
 Saldo PBRgen al 14 nov ~17:00: 928 créditos.
+
+### Matas y flores (Rodin por MCP)
+
+Rodin Gen-2.5 Medium, solo texto, `quality_override` 500; prompts en `batch_foliage.json` (prefijo "Stylized low-poly game
+asset, single object: …, chunky hand-painted toy-like style, matte finish"). Normalizadas a 290–390 tris y texturas 512.
+4 modelos × 0.5 = **2 créditos** (14 nov). Riego en el mapa: `scripts/ue_scatter_foliage.py`.
