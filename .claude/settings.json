@@ -11,7 +11,7 @@
           },
           {
             "type": "command",
-            "command": "printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"CRITICAL team rule (CLAUDE.md section 0): 5 people push to main from separate machines. Every agent must commit its own files (never git add -A), git pull --rebase --autostash and git push EVERY 1 MINUTE. Start /loop 1m now. Never push secrets or the AndroidFileServer token in DefaultEngine.ini. On pull or push failure, stop and tell the user.\"}}'",
+            "command": "printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"ABSOLUTE team rule (CLAUDE.md section 0, read it first): 5 people on main, one owner per folder. Run git pull --rebase --autostash now and start /loop 1m git pull --rebase --autostash. Push at every checkpoint that compiles: git add only your own folder (never -A), commit, pull --rebase --autostash, push. Never push half-done or non-compiling work, secrets, or the AndroidFileServer token in DefaultEngine.ini. lfs lock binary assets before editing. On pull or push failure, stop and tell the user.\"}}'",
             "timeout": 5
           }
         ]

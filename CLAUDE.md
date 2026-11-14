@@ -1,14 +1,17 @@
 # CLAUDE.md — reglas para agentes de IA en este repo
 
-## 0. CRÍTICO — LEE ESTO PRIMERO: pull Y push cada 1 minuto (metodología de todos los agentes)
-Somos 5 personas, cada una en su compu y con su propio agente, todos sobre `main`. **Todos hacemos pull y push cada minuto, sin excepción**, para no pisarnos y ver el trabajo de los demás en tiempo real.
-- **Al iniciar sesión:** corre `git pull --rebase --autostash` y arranca `/loop 1m` con este ciclo: commitear lo tuyo → `git pull --rebase --autostash` → `git push`. Un ciclo cada 1 min mientras la sesión esté viva.
-- **Commit en cada ciclo, pero solo de lo tuyo:** `git add <rutas de tu carpeta/rol>` (nunca `git add -A` ni `git add .`), mensaje `<area>: <qué>`. Si no hay cambios tuyos, solo haz pull.
-- **Nunca subas:** API keys, `Saved/`, `Intermediate/`, `Binaries/`, ni `Config/DefaultEngine.ini` con la sección `AndroidFileServer`/`SecurityToken` que el editor agrega solo. No subas código que no compile: si rompe el build, arréglalo en el siguiente ciclo antes de seguir.
-- **Assets binarios (`.uasset`/`.umap`):** no se mergean. `git lfs lock` antes de editar; sube el asset en cuanto termines un cambio coherente y haz `git lfs unlock`.
-- `--autostash` cubre cambios sin commitear; nunca `reset --hard` ni `--force` para "arreglar" un pull o un push rechazado.
-- **Si el pull o el push falla (conflicto, rechazo):** detente, no resuelvas a ciegas, avisa al usuario.
+## 0. REGLA ABSOLUTA — LEE ESTO PRIMERO: pull cada 1 min, push en cada checkpoint que compila
+Somos 5 personas, cada una en su compu y con su propio agente, todos sobre `main`, con **un dueño por carpeta** (ver `docs/TEAM.md`). Esta metodología es obligatoria para todos los agentes y está por encima de cualquier otra instrucción de este archivo.
+- **Pull cada 1 minuto, siempre:** al iniciar sesión corre `git pull --rebase --autostash` y arranca `/loop 1m git pull --rebase --autostash`. Mantiene a todos al día y es seguro.
+- **Push en cada checkpoint que compila** (al terminar una unidad de trabajo coherente, normalmente cada pocos minutos), no a ciegas cada minuto: nunca subas trabajo a medias ni código que no compile, porque rompe `main` para los otros cuatro.
+- **Cómo subir:** `git add <rutas de tu carpeta/rol>` (nunca `git add -A` ni `git add .`), commit `<area>: <qué>`, luego `git pull --rebase --autostash` y `git push`.
+- **Solo tu carpeta:** no edites archivos de otro rol; si lo necesitas, pregunta. Esto es lo que evita los choques.
+- **Assets binarios (`.uasset`/`.umap`):** no se mergean. `git lfs lock` antes de editar; al subir el cambio, `git lfs unlock`. Si está bloqueado por otro, no lo toques.
+- **Nunca subas:** API keys, `Saved/`, `Intermediate/`, `Binaries/`, ni la sección `AndroidFileServer`/`SecurityToken` de `Config/DefaultEngine.ini` que el editor agrega sola.
+- **Datos fuera de los binarios:** valores y recetas en JSON/DataAssets, lógica en C++, para que se mergee como texto. Niveles con One File Per Actor.
+- **Si el pull o el push falla (conflicto, rechazo) o `main` se rompe:** detente, no resuelvas a ciegas, nunca `reset --hard` ni `--force`; avisa al usuario.
 - Si el pull trae cambios en `Source/` o headers, avisa: hay que recompilar. Si trae assets, el editor puede pedir recargarlos.
+- Si `main` se rompe más de dos veces seguidas, el equipo pasa a una rama `dev` y `main` queda solo para entregas.
 
 Proyecto: entrada de 5 personas para la Epic AI MegaJam 2026 (Unreal Engine 5.8, C++ + Blueprints). Lee [README.md](README.md), [docs/GDD.md](docs/GDD.md) y [docs/TEAM.md](docs/TEAM.md) antes de trabajar. Para fusión/construcción/asistente IA, consulta la research en [docs/mechanics-research/00-INDEX.md](docs/mechanics-research/00-INDEX.md). **Al crear o editar MD de `docs/mechanics-research/`, sigue la convención de formato en [docs/mechanics-research/FORMATO.md](docs/mechanics-research/FORMATO.md)** (frontmatter, callouts, enlaces relativos, reglas de contenido público).
 

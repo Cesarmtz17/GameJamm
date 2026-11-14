@@ -42,7 +42,7 @@ Entrada del equipo para la [2026 Epic AI MegaJam](https://itch.io/jam/2026-epic-
 
 Los `.uasset`/`.umap` son binarios: **no se pueden mergear**. Si dos personas editan el mismo asset, uno pierde su trabajo. Por eso:
 
-1. **Antes de empezar:** `git pull` (siempre). **Y pull + push cada 1 minuto** mientras trabajes (ver "Sincronización" abajo): somos 5 personas, cada una con su compu y su agente.
+1. **Antes de empezar:** `git pull` (siempre). **Y pull cada 1 minuto, push en cada checkpoint que compila** mientras trabajes (ver "Sincronización" abajo): somos 5 personas, cada una con su compu y su agente.
 2. **Antes de editar un asset existente:** bloquéalo.
    ```bash
    git lfs lock "Content/Game/Combat/BP_Sword.uasset"
@@ -62,12 +62,12 @@ Los `.uasset`/`.umap` son binarios: **no se pueden mergear**. Si dos personas ed
 7. **C++:** si cambias headers, avisa; los demás tienen que recompilar.
 8. **Nunca commitear API keys.** Van en `Config/DefaultSecrets.ini` (ignorado por git).
 
-### Sincronización: pull + push cada 1 min (CRÍTICO)
-Cada sesión de Claude Code (la de cada integrante) hace commit de lo suyo, pull y push **cada minuto**:
+### Sincronización: pull cada 1 min, push por checkpoint que compila (REGLA ABSOLUTA)
+Cada sesión de Claude Code arranca:
 ```
-/loop 1m commitea solo mis archivos, git pull --rebase --autostash y git push
+/loop 1m git pull --rebase --autostash
 ```
-Solo `git add` de tu carpeta (nunca `-A`), sin keys ni el token de Android de `DefaultEngine.ini`. Si el pull o el push falla, **para y avisa**; no resuelvas a ciegas ni uses `--force`. Detalle en [CLAUDE.md](CLAUDE.md).
+y hace push (solo de sus archivos, `git add` de su carpeta, nunca `-A`) cada vez que termina algo que compila. Sin keys ni el token de Android de `DefaultEngine.ini`. Si el pull o el push falla, **para y avisa**; sin `--force`. Detalle en [CLAUDE.md](CLAUDE.md), sección 0.
 
 ### Mensajes de commit
 `<area>: <qué>` — áreas: `core`, `combat`, `build`, `ai`, `map`, `ui`, `audio`, `docs`.
