@@ -74,6 +74,16 @@ El mismo script genera también (cada carpeta con `FBX/`, `Blend/` y `preview.pn
   `SM_PROP_BARREL`, `SM_PROP_CRATE`, `SM_PROP_SCRAP_PILE`, `SM_PROP_BUSH` (sin colisión), `SM_PROP_FLAG` (bandera de equipo),
   `SM_PROP_RAMP` (rampa de salto 4 m, sin UCX: *complex as simple*), `SM_PROP_BRAZIER`, `SM_PROP_LANE_SIGN` (flecha a +X).
 
+### Lote 5 (`gen_assets.py ... lot5`) e iconos
+
+- **Cofre que se abre:** `SM_PROP_CHEST_BASE` (socket `Lid_Hinge`) + `SM_PROP_CHEST_LID` con **pivote en la bisagra
+  trasera** (gira sobre X para abrir). El `SM_PROP_CHEST` de una pieza sigue disponible para cofres que no se abren.
+- `SM_PROP_SPAWN_PAD` (plataforma de reaparición 6 m, socket `Spawn`; anillo en color de equipo), `SM_PROP_WATERFALL`
+  (cascada 15 m para orillas, pivote arriba), `SM_PROP_FLOATING_ROCK`.
+- `Pickups/SM_PROJ_BOLT`: proyectil de cristal que dispara la atalaya (+X).
+- **`SourceArt/FX/`**: `SM_FX_SHARD_WOOD` y `SM_FX_SHARD_STONE` para destrucción (Niagara mesh renderer / Chaos).
+- **`SourceArt/Icons/`**: 46 iconos de inventario (ver su README).
+
 La paleta tiene 16 colores (los 8 originales + piedra, naranja, chispa, blanco, azul, pasto, cobre y lona). Si se
 regenera un lote, regenerar también el otro para que todos usen la misma `T_Part_Palette.png`.
 

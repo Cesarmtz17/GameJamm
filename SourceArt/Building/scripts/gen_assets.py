@@ -609,11 +609,82 @@ LOT4 = [
 ]
 
 
+# ---------------------------------------------------------------- lote 5: piezas para mecánicas (cofre que abre, FX, spawn)
+def chest_base(p):    # 122 x 72 x 50, la tapa va aparte para animarla
+    p.box((0, 0, 0), (120, 70, 50), "wood", bevel=2)
+    for x in (-45, 45):
+        p.box((x, 0, 0), (8, 72, 50), "iron")
+    p.box((0, 0, 8), (122, 72, 8), "yellow")
+    p.box((0, -36, 16), (12, 3, 10), "iron")
+
+
+def chest_lid(p):     # 122 x 72 x 36, pivote en la bisagra trasera (Y+) abajo
+    p.cyl((0, 0, 0), 35, 120, "x", "wood_dark", 8)
+    for x in (-45, 45):
+        p.cyl((x, 0, 0), 36, 8, "x", "iron", 8)
+    p.box((0, 0, -17), (122, 72, 4), "wood")
+
+
+def proj_bolt(p):     # 60 x 14 x 14, proyectil de cristal de la torre (+X)
+    p.cyl((5, 0, 0), 6, 30, "x", "cyan", 6)
+    p.cyl((25, 0, 0), 6, 12, "x", "cyan", 6, radius2=0.5)
+    p.cyl((-18, 0, 0), 2, 16, "x", "white", 6, radius2=6)
+
+
+def shard_wood(p):    # astilla de madera para destrucción
+    p.box((0, 0, 0), (40, 8, 3), "wood")
+    rot_last(p, 8, (0, 0, 0), "Z", 12)
+    p.box((14, 3, 0), (14, 5, 3), "wood_dark")
+    rot_last(p, 8, (14, 3, 0), "Z", -25)
+
+
+def shard_stone(p):
+    p.sphere((0, 0, 0), 10, "stone", subdiv=1)
+
+
+def spawn_pad(p):     # 600 x 600 x 40, plataforma de reaparición (franjas en color de equipo)
+    p.cyl((0, 0, 0), 300, 40, "z", "stone", 12)
+    p.cyl((0, 0, 21), 240, 3, "z", "red", 12)
+    p.cyl((0, 0, 23), 200, 3, "z", "stone", 12)
+    for k in range(4):
+        a = math.radians(45 + 90 * k)
+        p.cyl((math.cos(a) * 270, math.sin(a) * 270, 80), 18, 120, "z", "wood_dark", 6)
+        p.sphere((math.cos(a) * 270, math.sin(a) * 270, 150), 22, "cyan", subdiv=1)
+
+
+def waterfall(p):     # 400 x 60 x 1500, cascada estilizada para orillas de isla
+    p.box((0, 0, 0), (400, 20, 1500), "cyan")
+    for i, x in enumerate((-150, -50, 60, 140)):
+        p.box((x, -12, 300 - i * 180), (40, 6, 500), "white")
+    p.box((0, -20, -720), (480, 60, 60), "white")                    # espuma
+
+
+def floating_rock(p):  # roca flotante decorativa con punta abajo
+    p.cyl((0, 0, 80), 150, 60, "z", "grass", 8)
+    p.cyl((0, 0, -40), 145, 180, "z", "leather", 8, radius2=10)
+
+
+LOT5 = [
+    ("World/Props", "SM_PROP_CHEST_BASE", (122, 72, 50), chest_base, "box", "bottom", [("Lid_Hinge", (0, 36, 25))]),
+    ("World/Props", "SM_PROP_CHEST_LID", (122, 72, 36), chest_lid, "box", "hinge_back", []),
+    ("World/Props", "SM_PROP_SPAWN_PAD", (600, 600, 160), spawn_pad, "box", "bottom", [("Spawn", (0, 0, 30))]),
+    ("World/Props", "SM_PROP_WATERFALL", (480, 60, 1500), waterfall, "none", "top", []),
+    ("World/Props", "SM_PROP_FLOATING_ROCK", (300, 300, 300), floating_rock, "box", "top", []),
+    ("Pickups", "SM_PROJ_BOLT", (60, 14, 14), proj_bolt, "box", "center", []),
+    ("FX", "SM_FX_SHARD_WOOD", (50, 12, 3), shard_wood, "box", "center", []),
+    ("FX", "SM_FX_SHARD_STONE", (20, 18, 16), shard_stone, "box", "center", []),
+]
+
+
 def apply_pivot(obj, size, pivot):
     """fit_to_box deja el centro en el origen; mueve la malla para poner el pivote donde corresponde."""
-    dz = {"center": 0.0, "bottom": size[2] / 2, "top": -size[2] / 2, "top_deck": -size[2] / 2 + 0.1}[pivot] / 100.0
+    dz = {"center": 0.0, "bottom": size[2] / 2, "top": -size[2] / 2, "top_deck": -size[2] / 2 + 0.1,
+          "hinge_back": size[2] / 2}[pivot] / 100.0
+    # hinge_back: pivote en la arista trasera de abajo (UE +Y), para girar la tapa del cofre sobre su bisagra
+    dy = size[1] / 2 / 100.0 if pivot == "hinge_back" else 0.0
     for v in obj.data.vertices:
         v.co.z += dz
+        v.co.y += dy
     return dz
 
 
@@ -637,8 +708,8 @@ def main():
     root = os.path.abspath(argv[0] if argv else os.path.join(os.path.dirname(__file__), "..", ".."))
     preview_dir = os.path.abspath(argv[1]) if len(argv) > 1 else root
     lot = argv[2] if len(argv) > 2 else "lot2"
-    assets = {"lot3": LOT3, "lot4": LOT4}.get(lot, ASSETS)
-    if lot != "lot4":  # las piezas de Building de los lotes 2 y 3 quedaron reemplazadas por LOT4 (medidas del código)
+    assets = {"lot3": LOT3, "lot4": LOT4, "lot5": LOT5}.get(lot, ASSETS)
+    if lot in ("lot2", "lot3"):  # las piezas de Building de los lotes 2 y 3 quedaron reemplazadas por LOT4 (medidas del código)
         assets = [a for a in assets if a[0] != "Building"]
     os.makedirs(preview_dir, exist_ok=True)
 
