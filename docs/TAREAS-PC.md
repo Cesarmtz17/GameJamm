@@ -30,7 +30,7 @@ Si funciona, haz merge a `main` y push. Si no compila, pon aquí el primer error
 > (`UCanvasPanelSlot* Slot = Root->AddChildToCanvas(Box)` choca con `UWidget::Slot`). Arreglo: renombrar a `CanvasSlot` en las líneas 1005–1010.
 > Lo probé con ese cambio solo local, sin subirlo, porque el archivo es de Jesús Daniel. **Pendiente para Building.**
 
-### [~] (PC, 14 nov 01:30) 1. Partida jugable (Core + mapa)
+### [x] 1. Partida jugable (Core + mapa)
 Core no tiene dueño: anota "Cesar" en la fila Core de `docs/TEAM.md` y haz push.
 1. Importa `SourceArt/World/FBX/SM_MAP_Dressed.fbx` (o el blockout) y arma `Content/Game/Maps/L_Main` con World Partition + OFPA.
    Las posiciones están en `SourceArt/World/map_layout.json` (bases en ±12400 X, torres en ±8200 y ±4400).
@@ -43,6 +43,16 @@ Core no tiene dueño: anota "Cesar" en la fila Core de `docs/TEAM.md` y haz push
 4. `AJamGameMode`: Rojo contra Azul; gana quien destruya la base. Muerte súbita a las 12:00 y a las 15:00 gana la base con más
    HP (§10). Pantalla simple de victoria o derrota.
 5. Prueba: Play en L_Main, caminar a la torre enemiga, recibir daño, morir y reaparecer.
+
+> **Hecho (PC, 14 nov 01:45):** `19aa557`. Mapa por defecto = `/Game/Game/Maps/L_Main` (World Partition + OFPA, todo
+> siempre cargado). Torres y bases son `ATeamStructure` reales; las figuras del FBX se quitaron. `AJamCharacter` hereda de
+> `AJamTestCharacter`, así que todas las teclas de construcción siguen igual.
+> **Cómo probarlo:** Play en L_Main. Consola: `Jam.Goto 3300 0` te pone a 11 m de la torre azul 1: dispara un rayo, mueres en
+> ~12 s y reapareces en la base roja a los 5 s. `Jam.Time 715` → muerte súbita a 12:00. `Jam.Time 890` → a las 15:00
+> gana quien tenga más vida en torres y base (EMPATE si nadie hizo daño). `Jam.Hurt 200` = morir al instante. `Jam.Pos` = dónde estás.
+> Probado en `-game` con los tres casos. **Sin probar:** caminar todo el carril con teclado (desde aquí no pude simular WASD),
+> ni derribar una torre (falta combate, tarea 2). `bUseUnity=false` en `GameJamm.Build.cs`: en un build limpio chocaban `K` de
+> `JamAssembler.cpp` y `JamBuildPart.cpp`.
 
 ### [ ] 2. Combate y fusión (GDD §8)
 Combate figura como de Jesús Daniel "por confirmar": **pregúntale a Cesar antes de empezar** y anota en `TEAM.md` quién lo hace.
