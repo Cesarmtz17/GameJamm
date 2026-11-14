@@ -60,3 +60,18 @@ Exportar en serie: Chrome bloquea descargas múltiples; se captura la URL firmad
 (ver el historial de la sesión). Las referencias de imagen son gratis hasta 100 por cuenta.
 
 Comparación antes/después del lote 1: `previews/_comparacion_vehiculo.png`.
+
+### Materiales de las islas (PBRgen)
+
+`app.pbrgen.com`, estilo **Hand-painted Game Art**, modelo Nano Banana 2 Lite 1K, "Create material from texture"
+(la textura se repinta para repetirse sin costura), exportado 1K para Unreal. Fuentes en `PBRgen/<material>/`
+(BC, N, ORM, H); en el juego solo se usa BC (`scripts/ue_world_mats.py`).
+
+| Material PBRgen | Prompt | Usa | Créditos |
+|---|---|---|---|
+| Grass Meadow Ground | "grass meadow ground with painted clumps and tiny wildflowers" | `M_Map_00`, `M_Map_02` | ~18 (sesión anterior) |
+| Stylized Cliff Rock | "stylized cliff rock face, chunky painted stone slabs with soft cracks and layered strata, warm earthy brown tones" | `M_Map_01` | 18 |
+| Packed Dirt Path | "packed dirt path ground with small pebbles and soft worn patches, warm sandy brown" | `M_Map_05` | 18 |
+| Honey Wood Grain | "plain wood grain surface, long straight grain lines with a few small knots, warm honey brown, one continuous board, no plank seams, no nails" | `M_Map_04` | 18 |
+
+Saldo PBRgen al 14 nov ~17:00: 928 créditos.

@@ -32,6 +32,23 @@ siendo de su dueño: lo que el arte necesita de código se pide en la sección "
 - Los archivos `.uasset` de actores de `L_Main` pueden quedar en **solo lectura** en copias viejas (eran bloqueables): si el
   editor no guarda, quitar el atributo de solo lectura a esos archivos.
 
+## Islas (14 nov, PBRgen) — PROVISIONAL
+
+> Look todavía en evaluación (Javier): se puede volver al plano con `DetailStrength = 0` o con `git checkout` de los
+> `M_Map_XX` previos a este commit.
+
+- `M_Map_00` (cima de islas), `M_Map_02` (pradera y cerros), `M_Map_01` (roca de abajo), `M_Map_04` (tablas de puente) y
+  `M_Map_05` (caminos y cuerdas) de `Content/Game/Core/World/MapDressed/` se reconstruyeron **en su lugar** (los mismos
+  ~170 actores de `L_Main` los siguen usando): `Color` conserva su nombre y valor (ancla de paleta de `docs/ART.md`) y se le
+  suma detalle pintado de PBRgen proyectado en el mundo (las islas no tienen UVs fiables): desde arriba en pasto, tablas y
+  caminos (en caras verticales el detalle se apaga), triplanar en roca. Texturas en `Content/Game/Art/Tripo/Textures/World/`.
+- Perillas en cada material: `DetailStrength` (**0 = el look plano de antes**), `TileSize` (cm) y `Roughness`.
+- Anti-repetición en pasto (`M_Map_00`, `M_Map_02`) y tierra (`M_Map_05`): segunda lectura rotada 37° a otra escala
+  (`BigScale`, `BigStrength`), manchas grandes de ruido (`MacroStrength`), pasto seco (`DryTint`, `HueVariation`) y menos
+  detalle a lo lejos (`FarStart`, `FarRange`, `FarDetail`). Costo: ~4 lecturas de textura más por píxel (sin medir FPS aún).
+- Script: `SourceArt/Tripo/scripts/ue_world_mats.py` (datos arriba del archivo). `M_Map_03` (agua) y `M_Map_06` (molino)
+  no se tocaron. Si alguien regenera `MapDressed` con `gen_map_dressed.py` y reimporta los materiales, volver a correr el script.
+
 ## No pisar
 
 - **No reimportar los FBX viejos** de `SourceArt/Building/FBX/` sobre `Content/Game/Building/Parts/`: reemplazaría el

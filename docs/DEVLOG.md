@@ -38,6 +38,16 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 14 nov — Islas con materiales de PBRgen (Javier + Claude Code) — provisional
+- Qué: pasto de islas y pradera, roca de abajo, tablas de puente y caminos pasaron de color plano a detalle pintado a mano, sin salir de la paleta de `docs/ART.md`: el material conserva su `Color` y la textura solo suma variación (`Color × textura / su promedio`).
+- Cómo con IA: 4 materiales en **PBRgen** (estilo Hand-painted Game Art; 18 créditos c/u) manejado por Claude Code con el MCP de Chrome; un script de Python del editor (`SourceArt/Tripo/scripts/ue_world_mats.py`) reconstruye los `M_Map_XX` en su lugar con proyección en el mundo (las islas no tienen UVs fiables): desde arriba en pasto y caminos, triplanar en roca.
+- Qué falló: la proyección desde arriba se estiraba en las orillas de las islas (se apaga el detalle en caras verticales); el pasto se veía repetido y Javier preguntó cómo lo evitan los juegos grandes → segunda escala rotada, manchas grandes de ruido, pasto seco y menos detalle a lo lejos, todo con la misma textura. Un primer intento borró el color base (se leía por referencia después de borrar el nodo); ahora los colores originales van fijos en el script.
+- Estado: **provisional**; `DetailStrength = 0` regresa al look plano. Falta medir FPS en la GTX 1650.
+
+![Antes y después del pasto](devlog/2026-11-14-islas-pbrgen.png)
+
+---
+
 ## 14 nov — Arte de Tripo probado en partida (Javier + Claude Code)
 - Qué: 15 construcciones reales en PIE (`Jam.Type`) que generan los 35 tipos de pieza con mallas de Tripo; capturas apagadas y prendidas desde el mismo ángulo.
 - Cómo con IA: Claude Code manejó el editor por **Unreal MCP** (iniciar/detener PIE, captura del editor) y corrió Python del editor desde la caja **Cmd** (`py script.py`) para construir, congelar la física de las piezas y encuadrar la cámara.
