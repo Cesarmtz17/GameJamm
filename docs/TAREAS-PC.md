@@ -110,6 +110,22 @@ Avísale a Emilio (dueño de Audio/UI) antes de empezar.
 3. Menú de inicio (Jugar Asalto, Controles, Salir) y pantalla final "tu corte final", con la construcción de la partida y el
    ganador.
 
+## Contexto de la sesión Mac (14 nov, ~02:00) — para seguir desde la PC
+
+Todo está en `main`. Lo que hizo la sesión de la Mac y lo que quedó abierto:
+
+| Tema | Estado | Dónde |
+|---|---|---|
+| GDD completo (Jugabilidad §1–§18: modos, minions, loot, energía, construir, controles, combate y fusión, balance, partida minuto a minuto, bots, primeros 2 min, HUD, PvP de construcciones, interacciones, feedback y audio, glosario) | Hecho | `docs/GDD.md` |
+| Pendientes de otras áreas (Construcción, Arte) con estado `[ ]/[~]/[x]` | Al día | GDD → *Pendientes para otras áreas* |
+| Brillo al prender (`Emissive` de `M_Part_Master`) | En `main` (`3bb11e6`) | — |
+| Fix MSVC C4458 `Slot` → `CanvasSlot` | En `main` (`2c2b196`) | `JamPlayConsole.cpp` |
+| Tope de piezas | **60 temporal** (código de Jesús). Revisar antes del freeze: la propuesta es "lo que cabe en la mochila, máx. 40" en partida | GDD §4 |
+| Valores de piezas distintos a §9 (Bomba, Beam, Head, Frost) | Abierto: para el MVP manda el código | GDD → Pendientes |
+| Solver con inventario en `main` | Abierto (está en `build/poc-final`, sin compilar) | Jesús Daniel |
+| Arte que falta | Niagara (fuego, hielo, rayo, agua, humo), cristales de energía (orbe escalado en cian), ícono de `Ball`, ícono del asistente/micrófono, SFX de arco, cohete y rayo | Emilio |
+| Título del juego | Para después (decisión de Cesar) | — |
+
 ## Registro
 | Tarea | Estado | Commit | Cómo probar |
 |---|---|---|---|
