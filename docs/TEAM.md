@@ -6,9 +6,9 @@ una carpeta sin dueño, escribe tu nombre en la tabla y haz push; si ya tiene du
 | Área | Carpetas | Código C++ | Dueño |
 |---|---|---|---|
 | **1 · Core** — partida, torres, base, equipos, respawn, victoria, inventario | `Content/Game/Core/`, `Content/Game/Maps/` (persistent level) | `Source/GameJamm/Core/` | Cesar |
-| **2 · Combate + Fusión** — armas, arco, materiales, efectos | `Content/Game/Combat/` | `Source/GameJamm/Combat/` | Jesús Daniel (según Javier; **por confirmar** por Jesús) |
+| **2 · Combate + Fusión** — armas, arco, materiales, efectos | `Content/Game/Combat/` | `Source/GameJamm/Combat/` | Cesar (TAREAS-PC tarea 2: la carpeta no existía) |
 | **3 · Construcción** — piezas, anclajes, física, ensamblado, recetas JSON y su integración con la IA | `Content/Game/Building/` | `Source/GameJamm/Building/` | Jesús Daniel Martínez García (LoGebo) |
-| **4 · IA** — bots (StateTree) + asistente LLM | `Content/Game/AI/` | `Source/GameJamm/AI/` | — |
+| **4 · IA** — bots (StateTree) + asistente LLM | `Content/Game/AI/` | `Source/GameJamm/AI/` | Cesar |
 | **5 · Mundo / Arte / Audio / UI** — mapa, look, SFX/música, HUD, video y devlog | `Content/Game/Art/`, `Content/Game/Audio/`, `Content/Game/UI/`, actores del mapa | — | Emilio — arte 3D (`Content/Game/Art/`, con Blender MCP) |
 | **6 · Docs / research** — research de mecánicas y su documentación | `docs/mechanics-research/` | — | Javier Fernández |
 | **7 · Arte con Tripo** — assets generados con Tripo que no cubra el script de Emilio (hoy `Beam` y otros dispositivos sin mesh) | `SourceArt/Tripo/` | — | Javier Fernández |
