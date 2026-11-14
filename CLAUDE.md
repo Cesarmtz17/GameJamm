@@ -4,8 +4,8 @@
 Somos 5 personas, cada una en su compu y con su propio agente, todos sobre `main`, con **un dueño por carpeta** (ver `docs/TEAM.md`). Esta metodología es obligatoria para todos los agentes y está por encima de cualquier otra instrucción de este archivo.
 - **Pull cada 1 minuto, siempre:** al iniciar sesión corre `git pull --rebase --autostash` y arranca `/loop 1m git pull --rebase --autostash`. Mantiene a todos al día y es seguro.
 - **Push en cada checkpoint que compila** (al terminar una unidad de trabajo coherente, normalmente cada pocos minutos), no a ciegas cada minuto: nunca subas trabajo a medias ni código que no compile, porque rompe `main` para los otros cuatro.
-- **Cómo subir:** `git add <rutas de tu carpeta/rol>` (nunca `git add -A` ni `git add .`), commit `<area>: <qué>`, luego `git pull --rebase --autostash` y `git push`.
-- **Solo tu carpeta:** no edites archivos de otro rol; si lo necesitas, pregunta. Esto es lo que evita los choques.
+- **Cómo subir:** `git add <rutas de tus carpetas>` (nunca `git add -A` ni `git add .`), commit `<area>: <qué>`, luego `git pull --rebase --autostash` y `git push`.
+- **Solo tus carpetas:** no edites archivos de carpetas que tienen otro dueño en `docs/TEAM.md`; si lo necesitas, pregunta. Esto es lo que evita los choques.
 - **Assets binarios (`.uasset`/`.umap`):** no se mergean. `git lfs lock` antes de editar; al subir el cambio, `git lfs unlock`. Si está bloqueado por otro, no lo toques.
 - **Nunca subas:** API keys, `Saved/`, `Intermediate/`, `Binaries/`, ni la sección `AndroidFileServer`/`SecurityToken` de `Config/DefaultEngine.ini` que el editor agrega sola.
 - **Datos fuera de los binarios:** valores y recetas en JSON/DataAssets, lógica en C++, para que se mergee como texto. Niveles con One File Per Actor.
@@ -18,7 +18,7 @@ Proyecto: entrada de 5 personas para la Epic AI MegaJam 2026 (Unreal Engine 5.8,
 ## Reglas duras
 - **Deadline 15 nov 2026 8:59 PM EST.** Prioriza que el juego funcione de punta a punta sobre features nuevas. Respeta el feature freeze (sáb 15, 12:00 CDMX).
 - **No edites `.uasset`/`.umap` como texto** ni los muevas/renombres desde el sistema de archivos. Cambios a assets → por el editor (o el plugin Unreal MCP).
-- **Solo toca la carpeta del rol del usuario** (ver TEAM.md). Para tocar código/asset de otro rol, pregunta primero.
+- **Solo toca las carpetas que el usuario tiene anotadas en `docs/TEAM.md`** (si no tiene fila, pídele su nombre y carpetas y agrégala antes de empezar). Para tocar código/asset de una carpeta con otro dueño, pregunta primero.
 - **No rompas contratos compartidos** (`UHealthComponent`, `EJamTeam`, `UInventoryComponent`, formato JSON de recetas) sin avisar al usuario; esos cambios afectan a todo el equipo.
 - **Nunca commitees API keys** ni archivos de `Saved/`, `Intermediate/`, `Binaries/`.
 - Antes de editar un asset binario existente: `git lfs lock <ruta>`.

@@ -6,7 +6,7 @@ Entrada del equipo para la [2026 Epic AI MegaJam](https://itch.io/jam/2026-epic-
 > Freeze de features: **15 nov 12:00 PM CDMX**. Después de eso solo bugs, build, video y página.
 
 - Diseño: [docs/GDD.md](docs/GDD.md)
-- Equipo, roles y carpetas: [docs/TEAM.md](docs/TEAM.md)
+- Quién trabaja en qué (dueño por carpeta): [docs/TEAM.md](docs/TEAM.md)
 - Checklist de entrega: [docs/SUBMISSION.md](docs/SUBMISSION.md)
 - Devlog (premio Glass Box): [docs/DEVLOG.md](docs/DEVLOG.md)
 - Investigación de mecánicas (fusión/construcción/IA): [docs/mechanics-research/00-INDEX.md](docs/mechanics-research/00-INDEX.md)
