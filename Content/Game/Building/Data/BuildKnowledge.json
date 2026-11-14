@@ -1,6 +1,6 @@
 {
- "_doc": "Base de conocimiento del asistente de construcción. Diseño: docs/mechanics-research/13-conocimiento-ia-construccion.md. Valores iniciales de diseño (tunables). Tipos = los de UJamPartCatalog (JamBuildPart.cpp); code_archetype = ArchetypeTable (JamAssembler.cpp).",
- "version": 2,
+ "_doc": "Base de conocimiento del asistente de construcción. Diseño: docs/mechanics-research/13-conocimiento-ia-construccion.md. Valores iniciales de diseño (tunables). Tipos = los de UJamPartCatalog (JamBuildPart.cpp); code_archetype = ArchetypeTable (JamAssembler.cpp). v3: campos del solver (JamSolver.cpp): lift_face en elementos; requires, fallbacks y prefer_wanted en plantillas; energy.warn_duration_s.",
+ "version": 3,
  "max_parts": 21,
  "use_energy": true,
  "elements": [
@@ -43,7 +43,7 @@
    "type": "Panel",
    "category": "estructura",
    "in_code": true,
-   "mass_kg": 8,
+   "mass_kg": 6,
    "energy_per_s": 0,
    "provides": [
     "chassis",
@@ -334,7 +334,8 @@
    "mass_kg": 4,
    "energy_per_s": 0.015,
    "provides": [
-    "rotate"
+    "rotate",
+    "spin"
    ],
    "faces": [
     "*"
@@ -461,7 +462,9 @@
    "faces": [
     "Left",
     "Right",
-    "Bottom"
+    "Bottom",
+    "Front",
+    "Back"
    ],
    "behavior": "Rueda con motor. En los lados = tracción. Sola o acostada = gira en su lugar y lo pegado a ella gira con ella.",
    "names_es": [
@@ -498,7 +501,9 @@
    "faces": [
     "Left",
     "Right",
-    "Bottom"
+    "Bottom",
+    "Front",
+    "Back"
    ],
    "behavior": "Rueda grande: menos velocidad, más tracción, sube cuestas.",
    "names_es": [
@@ -591,7 +596,7 @@
    "type": "Spring",
    "category": "movilidad",
    "in_code": true,
-   "mass_kg": 3,
+   "mass_kg": 2,
    "energy_per_s": 0,
    "provides": [
     "launch"
@@ -659,7 +664,8 @@
    ],
    "priority": "mvp",
    "infinite": false,
-   "energy_cost_per_s": 1.5
+   "energy_cost_per_s": 1.5,
+   "lift_face": "Bottom"
   },
   {
    "id": "DEV_ROCKET",
@@ -693,7 +699,8 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "lift_face": "Bottom"
   },
   {
    "id": "DEV_JET",
@@ -727,7 +734,8 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 2.5
+   "energy_cost_per_s": 2.5,
+   "lift_face": "Bottom"
   },
   {
    "id": "DEV_TURBINE",
@@ -759,7 +767,8 @@
    ],
    "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 2.5
+   "energy_cost_per_s": 2.5,
+   "lift_face": "Bottom"
   },
   {
    "id": "DEV_WING",
@@ -854,14 +863,15 @@
    ],
    "priority": "post",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "lift_face": "Top"
   },
   {
    "id": "DEV_HOVER",
    "type": "HoverStone",
    "category": "propulsion",
    "in_code": true,
-   "mass_kg": 4,
+   "mass_kg": 2,
    "energy_per_s": 0.03,
    "provides": [
     "hover_static",
@@ -888,7 +898,8 @@
    ],
    "priority": "post",
    "infinite": false,
-   "energy_cost_per_s": 0.5
+   "energy_cost_per_s": 0.5,
+   "lift_face": "Bottom"
   },
   {
    "id": "DEV_STABILIZER",
@@ -1368,7 +1379,8 @@
       "Left_Back",
       "Right_Back"
      ],
-     "pairs": true
+     "pairs": true,
+     "prefer_wanted": true
     },
     {
      "role": "control",
@@ -1377,7 +1389,14 @@
      "optional": true
     }
    ],
-   "code_archetype": "Car"
+   "code_archetype": "Car",
+   "requires": [
+    "move"
+   ],
+   "fallbacks": [
+    "Hoverbike",
+    "Hover"
+   ]
   },
   {
    "id": "Tank",
@@ -1410,7 +1429,7 @@
      "role": "weapon",
      "count": 1,
      "min": 1,
-     "face": "Top",
+     "face": "Top_Front",
      "part_pref": [
       "Cannon"
      ]
@@ -1424,9 +1443,17 @@
     {
      "role": "control",
      "count": 1,
-     "face": "Top",
+     "face": "Top_Back",
      "optional": true
     }
+   ],
+   "requires": [
+    "move",
+    "attack"
+   ],
+   "fallbacks": [
+    "Car",
+    "Turret"
    ]
   },
   {
@@ -1446,7 +1473,8 @@
      "faces": [
       "Front",
       "Back"
-     ]
+     ],
+     "prefer_wanted": true
     },
     {
      "role": "control",
@@ -1460,7 +1488,13 @@
      "optional": true
     }
    ],
-   "code_archetype": null
+   "code_archetype": null,
+   "requires": [
+    "move"
+   ],
+   "fallbacks": [
+    "Hoverbike"
+   ]
   },
   {
    "id": "Hoverbike",
@@ -1490,7 +1524,14 @@
      "face": "Top"
     }
    ],
-   "code_archetype": null
+   "code_archetype": null,
+   "requires": [
+    "move"
+   ],
+   "fallbacks": [
+    "Hover",
+    "Car"
+   ]
   },
   {
    "id": "Hover",
@@ -1527,6 +1568,11 @@
      "face": "Top",
      "optional": true
     }
+   ],
+   "requires": [],
+   "fallbacks": [
+    "Hoverbike",
+    "Car"
    ]
   },
   {
@@ -1541,15 +1587,12 @@
     },
     {
      "role": "lift",
-     "count": 4,
+     "count": 2,
      "min": 2,
      "faces": [
       "Bottom_Front",
-      "Bottom_Back",
-      "Bottom_Left",
-      "Bottom_Right"
-     ],
-     "pairs": true
+      "Bottom_Back"
+     ]
     },
     {
      "role": "thrust",
@@ -1563,7 +1606,16 @@
      "face": "Top"
     }
    ],
-   "code_archetype": "Flyer"
+   "code_archetype": "Flyer",
+   "requires": [
+    "move"
+   ],
+   "fallbacks": [
+    "Hoverbike",
+    "Hover",
+    "Airship",
+    "Car"
+   ]
   },
   {
    "id": "Glider",
@@ -1597,7 +1649,12 @@
      "face": "Top"
     }
    ],
-   "code_archetype": null
+   "code_archetype": null,
+   "requires": [],
+   "fallbacks": [
+    "Flyer",
+    "Car"
+   ]
   },
   {
    "id": "Airship",
@@ -1610,12 +1667,23 @@
      "count": 1
     },
     {
+     "role": "heat",
+     "count": 1,
+     "face": "Top_Front",
+     "optional": true,
+     "part_pref": [
+      "Flamethrower"
+     ]
+    },
+    {
      "role": "lift",
      "count": 1,
-     "face": "Top",
+     "min": 1,
+     "face": "Top_Front",
      "part_pref": [
       "Balloon"
-     ]
+     ],
+     "on": "heat"
     },
     {
      "role": "thrust",
@@ -1626,11 +1694,16 @@
     {
      "role": "control",
      "count": 1,
-     "face": "Top",
+     "face": "Top_Back",
      "optional": true
     }
    ],
-   "code_archetype": null
+   "code_archetype": null,
+   "requires": [],
+   "fallbacks": [
+    "Flyer",
+    "Hoverbike"
+   ]
   },
   {
    "id": "Rocket",
@@ -1652,7 +1725,11 @@
      "face": "Bottom"
     }
    ],
-   "code_archetype": "Rocket"
+   "code_archetype": "Rocket",
+   "requires": [
+    "move"
+   ],
+   "fallbacks": []
   },
   {
    "id": "Turret",
@@ -1684,10 +1761,18 @@
      "count": 1,
      "min": 1,
      "face": "Front",
-     "on": "aim"
+     "on": "aim",
+     "part_pref": [
+      "Cannon"
+     ],
+     "prefer_wanted": true
     }
    ],
-   "code_archetype": "Turret"
+   "code_archetype": "Turret",
+   "requires": [
+    "attack"
+   ],
+   "fallbacks": []
   },
   {
    "id": "Spinner",
@@ -1715,10 +1800,19 @@
       "Right",
       "Front",
       "Back"
-     ]
+     ],
+     "prefer_wanted": true
     }
    ],
-   "code_archetype": null
+   "code_archetype": null,
+   "requires": [
+    "move",
+    "attack"
+   ],
+   "fallbacks": [
+    "Roller",
+    "Turret"
+   ]
   },
   {
    "id": "Roller",
@@ -1743,10 +1837,19 @@
      "faces": [
       "Left",
       "Right"
-     ]
+     ],
+     "prefer_wanted": true
     }
    ],
-   "code_archetype": null
+   "code_archetype": null,
+   "requires": [
+    "move",
+    "attack"
+   ],
+   "fallbacks": [
+    "Spinner",
+    "Car"
+   ]
   },
   {
    "id": "Ram",
@@ -1768,7 +1871,8 @@
       "Left_Back",
       "Right_Back"
      ],
-     "pairs": true
+     "pairs": true,
+     "prefer_wanted": true
     },
     {
      "role": "ram",
@@ -1782,7 +1886,13 @@
      "optional": true
     }
    ],
-   "code_archetype": null
+   "code_archetype": null,
+   "requires": [
+    "move"
+   ],
+   "fallbacks": [
+    "Car"
+   ]
   },
   {
    "id": "Catapult",
@@ -1811,7 +1921,9 @@
      "optional": true
     }
    ],
-   "code_archetype": null
+   "code_archetype": null,
+   "requires": [],
+   "fallbacks": []
   },
   {
    "id": "Wall",
@@ -1822,7 +1934,33 @@
     {
      "role": "shield",
      "count": 1,
-     "min": 1
+     "min": 1,
+     "root": true,
+     "part_pref": [
+      "Wall"
+     ]
+    },
+    {
+     "role": "shield",
+     "count": 2,
+     "min": 0,
+     "faces": [
+      "Left",
+      "Right"
+     ],
+     "pairs": true,
+     "part_pref": [
+      "Wall"
+     ]
+    },
+    {
+     "role": "weight",
+     "count": 1,
+     "min": 0,
+     "face": "Top_Back",
+     "part_pref": [
+      "Block"
+     ]
     },
     {
      "role": "anchor",
@@ -1831,7 +1969,9 @@
      "optional": true
     }
    ],
-   "code_archetype": "Fortress"
+   "code_archetype": "Fortress",
+   "requires": [],
+   "fallbacks": []
   },
   {
    "id": "Free",
@@ -1839,7 +1979,9 @@
    "orientation": "any",
    "anchored": false,
    "slots": [],
-   "code_archetype": null
+   "code_archetype": null,
+   "requires": [],
+   "fallbacks": []
   }
  ],
  "energy": {
@@ -1855,6 +1997,7 @@
   },
   "seat_free": true,
   "rocket_single_use": true,
-  "on_empty": "apaga todos los dispositivos de la construcción; el Seat sigue funcionando (dirige pero sin empuje)"
+  "on_empty": "apaga todos los dispositivos de la construcción; el Seat sigue funcionando (dirige pero sin empuje)",
+  "warn_duration_s": 15
  }
 }
