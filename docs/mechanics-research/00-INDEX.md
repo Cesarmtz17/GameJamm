@@ -35,6 +35,7 @@ Cada doc termina en una sección "→ aplicable a GameJamm" con lo accionable.
 | [09-auditoria-fuentes-publicas.md](09-auditoria-fuentes-publicas.md) | Qué documenta el mundo exterior (durabilidad MaxLife, huecos de reglas, plan de tests) | ✅ |
 | [10-repo-open-source-fusion.md](10-repo-open-source-fusion.md) | ComponentFuseMechanic a fondo: bugs, licencias, qué adoptar/no | ✅ |
 | [11-diseno-ensamblado-open-source.md](11-diseno-ensamblado-open-source.md) | Más repos open source + diseño del ensamblado (grafo, joints, JSON del LLM) | ✅ |
+| [FORMATO.md](FORMATO.md) | **Convención de formato** de estos MD (frontmatter, callouts, reglas de contenido) | ✅ |
 | [FUENTES.md](FUENTES.md) | Lista maestra de todas las fuentes | ✅ |
 
 ## TL;DR para el equipo (decisión rápida)
