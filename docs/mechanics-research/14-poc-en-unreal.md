@@ -113,6 +113,18 @@ Preparar inventario con `Jam.InvAll 10`. El estado real de cada fila se anota al
 | Jev | Si se usó clave y si Jev y el respaldo coinciden |
 | Cambios hechos | Commits y ramas en el remoto |
 
+## 8. Hallazgos de la sesión Mac mini
+
+| Tema | Hallazgo |
+|---|---|
+| Modelo de decisión | "Jev" es el modelo de decisiones de TypeSafe AI (elige entre opciones definidas; no genera texto). El cliente ya existe en `JamDecisionClient` con tres rutas: TypeSafe directo (`TYPESAFE_API_KEY`), OpenRouter y fal. Es una arquitectura distinta a los modelos predictivos de investigación: no hay que integrar nada más para el MVP |
+| Rama sin integrar | `build/recipe-hardening-v2` (parser que repara JSON del LLM, layout sin piezas encimadas, tests) no estaba en `main`; se unió sin conflictos en `build/totk-integracion` **[sin compilar]** |
+| Qué falta de código | Las marcas **[todo]** de [13](13-conocimiento-ia-construccion.md): rueda raíz que gira, daño real de llama/cañón/frío, Turntable, Head, Spring, Stake, energía y montarse en el asiento |
+| Qué falta de verificación | Nada de lo nuevo se ha compilado: el Mac mini no tiene Unreal. Solo hay validación en Python (datos y algoritmo) |
+| Créditos del concurso (aplican a Construcción) | Claude $25 (reclamar 12–27 nov), fal $30 (hasta 30 nov), Meshy con API (hasta 17 nov), Tripo y Hyper3D para modelos 3D (hasta 16 nov). Una cuenta por persona; las claves nunca al repo |
+| Contenido público | La convención de [FORMATO.md](FORMATO.md) prohíbe nombrar el juego de referencia; hubo una fuga en `CLAUDE.md` y se corrigió (queda en el historial de git) |
+| Agentes | Dos agentes (solver y piezas) trabajan en `build/totk-solver` y `build/totk-devices`; al escribir esto aún no habían hecho commits. Sus archivos de contexto serán `14-handoff-solver.md` y `14-handoff-dispositivos.md` |
+
 ## → Aplicable a GameJamm
 
 1. Traer `build/totk-integracion`, compilar en Mac y confirmar que el proyecto abre.
