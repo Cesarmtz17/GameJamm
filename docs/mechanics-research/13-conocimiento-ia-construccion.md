@@ -14,8 +14,10 @@ status: borrador
 > [!info]
 > Convierte la ingeniería inversa de la referencia ([01](01-mecanicas-construccion.md), [03](03-mecanicas-vehiculos-dispositivos.md),
 > [04](04-quimica-fisica-gdc.md)) en **reglas que el asistente puede usar para decidir** qué construir con lo que el jugador trae en
-> el inventario. Los datos viven en **`Content/Game/Building/Data/BuildKnowledge.json`** (41 elementos y 16 plantillas; los tipos son los de `UJamPartCatalog` y `code_archetype` apunta a `ArchetypeTable`), que el código y
+> el inventario. Los datos viven en **`Content/Game/Building/Data/BuildKnowledge.json`** (v3: 41 elementos y 16 plantillas; los tipos son los de `UJamPartCatalog` y `code_archetype` apunta a `ArchetypeTable`), que el código y
 > Jev leen. Etiquetas: **[code]** = ya existe en `Source/GameJamm/Building/`, **[todo]** = falta, **[inferencia]** = diseño nuestro.
+> El solver de §3.3 ya está en código (`UJamSolver`); su diseño, pruebas y cómo verlo en el editor están en
+> [14-handoff-solver.md](14-handoff-solver.md).
 
 > [!tip] Veredicto central
 > La referencia no programa vehículos: programa **piezas con un comportamiento simple** y deja que la física las combine
@@ -98,11 +100,15 @@ algo imposible**, y la llamada queda chica (Jev cobra por token de entrada *(doc
 | `anchored` | Noul | ¿Quiere que se quede fija en su lugar? |
 | `size` / `speed` / `aggression` | Score | Rúbricas de 1–5: cuántas piezas usar, potencia contra peso, cuántas armas |
 
-**3.3 Solver de inventario (código, sin IA).** Es lo difícil, así que va en código y con tests:
+**3.3 Solver de inventario (código, sin IA) [code].** Es lo difícil, así que va en código y con tests: `UJamSolver::Solve`
+(`Building/JamSolver.cpp`), con prototipo ejecutable y 70 casos en `Content/Game/Building/Data/solver_proto.py` y pruebas espejo en
+`Building/Tests/JamSolverTests.cpp`. Pasos 1–6 **[code]**; del paso 7 está **[code]** la lista de materiales faltantes y **[todo]**
+decir dónde conseguirlos y guardar la petición pendiente. Descontar y devolver inventario hoy solo lo hace el PoC (`Jam.Build` / `Jam.Clear`).
 1. Toma los **slots** de la plantilla (p. ej. Car: chasis ×1, `ground_drive` ×4 en pares, `control` ×1).
 2. Para cada slot elige la pieza con esa capacidad que **tienes**, en el orden de `part_pref` y luego `substitutes`.
 3. **Reduce** si no alcanza: 4 ruedas → 2, siempre en pares simétricos y respetando `min`. Si no llega al `min`, cambia de forma
-   (Car sin ruedas → Sled o Hoverbike si tienes Fan).
+   según `fallbacks` de la plantilla (Car sin ruedas → Hoverbike si tienes Fan). Con sustitutos pasivos (Sled, Ball) agrega un
+   empuje para cumplir `requires: ["move"]`; si no hay, no entrega la receta.
 4. Agrega las piezas extra que Jev marcó en `want_*` y no son slots, en la primera cara libre de su lista `faces`.
 5. Respeta `max_parts` (21) y **descuenta del inventario** al construir. "Desarmar" lo devuelve.
 6. Escribe el mensaje: *"Armé un Hoverbike con 2 ventiladores. No tenías ruedas, así que no salió el carro."*
@@ -111,7 +117,7 @@ algo imposible**, y la llamada queda chica (Jev cobra por token de entrada *(doc
    opciones: **construir la versión reducida ahora** o **ir por el material**. Se puede **guardar la petición pendiente**, y cuando
    lootees lo que faltaba el asistente avisa *"ya tienes lo de tu carro"* y la construye con un botón.
 
-**3.4 Chequeo físico [inferencia].** Con `mass_kg` del JSON: empuje hacia arriba (Fan en `Bottom` = 250 N ≈ 25 kg en el código actual)
+**3.4 Chequeo físico [inferencia] [todo].** Hoy el solver solo comprueba capacidades (`requires`: moverse / atacar) y reporta la masa total; falta comparar empuje contra peso. Con `mass_kg` del JSON: empuje hacia arriba (Fan en `Bottom` = 250 N ≈ 25 kg en el código actual)
 contra la masa total. Si no vuela, degrada a una forma de suelo. Si una forma de suelo no tiene ni tracción ni empuje, avisa.
 
 **3.5 Llamada B (opcional).** Solo en `Free`, o si el jugador dijo dónde ("el cañón arriba"): una Choice por pieza con las caras
@@ -120,11 +126,13 @@ válidas de esa pieza (`faces`).
 ## 4. Orientación y "anclado": la rueda que gira en su lugar
 
 - `orientation` rota **toda la construcción** al spawnear: `flat` = 90° sobre X. Una rueda raíz acostada gira como un trompo y lo que
-  lleva pegado (dos lanzallamas en `Left`/`Right`) barre un **anillo de fuego** (plantilla `Spinner`).
+  lleva pegado barre un **anillo de fuego** (plantilla `Spinner`). Con el catálogo actual el eje de la rueda es Y, así que su canto
+  son las caras `Front`/`Back` (y `Top`/`Bottom`): ahí van los dos lanzallamas; `Left`/`Right` son las tapas del eje.
 - `upright` con la rueda como raíz = **`Roller`**: rueda sola por el mapa con el arma de lado.
 - `anchored` = Stake si lo tienes; si no, la construcción va suelta.
+- **[code]** el solver devuelve `Orientation` y `bAnchored` en `FJamSolverResult`; el PoC (`Jam.Build`) rota el `Origin` con eso.
 - **[todo] código:** (a) rueda raíz con motor propio: torque aplicado directo al cuerpo, porque no hay padre contra el cual girar.
-  (b) Pasar `orientation` al `Origin` del ensamblador. (c) Que el mesh de cada pieza siga la cara (hoy un cohete en `Bottom` se ve acostado).
+  (b) Pasar `orientation` al `Origin` en `AJamBuildSpawner` (hoy solo lo hace el PoC). (c) Que el mesh de cada pieza siga la cara (hoy un cohete en `Bottom` se ve acostado).
 
 ## 5. Dirección: el asiento (Seat) es infinito y no gasta energía
 
@@ -169,7 +177,7 @@ pero con valores para partidas cortas. Los valores están en `BuildKnowledge.jso
 Ejemplo: un carro con 4 ruedas y 1 ventilador gasta 2.3/s y dura unos 43 s con la barra llena. La Rueda Infernal (rueda + lanzallamas)
 gasta 2.2/s. Eso da pausas naturales para lootear, y el loot de energía se vuelve tan importante como el de piezas.
 
-**El asistente lo toma en cuenta:** si la construcción pedida gasta más de lo que tienes para unos 15 s, lo avisa
+**El asistente lo toma en cuenta [code]** (`EnergyCostPerSecond`, `DurationSeconds`, `bLowEnergy` de `FJamSolverResult`; umbral en `energy.warn_duration_s`)**:** si la construcción pedida gasta más de lo que tienes para unos 15 s, lo avisa
 (*"con tu energía dura 10 s; ¿le quito el cañón?"*) y lo incluye en "pedir materiales" (§3.3 paso 7).
 
 **HUD:** barra segmentada (10 segmentos) junto a la vida, con el gasto actual (−2.3/s) mientras la construcción está encendida.
@@ -208,15 +216,15 @@ La referencia tiene un motor químico donde las interacciones salen solas *([04]
 ## 9. Limitaciones conocidas
 
 - En el código, `Beam` es el **emisor láser** (`DEV_BEAM`); la viga estructural `PART_BEAM` se llama **`Girder`** en el JSON para no chocar.
-- Faltan en el código 18 de los 41 elementos (`in_code: false`). El solver solo debe ofrecer los que tienen `in_code: true` hasta que existan.
+- Faltan en el código 18 de los 41 elementos (`in_code: false`). El solver solo usa los que existen en `UJamPartCatalog` **[code]**; lo pedido que aún no existe (p. ej. `Head`) se reporta en `Unsupported`. `validate_knowledge.py` revisa que `in_code` coincida con el catálogo.
 - Jev puede cambiar sus probabilidades si cambia el orden de las opciones *(doc 12)*: generar las preguntas siempre en el orden del JSON.
 
 ## → Aplicable a GameJamm
 
 **P0 (sin esto el asistente no aprovecha el inventario):**
-1. Cargar `BuildKnowledge.json` en `UJamPartCatalog` (tipos, masa, capacidades, sustitutos, sinónimos para el parser).
+1. Cargar `BuildKnowledge.json`: **[code]** lo carga `UJamSolver` (capacidades, sustitutos, plantillas, energía). **[todo]** que `UJamPartCatalog` tome de ahí masa y sinónimos.
 2. Preguntas dinámicas de Jev desde el inventario (§3.1–3.2) en `FJamDecisionClient`.
-3. Solver de slots + sustitución + reducción + mensaje + **pedir materiales faltantes** (§3.3), con tests como los de `Building/Tests/JamRecipeTests.cpp`.
+3. **[code]** Solver de slots + sustitución + reducción + mensaje + **pedir materiales faltantes** (§3.3), con tests (`Building/Tests/JamSolverTests.cpp`). **[todo]** llamarlo con el inventario real del jugador desde el flujo de juego (hoy: PoC por consola).
 4. Rueda raíz que gira, y `orientation` (§4): habilita `Spinner` y `Roller`.
 5. Daño real de Flamethrower y Cannon, más impacto por velocidad (§7).
 6. Seat: montarse, W/S, A/D por torque de yaw, nivelado automático y E para prender/apagar (§5).

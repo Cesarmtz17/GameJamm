@@ -231,8 +231,8 @@ bool FJamSolverMirrorCases::RunTest(const FString& Parameters)
 		FJamSolverResult Res;
 		const bool bOk = UJamSolver::Solve(Req, Res);
 
-		TestEqual(Ctx + TEXT(": return == bBuildable"), bOk, Res.bBuildable);
-		TestEqual(Ctx + TEXT(": buildable"), Res.bBuildable, C.bBuildable);
+		TestTrue(Ctx + TEXT(": return == bBuildable"), bOk == Res.bBuildable);
+		TestTrue(FString::Printf(TEXT("%s: buildable = %d, expected %d"), *Ctx, Res.bBuildable ? 1 : 0, C.bBuildable ? 1 : 0), Res.bBuildable == C.bBuildable);
 		ExpectText(*this, Ctx, TEXT("template"), NameOrEmpty(Res.Template), C.Template);
 		ExpectText(*this, Ctx, TEXT("parts"), PartsToString(Res.Recipe), C.Parts);
 		ExpectText(*this, Ctx, TEXT("activate"), NamesToString(Res.Recipe.Activate), C.Activate);

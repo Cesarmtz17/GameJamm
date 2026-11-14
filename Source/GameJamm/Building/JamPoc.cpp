@@ -230,8 +230,8 @@ namespace JamPocImpl
 			}
 			if (Result.EnergyCostPerSecond > 0.f)
 			{
-				Lines.Add(FString::Printf(TEXT("Energía: gasta %.1f/s, hay %.0f -> dura %.0f s%s | masa %.0f kg"), Result.EnergyCostPerSecond, Result.EnergyAvailable,
-					Result.DurationSeconds, Result.bLowEnergy ? TEXT(" (POCA ENERGÍA)") : TEXT(""), Result.MassKg));
+				Lines.Add(FString::Printf(TEXT("Energía: gasta %.1f/s, hay %.0f -> dura %d s%s | masa %.0f kg"), Result.EnergyCostPerSecond, Result.EnergyAvailable,
+					FMath::FloorToInt32(Result.DurationSeconds), Result.bLowEnergy ? TEXT(" (POCA ENERGÍA)") : TEXT(""), Result.MassKg));
 			}
 			else
 			{

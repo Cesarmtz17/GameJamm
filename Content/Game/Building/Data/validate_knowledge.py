@@ -12,6 +12,7 @@ piezas de ExtraTable presentes en el JSON y que cada arquetipo del codigo salga 
 import os
 import sys
 
+sys.dont_write_bytecode = True  # no dejar __pycache__ en Content/
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I quita la carpeta del script del path
 import solver_proto as sp  # noqa: E402
 
