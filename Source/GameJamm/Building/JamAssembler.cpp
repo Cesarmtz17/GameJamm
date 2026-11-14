@@ -97,7 +97,9 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 					continue; // el padre aún no está colocado
 				}
 				TArray<FString> Tokens;
-				(P.Socket.IsNone() ? FString(TEXT("Top")) : P.Socket.ToString()).ParseIntoArray(Tokens, TEXT("_"));
+				FString SocketStr = P.Socket.IsNone() ? FString(TEXT("Top")) : P.Socket.ToString();
+				SocketStr.RemoveFromStart(TEXT("Attach_")); // contrato de uniones: "Attach_Left" == "Left"
+				SocketStr.ParseIntoArray(Tokens, TEXT("_"));
 				FVector Dir = FVector::UpVector;
 				if (Tokens.Num() == 0 || !DirFromToken(Tokens[0], Dir))
 				{
