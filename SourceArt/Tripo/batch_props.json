@@ -1,0 +1,304 @@
+{
+ "_doc": "Props del mapa (Rodin) reemplazados EN SU LUGAR: cada malla de MapDressed conserva su caja y centro (ue_dump_bounds.py) y usa un modelo compartido (src) con MI/texturas compartidas (mat). Generado con las medidas del 14 nov; normalizar con normalize_batch.py -j 4.",
+ "parts": [
+  {
+   "name": "SM_MAP_Dressed_DecoTree0",
+   "src": "SM_PROP_TREE_ROUND_B_v1.glb",
+   "mat": "PROP_TREE_ROUND_B",
+   "size": [
+    447.1,
+    404.9,
+    639.0
+   ],
+   "center": [
+    -5999.9,
+    7000.1,
+    2119.5
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "round",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_DecoTree1",
+   "src": "SM_PROP_TREE_ROUND_B_v1.glb",
+   "mat": "PROP_TREE_ROUND_B",
+   "size": [
+    404.7,
+    383.8,
+    577.6
+   ],
+   "center": [
+    6988.0,
+    -7208.6,
+    1688.8
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "round",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_DecoTree4",
+   "src": "SM_PROP_PINE_A_v1.glb",
+   "mat": "PROP_PINE_A",
+   "size": [
+    408.8,
+    411.3,
+    1022.5
+   ],
+   "center": [
+    9998.4,
+    -5498.8,
+    2511.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "pine",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_Tree_0",
+   "src": "SM_PROP_TREE_ROUND_A_v1.glb",
+   "mat": "PROP_TREE_ROUND_A",
+   "size": [
+    445.4,
+    501.7,
+    685.6
+   ],
+   "center": [
+    3625.2,
+    -2058.1,
+    342.8
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "round",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_Tree_10",
+   "src": "SM_PROP_TREE_ROUND_B_v1.glb",
+   "mat": "PROP_TREE_ROUND_B",
+   "size": [
+    334.0,
+    354.7,
+    501.8
+   ],
+   "center": [
+    -2839.8,
+    -1775.2,
+    250.9
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "round",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_Tree_11",
+   "src": "SM_PROP_PINE_B_v1.glb",
+   "mat": "PROP_PINE_B",
+   "size": [
+    378.8,
+    373.3,
+    934.4
+   ],
+   "center": [
+    4535.2,
+    1222.4,
+    467.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "pine",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_Tree_12",
+   "src": "SM_PROP_TREE_ROUND_B_v1.glb",
+   "mat": "PROP_TREE_ROUND_B",
+   "size": [
+    418.6,
+    431.0,
+    636.9
+   ],
+   "center": [
+    1164.2,
+    -3001.1,
+    318.4
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "round",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_Tree_13",
+   "src": "SM_PROP_PINE_B_v1.glb",
+   "mat": "PROP_PINE_B",
+   "size": [
+    383.5,
+    374.2,
+    944.3
+   ],
+   "center": [
+    2758.6,
+    1351.0,
+    472.1
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "pine",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_Tree_14",
+   "src": "SM_PROP_PINE_A_v1.glb",
+   "mat": "PROP_PINE_A",
+   "size": [
+    294.0,
+    295.6,
+    732.8
+   ],
+   "center": [
+    4391.5,
+    714.2,
+    366.4
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "pine",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_Tree_15",
+   "src": "SM_PROP_PINE_A_v1.glb",
+   "mat": "PROP_PINE_A",
+   "size": [
+    330.3,
+    338.4,
+    777.9
+   ],
+   "center": [
+    -411.6,
+    2006.9,
+    388.9
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "pine",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_Tree_2",
+   "src": "SM_PROP_TREE_ROUND_A_v1.glb",
+   "mat": "PROP_TREE_ROUND_A",
+   "size": [
+    434.3,
+    472.9,
+    685.2
+   ],
+   "center": [
+    -3153.1,
+    1476.7,
+    342.6
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "round",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_Tree_4",
+   "src": "SM_PROP_PINE_B_v1.glb",
+   "mat": "PROP_PINE_B",
+   "size": [
+    303.2,
+    302.6,
+    703.3
+   ],
+   "center": [
+    2036.9,
+    2053.2,
+    351.6
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "pine",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_Tree_8",
+   "src": "SM_PROP_PINE_A_v1.glb",
+   "mat": "PROP_PINE_A",
+   "size": [
+    313.8,
+    319.3,
+    787.0
+   ],
+   "center": [
+    -3629.4,
+    -812.5,
+    393.5
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "pine",
+   "rot": "z0",
+   "fit": "height"
+  }
+ ]
+}

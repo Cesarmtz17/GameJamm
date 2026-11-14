@@ -50,6 +50,11 @@ def parse_args():
     p.add_argument("--fx", action="append", default=[], help="Socket de efecto 'Nombre:Cara', p. ej. Fx_Out:Front")
     p.add_argument("--center", type=float, nargs=3, default=None,
                    help="Centro de la caja en cm del mundo (UE). Para mallas del mapa que traen su posición integrada")
+    p.add_argument("--fit", default="exact", choices=["exact", "height"],
+                   help="exact = caja idéntica a Size (piezas); height = misma altura y proporciones propias, el ancho "
+                        "solo se aprieta si se pasa >10%% de Size (props del mapa: árboles, rocas)")
+    p.add_argument("--zclip", type=float, nargs=2, default=None,
+                   help="Conserva solo la rebanada entre dos fracciones de la altura (0-1), p. ej. cuerpo y tapa de un cofre")
     p.add_argument("--preview", default="")
     p.add_argument("--blend", default="")
     return p.parse_args(argv)
@@ -158,6 +163,23 @@ def auto_axis(obj, size_ue):
     return "ejes " + ", ".join(f"{AXES[best[d]]}->{AXES[d]}" for d in range(3) if best[d] != d)
 
 
+def zclip(obj, lo, hi):
+    """Corta la malla con planos horizontales y deja solo lo que queda entre lo y hi (fracciones de la altura)."""
+    mn, mx = bbox(obj)
+    h = mx.z - mn.z
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    for frac, keep_above in ((lo, True), (hi, False)):
+        if (keep_above and frac <= 0.0) or (not keep_above and frac >= 1.0):
+            continue
+        geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
+        bmesh.ops.bisect_plane(bm, geom=geom, plane_co=(0, 0, mn.z + h * frac), plane_no=(0, 0, 1),
+                               clear_inner=keep_above, clear_outer=not keep_above)
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+
+
 def decimate(obj, budget):
     before = tri_count(obj)
     if before <= budget:
@@ -180,6 +202,36 @@ def fit_to_box(obj, size_ue):
     k = Vector(tuple(t / dd if dd > 1e-6 else 1.0 for t, dd in zip(target, d)))
     for v in obj.data.vertices:
         v.co = Vector(((v.co.x - c.x) * k.x, (v.co.y - c.y) * k.y, (v.co.z - c.z) * k.z))
+    obj.data.update()
+    kmin = min(k)
+    return [round(x / kmin, 3) for x in k]
+
+
+def fit_height(obj, size_ue, overflow=1.1):
+    """Escala uniforme para que la altura sea Size.z; X/Y conservan su proporción salvo que se pasen de Size*overflow.
+
+    Queda centrado en X/Y y con la base en el piso de la caja (z = -Size.z/2), así el centro del mundo sigue valiendo.
+    """
+    target = Vector((size_ue[0], size_ue[1], size_ue[2])) / 100.0
+
+    def squeeze(d):  # cuánto habría que apretar X/Y (1 = nada)
+        kz = target.z / d.z if d.z > 1e-6 else 1.0
+        return max(1.0, *(d[i] * kz / (target[i] * overflow) for i in (0, 1)))
+
+    mn, mx = bbox(obj)
+    d = mx - mn
+    if squeeze(Vector((d.y, d.x, d.z))) < squeeze(d) - 0.02:  # girar 90° deforma menos: se gira
+        obj.data.transform(Matrix.Rotation(math.radians(90), 4, "Z"))
+        mn, mx = bbox(obj)
+        d = mx - mn
+    c = (mn + mx) / 2
+    kz = target.z / d.z if d.z > 1e-6 else 1.0
+    k = [kz, kz, kz]
+    for i in (0, 1):
+        if d[i] * kz > target[i] * overflow:
+            k[i] = target[i] * overflow / d[i]
+    for v in obj.data.vertices:
+        v.co = Vector(((v.co.x - c.x) * k[0], (v.co.y - c.y) * k[1], (v.co.z - c.z) * k[2]))
     obj.data.update()
     kmin = min(k)
     return [round(x / kmin, 3) for x in k]
@@ -356,8 +408,14 @@ def main():
     if a.rot:
         apply_rotations(obj, a.rot)
     report["auto_axis"] = auto_axis(obj, a.size) if a.auto_axis else "off"
+    if a.zclip:
+        zclip(obj, *a.zclip)
+        report["zclip"] = a.zclip
     report["tris_before"], report["tris_after"] = decimate(obj, a.tris)
-    report["stretch"] = fit_to_box(obj, a.size)
+    report["stretch"] = fit_height(obj, a.size) if a.fit == "height" else fit_to_box(obj, a.size)
+    if a.fit == "height":
+        mn, mx = bbox(obj)
+        report["bbox_cm"] = [round((mx[i] - mn[i]) * 100, 1) for i in range(3)]
     report["materials"], report["textures"] = resave_textures(obj, base, out_dir, a.tex)
     if len(report["materials"]) > 1:
         report["warning"] = "Más de un material: el código solo hace brillar el slot 0."
