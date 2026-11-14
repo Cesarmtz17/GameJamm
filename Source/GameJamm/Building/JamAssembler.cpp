@@ -1278,15 +1278,15 @@ const TArray<FJamPieceRule>& UJamBuildGenerator::PieceTable()
 			auto Find = [&X](const TCHAR* Type) -> FJamPieceRule& { return *X.FindByPredicate([Type](const FJamPieceRule& R) { return R.Type == FName(Type); }); };
 			auto Place = [&](std::initializer_list<const TCHAR*> Types, TArray<FString> Faces, const TCHAR* Sym, const TCHAR* Ord, float Clear = 0.f, const TCHAR* Ground = TEXT(""))
 			{
-				for (const TCHAR* T : Types)
+				for (const TCHAR* TypeName : Types)
 				{
-					FJamPieceRule& R = Find(T);
+					FJamPieceRule& R = Find(TypeName);
 					R.PlaceOrder = ++OrderN; R.Faces = Faces; R.Sym = Sym; R.Order = Ord; R.ClearCm = Clear; R.Ground = Ground;
 				}
 			};
 			auto Mode = [&](std::initializer_list<const TCHAR*> Types, const TCHAR* Name, TArray<FString> Faces, const TCHAR* Sym, const TCHAR* Ord)
 			{
-				for (const TCHAR* T : Types) { Find(T).Modes.Add(Name, FJamPlaceMode{ Faces, Sym, Ord }); }
+				for (const TCHAR* TypeName : Types) { Find(TypeName).Modes.Add(Name, FJamPlaceMode{ Faces, Sym, Ord }); }
 			};
 			const TArray<FString> Thrust = K({TEXT("Back_Bottom_Back"), TEXT("Top_Back_Back"), TEXT("Left_Back_Back"), TEXT("Top_Center_Back")});
 			const TArray<FString> Weapon = K({TEXT("Top_Front_Front"), TEXT("Front_Bottom_Front"), TEXT("Top_Center_Front"), TEXT("Left_Front_Front"), TEXT("Left_Center_Front"), TEXT("Top_Back_Front")});
