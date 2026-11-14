@@ -119,6 +119,28 @@ namespace
 
 namespace
 {
+	const FName VisualTag(TEXT("JamVisual"));
+
+	/** GDD 6.3/17: la malla de arte brilla mientras la pieza esta prendida (parametro "Emissive" de M_Part_Master). */
+	void SetGlow(AActor* Part, bool bOn)
+	{
+		TArray<UStaticMeshComponent*> Comps;
+		Part->GetComponents<UStaticMeshComponent>(Comps);
+		for (UStaticMeshComponent* C : Comps)
+		{
+			if (C && C->ComponentHasTag(VisualTag))
+			{
+				if (UMaterialInstanceDynamic* MID = C->CreateDynamicMaterialInstance(0))
+				{
+					MID->SetScalarParameterValue(TEXT("Emissive"), bOn ? 1.f : 0.f);
+				}
+			}
+		}
+	}
+}
+
+namespace
+{
 	// Barra de energia del jugador (BuildKnowledge.json: energy). ponytail: un solo jugador local y vive aqui;
 	// cuando exista la barra real (HUD/Core), sustituir estas 3 funciones por ese componente.
 	struct FJamPlayerEnergy
@@ -392,6 +414,7 @@ void AJamBuildPart::InitFromDef(const FJamPartDef& Def, const FVector& BoxSize, 
 		Visual->SetUsingAbsoluteScale(true);
 		Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Visual->SetStaticMesh(Real);
+		Visual->ComponentTags.Add(VisualTag);
 		Visual->RegisterComponent();
 		Visual->SetWorldRotation(VisualWorldRot);
 		Mesh->SetVisibility(false, false);
@@ -498,6 +521,7 @@ void AJamBuildPart::SetActive(bool bNewActive)
 		bNewActive = false; // sin energia no enciende
 	}
 	bActive = bNewActive;
+	SetGlow(this, bNewActive);
 	if (Kind == EJamPartKind::Rocket && bNewActive)
 	{
 		BurnLeft = 3.f;
