@@ -211,7 +211,7 @@ public:
 	 * que pasa Fits (sin solape, tiro/chorro/columna libres, nada bajo las ruedas) y en grupos espejados. Si un volador no
 	 * despega se agrega sustentacion (hasta 4). La nota trae pieces=[], skipped=[], aviso=[] y coh=NN.
 	 */
-	static bool ComposeFromBag(const TArray<FJamPieceCount>& Bag, FBuildRecipe& OutRecipe, FString& OutNote);
+	static bool ComposeFromBag(const TArray<FJamPieceCount>& Bag, FBuildRecipe& OutRecipe, FString& OutNote, const TMap<FName, int32>* Budget = nullptr);
 
 	/** Receta ajena (JSON fijo, plantilla, planificador) -> bolsa (tipo, cantidad, modo) para recomponerla con sentido. */
 	static void BagOfRecipe(const FBuildRecipe& Recipe, TArray<FJamPieceCount>& OutBag);

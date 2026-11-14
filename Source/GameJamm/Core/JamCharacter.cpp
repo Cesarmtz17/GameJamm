@@ -13,11 +13,19 @@ AJamCharacter::AJamCharacter()
 	Health->Team = EJamTeam::Red;
 
 	Inventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("Inventory"));
+	StartingItems = {
+		{ "Part.Plank", 8 }, { "Part.Wheel", 4 }, { "Part.Block", 4 }, { "Part.Wall", 2 }, { "Part.Beam", 2 },
+		{ "Part.Rocket", 1 }, { "Part.Flamethrower", 1 }, { "Part.Cannon", 1 }, { "Part.Fan", 2 },
+		{ "Part.Balloon", 2 }, { "Part.Battery", 1 } };
 }
 
 void AJamCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	if (Inventory && Inventory->Items.Num() == 0)
+	{
+		for (const auto& Item : StartingItems) { Inventory->AddItem(Item.Key, Item.Value); }
+	}
 	Health->OnDied.AddDynamic(this, &AJamCharacter::HandleDied);
 }
 

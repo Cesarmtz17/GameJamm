@@ -7,6 +7,7 @@
 #include "JamBuildSpawner.generated.h"
 
 class AJamBuildPart;
+class UInventoryComponent;
 
 /**
  * POC "prompt -> estructura jugable". Coloca este actor en el nivel, escribe un Prompt (o un JSON
@@ -35,6 +36,10 @@ public:
 	/** Usar el modelo de decisión (Jev) si hay API key; si no, respaldo por palabras clave. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
 	bool bUseDecisionModel = true;
+
+	/** Partida: exige y consume inventario del propietario. False para escenas de pruebas/bots provisionales. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
+	bool bUseInventory = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
 	bool bBuildOnBeginPlay = true;
@@ -100,4 +105,7 @@ private:
 
 	TArray<FName> ActivateIds;
 	FTimerHandle ActivateTimer;
+	TWeakObjectPtr<UInventoryComponent> PaidInventory;
+	TMap<FName, int32> PaidItems;
+	uint64 RequestGeneration = 0;
 };

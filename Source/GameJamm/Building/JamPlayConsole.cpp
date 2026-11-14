@@ -3,6 +3,7 @@
 #include "Building/JamBuildPart.h"
 #include "Building/JamDrivePhysics.h"
 #include "Building/JamBuildSpawner.h"
+#include "Core/InventoryComponent.h"
 #include "Building/JamVoice.h"
 #include "Blueprint/WidgetTree.h"
 #include "Camera/CameraComponent.h"
@@ -79,11 +80,19 @@ namespace
 		return FTransform(FRotator(0, Yaw + 90.f, 0), Loc + FVector(0, 0, 10));
 	}
 
-	AJamBuildSpawner* SpawnSay(UWorld* World, const FString& Text, const FTransform& At, const TCHAR* RecipeJson = nullptr, bool bAutoActivate = true)
+	AJamBuildSpawner* SpawnSay(UWorld* World, const FString& Text, const FTransform& At, const TCHAR* RecipeJson = nullptr, bool bAutoActivate = true, bool bInventory = true)
 	{
+		if (bInventory && GLastSay.IsValid() && GLastSay->bUseInventory)
+		{
+			GLastSay->bAutoActivate = bAutoActivate;
+			GLastSay->SetActorTransform(At);
+			GLastSay->SetPromptAndBuild(Text);
+			return GLastSay.Get();
+		}
 		AJamBuildSpawner* S = World->SpawnActorDeferred<AJamBuildSpawner>(AJamBuildSpawner::StaticClass(), At, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 		if (S)
 		{
+			S->bUseInventory = bInventory;
 			S->Prompt = Text;
 			S->bAnnounceOnScreen = true;
 			S->Tags.Add(SayTag);
@@ -714,7 +723,7 @@ namespace
 			}
 		}
 		Screen(FString::Printf(TEXT("Jam.Test %d/%d: %s"), T.Index + 1, NumCases, *Case.Text), FColor::Cyan);
-		T.Cur = SpawnSay(World, Case.Text, T.At, Case.IsIso() ? *Case.Recipe : nullptr);
+		T.Cur = SpawnSay(World, Case.Text, T.At, Case.IsIso() ? *Case.Recipe : nullptr, true, false);
 		return true;
 	}
 
@@ -939,6 +948,37 @@ namespace
 		if (World) { SayFromGame(World, FString::Join(Args, TEXT(" "))); }
 	}
 
+	UInventoryComponent* PlayerInventory(UWorld* World)
+	{
+		const APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+		return PC && PC->GetPawn() ? PC->GetPawn()->FindComponentByClass<UInventoryComponent>() : nullptr;
+	}
+
+	// Jam.Inv: lista las piezas del jugador. Jam.Give <Tipo> [n] (n negativo quita) | Jam.Give clear.
+	void JamInv(const TArray<FString>&, UWorld* World)
+	{
+		UInventoryComponent* Inv = PlayerInventory(World);
+		if (!Inv) { Screen(TEXT("Jam.Inv: el jugador no tiene inventario")); return; }
+		TArray<FString> Lines;
+		for (const auto& Item : Inv->Items) { if (Item.Value > 0) { Lines.Add(FString::Printf(TEXT("%s x%d"), *Item.Key.ToString(), Item.Value)); } }
+		Lines.Sort();
+		const FString Text = Lines.Num() ? FString::Join(Lines, TEXT(", ")) : TEXT("(vacio)");
+		UE_LOG(LogTemp, Warning, TEXT("Jam.Inv: %s"), *Text);
+		Screen(TEXT("Inventario: ") + Text, FColor::Cyan);
+	}
+
+	void JamGive(const TArray<FString>& Args, UWorld* World)
+	{
+		UInventoryComponent* Inv = PlayerInventory(World);
+		if (!Inv || Args.Num() == 0) { Screen(TEXT("Uso: Jam.Give <Tipo> [n]  (ej. Jam.Give Wheel 2; n negativo quita; Jam.Give clear)")); return; }
+		if (Args[0] == TEXT("clear")) { Inv->ClearInventory(); JamInv(Args, World); return; }
+		const FName Id(*(Args[0].StartsWith(TEXT("Part.")) || Args[0].StartsWith(TEXT("Mat.")) ? Args[0] : TEXT("Part.") + Args[0]));
+		const int32 N = Args.Num() > 1 ? FCString::Atoi(*Args[1]) : 1;
+		if (N >= 0) { Inv->AddItem(Id, N); }
+		else { Inv->RemoveItem(Id, FMath::Min(-N, Inv->GetCount(Id))); }
+		JamInv(Args, World);
+	}
+
 	void JamPower(const TArray<FString>&, UWorld*)
 	{
 		// Lo mismo que la tecla C.
@@ -955,6 +995,8 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdVoiceFile(TEXT("Jam.VoiceFile"), TEXT("Jam.VoiceFile <ruta.wav>: transcribe ese audio y construye lo que diga (prueba de voz sin microfono)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamVoiceFile));
 	FAutoConsoleCommandWithWorldAndArgs CmdType(TEXT("Jam.Type"), TEXT("Jam.Type <frase>: como escribirla en la caja de texto (sale apagada; se enciende con C o Jam.Power)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamType));
+	FAutoConsoleCommandWithWorldAndArgs CmdInv(TEXT("Jam.Inv"), TEXT("Muestra las piezas del inventario del jugador."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamInv));
+	FAutoConsoleCommandWithWorldAndArgs CmdGive(TEXT("Jam.Give"), TEXT("Jam.Give <Tipo> [n]: agrega (o quita con n negativo) piezas al inventario; Jam.Give clear lo vacia."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamGive));
 	FAutoConsoleCommandWithWorldAndArgs CmdPower(TEXT("Jam.Power"), TEXT("Prende o apaga la ultima construccion (tecla C)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamPower));
 	void JamFire(const TArray<FString>& Args, UWorld*)
 	{

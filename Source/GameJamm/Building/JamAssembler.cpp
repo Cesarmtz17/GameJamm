@@ -1936,6 +1936,16 @@ namespace
 		return true;
 	}
 
+	bool WithinBudget(const FBuildRecipe& Recipe, const TMap<FName, int32>* Budget)
+	{
+		if (!Budget) { return true; }
+		for (const auto& Item : UBuildRecipeLibrary::GetRequiredItems(Recipe))
+		{
+			if (Budget->FindRef(Item.Key) < Item.Value) { return false; }
+		}
+		return true;
+	}
+
 	struct FComposeOut
 	{
 		FBuildRecipe R;
@@ -1945,7 +1955,7 @@ namespace
 	};
 
 	/** Compone la bolsa (ya sin la raiz) sobre un chasis de NSeg tramos decidido ANTES de colocar. */
-	void ComposeN(TArray<FJamPieceCount> Bag, FName RootType, int32 NSeg, FComposeOut& Out)
+	void ComposeN(TArray<FJamPieceCount> Bag, FName RootType, int32 NSeg, FComposeOut& Out, const TMap<FName, int32>* Budget)
 	{
 		typedef TPair<FName, FString> FSpot; // (padre, cara)
 		const int32 Max = UJamAssembler::GetMaxParts();
@@ -1967,7 +1977,7 @@ namespace
 			const bool bFront = k % 2 == 1;
 			const FName Id(*FString::Printf(TEXT("seg%d"), k));
 			R.Parts.Add(Pt(*Id.ToString(), TEXT("Plank"), *Ends[bFront ? 0 : 1].ToString(), bFront ? TEXT("Front") : TEXT("Back")));
-			if (!FitsParts(R, { Id })) { R.Parts.Pop(); break; }
+			if (!WithinBudget(R, Budget) || !FitsParts(R, { Id })) { R.Parts.Pop(); break; }
 			Ends[bFront ? 0 : 1] = Id;
 			Segs.Add(Id);
 		}
@@ -2016,7 +2026,7 @@ namespace
 				R.Parts.Add(Pt(*Id.ToString(), *Rule.Type.ToString(), *S.Key.ToString(), *S.Value));
 				Ids.Add(Id);
 			}
-			if (R.Parts.Num() <= Max && FitsParts(R, Ids)) { return Ids; }
+			if (R.Parts.Num() <= Max && WithinBudget(R, Budget) && FitsParts(R, Ids)) { return Ids; }
 			R.Parts.SetNum(R.Parts.Num() - G.Num());
 			return TArray<FName>();
 		};
@@ -2125,7 +2135,7 @@ namespace
 				{
 					const FName ChildId(*(Done[0].ToString() + TEXT("c")));
 					R.Parts.Add(Pt(*ChildId.ToString(), *Rule.ChildType.ToString(), *Done[0].ToString(), *Rule.ChildSocket.ToString()));
-					if (!FitsParts(R, { ChildId })) { R.Parts.Pop(); }
+					if (!WithinBudget(R, Budget) || !FitsParts(R, { ChildId })) { R.Parts.Pop(); }
 				}
 			}
 			if (Left > 0) { Out.Skipped.Emplace(Rule.Type, Left); Out.Miss += Left; }
@@ -2134,7 +2144,7 @@ namespace
 	}
 
 	/** Crece el chasis (1, 3, 5... tramos) mientras ayude. Gana: sin fallo grave, menos piezas sin colocar, mas puntaje, mas corto. */
-	void ComposeGrow(const TArray<FJamPieceCount>& Bag, FName RootType, FComposeOut& Best)
+	void ComposeGrow(const TArray<FJamPieceCount>& Bag, FName RootType, FComposeOut& Best, const TMap<FName, int32>* Budget)
 	{
 		const int32 MinScore = UJamAssembler::MinCoherence();
 		auto Better = [MinScore](const FComposeOut& A, const FComposeOut& B)
@@ -2148,7 +2158,7 @@ namespace
 		for (int32 NSeg = 1; NSeg < 17; NSeg += 2)
 		{
 			FComposeOut Cur;
-			ComposeN(Bag, RootType, NSeg, Cur);
+			ComposeN(Bag, RootType, NSeg, Cur, Budget);
 			if (NSeg == 1 || Better(Cur, Best)) { Best = MoveTemp(Cur); Worse = 0; }
 			else { ++Worse; }
 			if ((Best.Miss == 0 && Best.Coh.Score >= 85) || Worse >= 2) { break; }
@@ -2194,7 +2204,7 @@ FJamCoherence UJamBuildGenerator::Repair(FBuildRecipe& Recipe, FString& OutWhat)
 	return C2;
 }
 
-bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBuildRecipe& R, FString& Note)
+bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBuildRecipe& R, FString& Note, const TMap<FName, int32>* Budget)
 {
 	R = FBuildRecipe();
 	TArray<FJamPieceCount> Bag = InBag;
@@ -2225,6 +2235,7 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 			}
 		}
 	}
+	if (Budget && RootType != "Seat" && Budget->FindRef(FName(*(TEXT("Part.") + RootType.ToString()))) <= 0) { Note = TEXT("Falta pieza base: ") + RootType.ToString(); return false; }
 	if (CountOf(RootType) > 0) { BagItem(Bag, RootType).Count -= 1; }
 	const int32 AskedPlanks = CountOf("Plank");
 	// Piezas que solo tienen sentido en un modo: el rotor sustenta, la plataforma de lanzamiento lanza.
@@ -2255,14 +2266,14 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 	for (int32 Round = 0; Round < 5; ++Round)
 	{
 		Best = FComposeOut();
-		ComposeGrow(Bag, RootType, Best);
+		ComposeGrow(Bag, RootType, Best, Budget);
 		if (!Best.Coh.bNoLift || Round == 4) { break; }
 		FJamPieceCount* LiftItem = Bag.FindByPredicate([](const FJamPieceCount& I)
 		{
 			const EJamPartKind Kd = KindOfType(I.Type);
 			return I.Count > 0 && (Kd == EJamPartKind::Balloon || Kd == EJamPartKind::Hover || ((Kd == EJamPartKind::Fan || Kd == EJamPartKind::Rocket) && I.Mode == "lift"));
 		});
-		if (!LiftItem) { break; }
+		if (!LiftItem || (Budget && LiftItem->Count >= Budget->FindRef(FName(*(TEXT("Part.") + LiftItem->Type.ToString()))))) { break; }
 		++LiftItem->Count;
 		++LiftAdded;
 		LiftType = LiftItem->Type;

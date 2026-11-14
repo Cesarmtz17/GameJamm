@@ -4,6 +4,8 @@
 #include "Building/JamAssembler.h"
 #include "Building/JamBuildPart.h"
 #include "Building/JamDecisionClient.h"
+#include "Building/JamInventorySolver.h"
+#include "Core/InventoryComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -28,6 +30,7 @@ void AJamBuildSpawner::BeginPlay()
 
 void AJamBuildSpawner::Announce(const FString& Msg, bool bGood) const
 {
+	UE_LOG(LogJamBuild, Log, TEXT("Aviso%s: %s"), bGood ? TEXT("") : TEXT(" (mal)"), *Msg);
 	if (bAnnounceOnScreen && GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 8.f, bGood ? FColor::Green : FColor::Orange, Msg);
@@ -52,6 +55,14 @@ bool AJamBuildSpawner::IsBuildActive() const
 
 void AJamBuildSpawner::ClearBuild()
 {
+	++RequestGeneration; // una respuesta tardia no puede reconstruir lo que se desarmo
+	TMap<FName, int32> Refund = MoveTemp(PaidItems);
+	PaidItems.Reset();
+	if (UInventoryComponent* Inventory = PaidInventory.Get())
+	{
+		for (const auto& Item : Refund) { Inventory->AddItem(Item.Key, Item.Value); }
+	}
+	PaidInventory.Reset();
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(ActivateTimer);
@@ -77,6 +88,7 @@ void AJamBuildSpawner::BuildNow()
 		return;
 	}
 	World->GetTimerManager().ClearTimer(ActivateTimer);
+	const uint64 Generation = ++RequestGeneration;
 
 	FBuildRecipe Recipe;
 	FString Note, Err;
@@ -114,10 +126,10 @@ void AJamBuildSpawner::BuildNow()
 		const FString PromptCopy = Prompt;
 		TWeakObjectPtr<AJamBuildSpawner> Weak(this);
 		// Composicion comun a Jev y al planificador: bolsa -> numerales del texto -> raiz señalada -> compositor con sentido -> Realize.
-		auto Finish = [Weak, PromptCopy](bool bOk, const FJamBuildChoice& C, const FString& N)
+		auto Finish = [Weak, PromptCopy, Generation](bool bOk, const FJamBuildChoice& C, const FString& N)
 		{
 			AJamBuildSpawner* Self = Weak.Get();
-			if (!Self)
+			if (!Self || Self->RequestGeneration != Generation)
 			{
 				return;
 			}
@@ -211,8 +223,6 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& InRecipe, const FString& InNo
 	{
 		return;
 	}
-	ClearBuild();
-
 	// Validador de sentido: toda receta (compositor, JSON fijo, plantilla, planificador) se puntua 0-100; por debajo del minimo
 	// se recompone su bolsa con las reglas. Nunca bloquea: se construye lo mejor que haya y se le dice al jugador que paso.
 	FBuildRecipe Recipe = InRecipe;
@@ -240,6 +250,25 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& InRecipe, const FString& InNo
 		if (!LastCoherenceNote.IsEmpty()) { Announce(FString::Printf(TEXT("Jam: %s"), *LastCoherenceNote), Coh.Score >= UJamAssembler::MinCoherence()); }
 	}
 
+	UInventoryComponent* Inventory = bUseInventory && GetOwner() ? GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
+	if (bUseInventory)
+	{
+		if (!Inventory) { LastStatus = TEXT("FAIL inventory: no hay inventario del propietario"); Announce(LastStatus, false); return; }
+		TMap<FName, int32> Available = Inventory->Items;
+		if (PaidInventory.Get() == Inventory) { for (const auto& Item : PaidItems) { Available.FindOrAdd(Item.Key) += Item.Value; } }
+		FBuildRecipe Fitted;
+		FString InventoryNote;
+		if (!JamInventorySolver::Fit(Recipe, Available, Fitted, InventoryNote))
+		{
+			LastStatus = TEXT("Faltan piezas para una construccion util: ") + InventoryNote;
+			Announce(LastStatus, false);
+			return; // conserva la construccion anterior y sus piezas
+		}
+		Recipe = MoveTemp(Fitted);
+		Note += TEXT(" inventory=[") + InventoryNote + TEXT("]");
+		LastCoherence = UJamAssembler::Coherence(Recipe).Score;
+		if (!InventoryNote.IsEmpty()) { Announce(InventoryNote, true); }
+	}
 	LastRecipeJson = UBuildRecipeLibrary::RecipeToJson(Recipe);
 
 	// Apoyo: una construccion larga sobre terreno desigual nacia medio enterrada y la fisica la disparaba al separarla.
@@ -276,6 +305,20 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& InRecipe, const FString& InNo
 		UE_LOG(LogJamBuild, Warning, TEXT("%s"), *LastStatus);
 		Announce(TEXT("Jam: ") + LastStatus, false);
 		return;
+	}
+	// Solo sustituir la construccion anterior cuando la nueva ya existe.
+	ClearBuild();
+	if (Inventory)
+	{
+		const TMap<FName, int32> Cost = UBuildRecipeLibrary::GetRequiredItems(Recipe);
+		if (!Inventory->ConsumeItems(Cost))
+		{
+			UJamAssembler::DestroyBuild(Built);
+			LastStatus = TEXT("FAIL inventory: el inventario cambio durante la construccion");
+			Announce(LastStatus, false); return;
+		}
+		PaidInventory = Inventory;
+		PaidItems = Cost;
 	}
 	for (AJamBuildPart* P : Built) { Parts.Add(P); }
 	if (Built.Num() > 0 && Built[0]->Build.IsValid()) { Built[0]->Build->Team = Team; Built[0]->Build->Owner = GetOwner(); }

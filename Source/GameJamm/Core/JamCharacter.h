@@ -26,6 +26,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Jam")
 	TObjectPtr<UInventoryComponent> Inventory;
 
+	/** Piezas con las que se empieza (IDs Part.<Tipo>) hasta que exista loot; construir las consume y desarmar las devuelve. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Jam")
+	TMap<FName, int32> StartingItems;
+
 	virtual void Tick(float DeltaSeconds) override;
 
 	/** Caer de la isla (KillZ) cuenta como muerte: reaparece en la base en vez de destruirse. */

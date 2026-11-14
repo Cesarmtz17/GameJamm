@@ -118,7 +118,7 @@ TMap<FName, int32> UBuildRecipeLibrary::GetRequiredItems(const FBuildRecipe& Rec
 	TMap<FName, int32> Required;
 	for (const FBuildRecipePart& Part : Recipe.Parts)
 	{
-		Required.FindOrAdd(FName(*FString::Printf(TEXT("Part.%s"), *Part.Type.ToString())))++;
+		if (Part.Type != "Seat") { Required.FindOrAdd(FName(*FString::Printf(TEXT("Part.%s"), *Part.Type.ToString())))++; }
 	}
 	return Required;
 }
