@@ -9,7 +9,7 @@ una carpeta sin dueño, escribe tu nombre en la tabla y haz push; si ya tiene du
 | **2 · Combate + Fusión** — armas, arco, materiales, efectos | `Content/Game/Combat/` | `Source/GameJamm/Combat/` | — |
 | **3 · Construcción** — piezas, anclajes, física, ensamblado, recetas JSON y su integración con la IA | `Content/Game/Building/` | `Source/GameJamm/Building/` | Jesús Daniel Martínez García (LoGebo) |
 | **4 · IA** — bots (StateTree) + asistente LLM | `Content/Game/AI/` | `Source/GameJamm/AI/` | — |
-| **5 · Mundo / Arte / Audio / UI** — mapa, look, SFX/música, HUD, video y devlog | `Content/Game/Art/`, `Content/Game/Audio/`, `Content/Game/UI/`, actores del mapa | — | — |
+| **5 · Mundo / Arte / Audio / UI** — mapa, look, SFX/música, HUD, video y devlog | `Content/Game/Art/`, `Content/Game/Audio/`, `Content/Game/UI/`, actores del mapa | — | Emilio — arte 3D (`Content/Game/Art/`, con Blender MCP) |
 
 El número de área es solo una etiqueta: algunos docs (research 12, `ART.md`, `PROMPTS-ASSETS.md`) dicen "rol 3" para referirse a Construcción.
 
