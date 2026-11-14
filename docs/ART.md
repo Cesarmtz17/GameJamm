@@ -161,20 +161,7 @@ de reflector, y se apaga cuando cae.
 
 **Negativo:** `realistic, photoreal, glossy metal, sci-fi chrome, text, logo, brand, character face, multiple objects`
 
-**Prompts de los 10 imprescindibles del MVP** (prefijo + esto):
-
-| ID | Prompt |
-|---|---|
-| `PART_PLANK` | `long flat wooden plank with visible wood grain and two screws at each end` |
-| `PART_BLOCK` | `solid wooden crate-like cube with taped edges` |
-| `PART_CYLINDER` | `thick cardboard tube pole with gaffer tape bands` |
-| `JOINT_GLUE` | *(solo FX: costura de cinta gaffer, sin mesh)* |
-| `DEV_WHEEL_S` | `small plywood wheel with grey tape tire and a round hub, side view` |
-| `DEV_FAN` | `big boxy studio wind machine fan with three oversized blades in a wooden frame` |
-| `CTRL_SEAT` | `folding director's chair made of wood and canvas, no text` |
-| `PWR_BATTERY_S` | `chunky prop battery box with a painted lightning bolt` |
-| `DEV_CANNON` | `squat prop cannon made of a cardboard tube on a wooden base, oversized muzzle` |
-| `FUSE_FIRE` | `small prop fire canister with painted flames, can be attached to a sword` |
+**Prompts por asset, tamaños, orientación y qué hace cada uno:** [assets/PROMPTS-ASSETS.md](assets/PROMPTS-ASSETS.md).
 
 **Proceso por pieza:** generar → en Blender ajustar escala (cm), pivote en el centro de masa, colisión `UCX_`, sockets `Attach_*`
 → importar a `Content/Game/Building/` (o `Art/` si es un prop de mundo) → `MI_<id>` del maestro → checklist del catálogo §10.

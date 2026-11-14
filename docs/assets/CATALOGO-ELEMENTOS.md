@@ -61,12 +61,13 @@ status: borrador-v1
 
 **Ejes en el marco del vehículo:** Front = +X, Right = +Y, Top = +Z (convención de UE).
 
-> [!warning] Cómo funciona HOY el ensamblador (POC `JamAssembler.cpp`)
-> El código **todavía no lee los sockets del mesh**: coloca cada pieza junto a la cara del padre calculándolo con el
-> **tamaño de caja** (`Size`) de la tabla de abajo. Por eso, **hasta que se migre a sockets, el mesh importado tiene que medir
-> lo mismo que su `Size`** (bounding box, en cm). Si no, las piezas quedan flotando o se meten unas en otras.
-> Pendiente (rol 3): que el ensamblador busque `Attach_<cara>` en el mesh y use el `Size` solo si no lo encuentra, y que
-> acepte `"Attach_Left"` en la receta como sinónimo de `"Left"` por si la IA lo escribe así.
+> [!warning] Cómo coloca las piezas el ensamblador (`JamLayout.cpp`)
+> El código **todavía no lee los sockets del mesh**: coloca cada pieza junto a la cara del padre como una **caja de tamaño
+> `Size`** (tabla de abajo) y luego **escala el mesh a su bounding box** para que llene esa caja. Por eso lo que importa son
+> las **proporciones** y el **pivote al centro**, no los cm exactos. Si dos piezas caen en la misma cara, la segunda se
+> empuja hacia afuera para que no se encimen. Los sockets `Attach_*` se ponen igual, porque se usarán después.
+> El parser repara recetas mal escritas por la IA (alias de tipo, sinónimos de cara, padres inexistentes, etc.): ver tests en
+> `Source/GameJamm/Building/Tests/JamRecipeTests.cpp`.
 
 **Tipo en la receta ↔ ID del catálogo** (el `"type"` del JSON es el nombre corto; el ID es el del asset):
 
