@@ -1,26 +1,13 @@
 #include "Building/JamAssembler.h"
 
 #include "Building/JamBuildPart.h"
+#include "Building/JamLayout.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 
 namespace
 {
-	/** Dirección de un token de socket en el marco del vehículo. */
-	bool DirFromToken(const FString& Token, FVector& Out)
-	{
-		if (Token == TEXT("Top")) { Out = FVector(0, 0, 1); return true; }
-		if (Token == TEXT("Bottom")) { Out = FVector(0, 0, -1); return true; }
-		if (Token == TEXT("Front")) { Out = FVector(1, 0, 0); return true; }
-		if (Token == TEXT("Back")) { Out = FVector(-1, 0, 0); return true; }
-		if (Token == TEXT("Left")) { Out = FVector(0, -1, 0); return true; }
-		if (Token == TEXT("Right") || Token == TEXT("Side")) { Out = FVector(0, 1, 0); return true; }
-		return false;
-	}
-
-	FVector Abs(const FVector& V) { return FVector(FMath::Abs(V.X), FMath::Abs(V.Y), FMath::Abs(V.Z)); }
-
 	void LockAll(UPhysicsConstraintComponent* C)
 	{
 		C->SetLinearXLimit(LCM_Locked, 0);
@@ -30,15 +17,6 @@ namespace
 		C->SetAngularSwing2Limit(ACM_Locked, 0);
 		C->SetAngularTwistLimit(ACM_Locked, 0);
 	}
-
-	struct FPlaced
-	{
-		FVector Center = FVector::ZeroVector;
-		FJamPartDef Def;
-		FVector OutwardDir = FVector::UpVector;
-		FName Parent;
-		AJamBuildPart* Actor = nullptr;
-	};
 }
 
 bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Recipe, const FTransform& Origin,
@@ -63,68 +41,10 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 		return false;
 	}
 
-	// 1) Layout en el marco del vehículo (el padre debe existir antes; se repite hasta resolver).
-	TMap<FName, FPlaced> Placed;
-	TArray<const FBuildRecipePart*> Pending;
-	for (const FBuildRecipePart& P : Recipe.Parts)
+	// 1) Layout en el marco del vehículo (sin mundo; ver JamLayout, tiene tests).
+	TMap<FName, FJamPlacedPart> Placed;
+	if (!JamLayout::Compute(Recipe, Placed, OutError))
 	{
-		Pending.Add(&P);
-	}
-
-	int32 Guard = Pending.Num() + 1;
-	while (Pending.Num() > 0 && Guard-- > 0)
-	{
-		for (int32 i = Pending.Num() - 1; i >= 0; --i)
-		{
-			const FBuildRecipePart& P = *Pending[i];
-			FPlaced Item;
-			if (!UJamPartCatalog::Find(P.Type, Item.Def))
-			{
-				OutError = FString::Printf(TEXT("Unknown part type '%s'"), *P.Type.ToString());
-				return false;
-			}
-			Item.Parent = P.AttachTo;
-
-			if (P.AttachTo.IsNone())
-			{
-				Item.Center = FVector::ZeroVector;
-			}
-			else
-			{
-				const FPlaced* Parent = Placed.Find(P.AttachTo);
-				if (!Parent)
-				{
-					continue; // el padre aún no está colocado
-				}
-				TArray<FString> Tokens;
-				FString SocketStr = P.Socket.IsNone() ? FString(TEXT("Top")) : P.Socket.ToString();
-				SocketStr.RemoveFromStart(TEXT("Attach_")); // contrato de uniones: "Attach_Left" == "Left"
-				SocketStr.ParseIntoArray(Tokens, TEXT("_"));
-				FVector Dir = FVector::UpVector;
-				if (Tokens.Num() == 0 || !DirFromToken(Tokens[0], Dir))
-				{
-					OutError = FString::Printf(TEXT("Unknown socket '%s' on part '%s'"), *P.Socket.ToString(), *P.Id.ToString());
-					return false;
-				}
-				const FVector PH = Parent->Def.Size * 0.5;
-				const FVector CH = Item.Def.Size * 0.5;
-				Item.OutwardDir = Dir;
-				Item.Center = Parent->Center + Dir * (FVector::DotProduct(Abs(Dir), PH) + FVector::DotProduct(Abs(Dir), CH));
-				// token secundario: desplaza hacia un borde del padre (p. ej. Left_Front).
-				FVector Shift;
-				if (Tokens.Num() > 1 && DirFromToken(Tokens[1], Shift))
-				{
-					const double Edge = FVector::DotProduct(Abs(Shift), PH) - FVector::DotProduct(Abs(Shift), CH);
-					Item.Center += Shift * FMath::Max(0.0, Edge);
-				}
-			}
-			Placed.Add(P.Id, Item);
-			Pending.RemoveAt(i);
-		}
-	}
-	if (Pending.Num() > 0)
-	{
-		OutError = TEXT("Unresolvable parent references");
 		return false;
 	}
 
@@ -132,14 +52,15 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 	double MinZ = TNumericLimits<double>::Max();
 	for (const auto& KV : Placed)
 	{
-		MinZ = FMath::Min(MinZ, KV.Value.Center.Z - KV.Value.Def.Size.Z * 0.5);
+		MinZ = FMath::Min(MinZ, KV.Value.Center.Z - KV.Value.Half.Z);
 	}
 	const FVector Lift(0, 0, -MinZ + 5.0);
+	TMap<FName, AJamBuildPart*> Actors;
 
 	// 3) Spawn de las piezas.
 	for (const FBuildRecipePart& P : Recipe.Parts)
 	{
-		FPlaced& It = Placed[P.Id];
+		const FJamPlacedPart& It = Placed[P.Id];
 		FQuat AxisRot = FQuat::Identity;
 		if (It.Def.Axis == 1) { AxisRot = FQuat::FindBetweenNormals(FVector::UpVector, FVector::ForwardVector); }
 		if (It.Def.Axis == 2) { AxisRot = FQuat::FindBetweenNormals(FVector::UpVector, FVector::RightVector); }
@@ -151,6 +72,7 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 		if (!Part)
 		{
 			OutError = TEXT("Spawn failed");
+			DestroyBuild(OutParts); // no dejar piezas huérfanas en el mundo
 			return false;
 		}
 		Part->RecipeId = P.Id;
@@ -169,7 +91,7 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 		const FVector WorldDir = Origin.GetRotation().RotateVector(BuildDir);
 		Part->LocalDirection = Part->GetActorQuat().UnrotateVector(WorldDir);
 
-		It.Actor = Part;
+		Actors.Add(P.Id, Part);
 		OutParts.Add(Part);
 	}
 
@@ -180,13 +102,14 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 		{
 			continue;
 		}
-		FPlaced& Child = Placed[P.Id];
-		FPlaced& Parent = Placed[P.AttachTo];
+		const FJamPlacedPart& Child = Placed[P.Id];
+		AJamBuildPart* ChildActor = Actors[P.Id];
+		AJamBuildPart* ParentActor = Actors[P.AttachTo];
 
-		UPhysicsConstraintComponent* C = NewObject<UPhysicsConstraintComponent>(Child.Actor);
+		UPhysicsConstraintComponent* C = NewObject<UPhysicsConstraintComponent>(ChildActor);
 		C->RegisterComponent();
-		C->AttachToComponent(Child.Actor->Mesh, FAttachmentTransformRules::KeepRelativeTransform);
-		C->SetWorldLocation(Child.Actor->GetActorLocation());
+		C->AttachToComponent(ChildActor->Mesh, FAttachmentTransformRules::KeepRelativeTransform);
+		C->SetWorldLocation(ChildActor->GetActorLocation());
 		C->SetDisableCollision(true);
 
 		if (Child.Def.Kind == EJamPartKind::Wheel)
@@ -203,13 +126,13 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 			C->SetAngularVelocityDriveTwistAndSwing(true, false);
 			C->SetAngularDriveParams(0.f, 5000.f, 0.f);
 			C->SetAngularVelocityTarget(FVector::ZeroVector);
-			Child.Actor->DriveConstraint = C;
+			ChildActor->DriveConstraint = C;
 		}
 		else
 		{
 			LockAll(C);
 		}
-		C->SetConstrainedComponents(Parent.Actor->Mesh, NAME_None, Child.Actor->Mesh, NAME_None);
+		C->SetConstrainedComponents(ParentActor->Mesh, NAME_None, ChildActor->Mesh, NAME_None);
 	}
 	return true;
 }

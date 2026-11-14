@@ -47,13 +47,20 @@ void AJamBuildSpawner::BuildNow()
 	// 1) Receta JSON ya hecha (salida de un LLM).
 	if (!RecipeJsonOverride.IsEmpty())
 	{
-		if (!UBuildRecipeLibrary::ParseRecipeJson(RecipeJsonOverride, Recipe, Err))
+		if (UBuildRecipeLibrary::ParseRecipeJson(RecipeJsonOverride, Recipe, Err))
 		{
-			LastStatus = FString::Printf(TEXT("FAIL recipe: %s"), *Err);
-			UE_LOG(LogJamBuild, Warning, TEXT("%s"), *LastStatus);
+			Realize(Recipe, TEXT("source=json"));
 			return;
 		}
-		Realize(Recipe, TEXT("source=json"));
+		// El asistente nunca bloquea el juego: JSON roto -> receta por palabras clave del Prompt.
+		UE_LOG(LogJamBuild, Warning, TEXT("recipe json failed (%s); using keyword fallback"), *Err);
+		if (UJamBuildGenerator::GenerateRecipe(Prompt, Recipe, Note))
+		{
+			Realize(Recipe, FString::Printf(TEXT("fallback-keywords (json: %s) %s"), *Err, *Note));
+			return;
+		}
+		LastStatus = FString::Printf(TEXT("FAIL recipe: %s / %s"), *Err, *Note);
+		UE_LOG(LogJamBuild, Warning, TEXT("%s"), *LastStatus);
 		return;
 	}
 
