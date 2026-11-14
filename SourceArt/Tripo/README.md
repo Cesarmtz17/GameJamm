@@ -38,7 +38,7 @@ Dueño: Javier Fernández (ver [docs/TEAM.md](../../docs/TEAM.md)). Objetivo: su
 - La pieza visual se dibuja con escala absoluta (`AJamBuildPart::InitFromDef`): la caja mide **exactamente** `Size` en cm.
 - Pivote al centro de la caja; X = adelante, Y = derecha, Z = arriba; ruedas con eje en Y.
 - Un solo slot de material: `SetGlow` pone el escalar `Emissive` del slot 0 en 1 al encender la pieza (brillo ámbar).
-- ≤ 5k triángulos y texturas de 1K (512 en piezas chicas): la GPU de referencia del equipo tiene 4 GB.
+- ≤ 5k triángulos y texturas de 1K (512 en piezas chicas): presupuesto de memoria de video para PCs modestas y zip final < 1 GB.
 
 ## Estado
 

@@ -10,7 +10,7 @@ Contrato (Source/GameJamm/Building/JamBuildPart.cpp, InitFromDef + docs/assets/P
 - La malla visual se dibuja con escala absoluta: su bounding box tiene que medir EXACTAMENTE `Size` (cm, X x Y x Z de UE).
 - Pivote en el centro de la caja; X = adelante, Y = derecha, Z = arriba (marco UE). Ruedas: eje en Y.
 - Un solo slot de material: el código solo hace brillar el slot 0 (parámetro escalar `Emissive`).
-- <= 5k triángulos y texturas chicas (1K o 512): la GPU de referencia es de 4 GB y el zip final < 1 GB.
+- <= 5k triángulos y texturas chicas (1K o 512): presupuesto de memoria de video para PCs modestas y zip final < 1 GB.
 
 Marco: 1 unidad de Blender = 1 m (el importador FBX de UE convierte a cm) y Y_blender = -Y_ue, igual que los scripts de
 SourceArt/Building. Las rotaciones de `--rot` son en ejes de Blender, en grados, aplicadas en orden (p. ej. `z90,x-90`).
