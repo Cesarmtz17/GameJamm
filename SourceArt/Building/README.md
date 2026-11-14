@@ -34,20 +34,26 @@ y de [docs/assets/PROMPTS-ASSETS.md](../../docs/assets/PROMPTS-ASSETS.md); estil
 | `Rocket` | `SM_DEV_ROCKET` | 60 × 20 × 20 | 208 |
 | `Balloon` | `SM_DEV_BALLOON` | 90 × 90 × 90 | 232 |
 
-### Lote 2 (`scripts/gen_assets.py`)
+### Lote 4: todas las demás piezas de `JamBuildPart.cpp` (`gen_assets.py ... lot4`)
 
-Piezas extra de vehículo en `FBX/` (propuesta de medidas: **aún no están en la tabla de `JamBuildPart.cpp`**):
+Mismas medidas que la tabla del código (fuente de verdad); con estas + las 12 de arriba están cubiertas las 35 recetas.
 
-| Asset | Size (cm) | Tris |
-|---|---|---|
-| `SM_PART_PANEL` | 100 × 100 × 10 | 116 |
-| `SM_PART_WALL` | 200 × 22 × 150 | 68 |
-| `SM_PART_BALL` | 60 × 60 × 60 | 168 |
-| `SM_DEV_WING` | 62 × 200 × 8 (envergadura en Y) | 116 |
-| `SM_JOINT_HINGE` | 30 × 30 × 30 | 204 |
-| `SM_ANCHOR_STAKE` | 18 × 18 × 80 | 84 |
-| `SM_DEV_SPRING` | 40 × 40 × 40 | 304 |
+| Receta | Asset | Size (cm) | Receta | Asset | Size (cm) |
+|---|---|---|---|---|---|
+| `Wall` | `SM_PART_WALL` | 30 × 200 × 150 | `Wing` | `SM_DEV_WING` | 80 × 160 × 6 |
+| `Panel` | `SM_PART_PANEL` | 10 × 100 × 100 | `Sail` | `SM_DEV_SAIL` | 10 × 120 × 100 |
+| `Girder` | `SM_PART_GIRDER` | 300 × 20 × 20 | `Stabilizer` | `SM_DEV_STABILIZER` | 30 × 30 × 20 |
+| `Ball` | `SM_PART_BALL` | 60 × 60 × 60 | `Head` | `SM_CTRL_HEAD` | 40 × 40 × 40 |
+| `Sled` | `SM_DEV_SLED` | 160 × 70 × 15 | `BigBattery` | `SM_PWR_BATTERY_L` | 35 × 35 × 35 |
+| `Hinge` | `SM_JOINT_HINGE` | 20 × 60 × 20 | `Frost` | `SM_DEV_FROST` | 40 × 25 × 25 |
+| `Turntable` | `SM_JOINT_TURNTABLE` | 40 × 40 × 30 | `Shock` | `SM_DEV_SHOCK` | 40 × 25 × 25 |
+| `Stake` | `SM_ANCHOR_STAKE` | 15 × 15 × 20 | `Beam` | `SM_DEV_BEAM` | 50 × 12 × 12 |
+| `Spring` | `SM_DEV_SPRING` | 30 × 30 × 18 | `Bomb` | `SM_CTRL_TIMEBOMB` | 30 × 30 × 30 |
+| `Jet` | `SM_DEV_JET` | 60 × 40 × 40 (tobera −X) | `Hydrant` | `SM_DEV_HYDRANT` | 40 × 30 × 30 |
+| `Turbine` | `SM_DEV_TURBINE` | 25 × 90 × 90 | `Light` | `SM_DEV_LIGHT` | 25 × 25 × 25 |
+| `HoverStone` | `SM_DEV_HOVER` | 45 × 45 × 45 | | | |
 
+`Fx_Out` (+X) en Turbine, Head, Frost, Shock, Beam, Hydrant y Light; en `Jet` va en −X. Vista previa: `preview_extra.png`.
 El mismo script genera también (cada carpeta con `FBX/`, `Blend/` y `preview.png`):
 
 - **`SourceArt/Weapons/`**: `SM_WPN_SWORD` (100 cm, X = punta; sockets `Grip`, `Fuse_Slot`), `SM_WPN_BOW` (120 cm de alto;
@@ -60,8 +66,6 @@ El mismo script genera también (cada carpeta con `FBX/`, `Blend/` y `preview.pn
 
 ### Lote 3 (`gen_assets.py ... lot3`)
 
-- **`Building/`** (propuesta, aún fuera de `JamBuildPart.cpp`): `SM_DEV_FROST` y `SM_DEV_SHOCK` (40×20×20, `Fx_Out` en +X),
-  `SM_CTRL_HEAD` (sensor; lente y `Fx_Out` en +X), `SM_PWR_BATTERY_L` (40×30×40), `SM_CTRL_TIMEBOMB` (30×30×36).
 - **`SourceArt/Characters/`** (accesorios del maniquí, socket `Head` en la base): `SM_ACC_BEANIE` (jugador),
   `SM_ACC_GOGGLE_HELMET` (bots héroe), `SM_ACC_JUNK_HELMET` (enemigos de campamento). Sin colisión.
 - **`SourceArt/Pickups/`**: `SM_PROJ_CANNONBALL` (20 cm, el proyectil que hoy es una esfera en `JamBuildPart.cpp`),

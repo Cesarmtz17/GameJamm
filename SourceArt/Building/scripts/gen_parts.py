@@ -376,7 +376,8 @@ def render_previews(objs, preview_dir):
     scene.render.resolution_y = 1200
     scene.render.film_transparent = False
     # copia de cada pieza en una cuadrícula 4x3, normalizada a ~1.3 m para que se vean todas
-    cols, gap = 4, 2.4
+    cols, gap = (4 if len(objs) <= 12 else 6), 2.4
+    rows = math.ceil(len(objs) / cols)
     for i, o in enumerate(objs):
         c = o.copy()
         c.data = o.data
@@ -393,10 +394,10 @@ def render_previews(objs, preview_dir):
             ch.hide_render = True
     cam_data = bpy.data.cameras.new("Cam")
     cam_data.type = "ORTHO"
-    cam_data.ortho_scale = 10.5
+    cam_data.ortho_scale = max(10.5, gap * max(cols, rows) * 1.2)
     cam = bpy.data.objects.new("Cam", cam_data)
     scene.collection.objects.link(cam)
-    target = Vector(((cols - 1) * gap / 2, -gap, 0))
+    target = Vector(((cols - 1) * gap / 2, -(rows - 1) * gap / 2, 0))
     cam.location = target + Vector((7, -9, 7))
     cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
     scene.camera = cam

@@ -425,6 +425,190 @@ LOT3 = [
 ]
 
 
+# ---------------------------------------------------------------- lote 4: piezas alineadas con la tabla de JamBuildPart.cpp
+def wall_v(p):        # 30 x 200 x 150 (delgado en X)
+    p.box((0, 0, 0), (30, 200, 150), "stone", bevel=2)
+    for z in (-40, 40):
+        p.box((0, 0, z), (32, 204, 10), "wood_dark")
+
+
+def panel_v(p):       # 10 x 100 x 100 (delgado en X)
+    p.box((0, 0, 0), (8, 100, 100), "wood", bevel=1)
+    for y in (-30, 30):
+        p.box((-5, y, 0), (3, 10, 100), "wood_dark")
+    for sy in (-1, 1):
+        for sz in (-1, 1):
+            p.box((4.5, sy * 45, sz * 45), (1.5, 10, 10), "iron")
+
+
+def girder(p):        # 300 x 20 x 20
+    p.box((0, 0, 8), (300, 20, 4), "iron")
+    p.box((0, 0, -8), (300, 20, 4), "iron")
+    p.box((0, 0, 0), (300, 4, 14), "iron")
+    for x in range(-135, 140, 45):
+        p.cyl((x, 0, 10.5), 2, 1.5, "z", "stone", 6)
+
+
+def sled(p):          # 160 x 70 x 15
+    p.box((0, 0, 4), (130, 70, 6), "wood", bevel=1)
+    for y in (-30, 30):
+        p.box((0, y, -4), (150, 6, 4), "iron")
+        p.cyl((74, y, 0), 5, 6, "y", "iron", 8)                       # punta curva
+        for x in (-40, 40):
+            p.box((x, y, 0), (6, 6, 8), "wood_dark")
+
+
+def hinge_v(p):       # 20 x 60 x 20 (eje en Y)
+    p.box((-6, 0, 0), (8, 60, 20), "iron", bevel=1)
+    p.box((6, 0, 0), (8, 60, 20), "iron", bevel=1)
+    p.cyl((0, 0, 0), 4, 60, "y", "black", 10)
+
+
+def turntable(p):     # 40 x 40 x 30
+    p.cyl((0, 0, -10), 20, 10, "z", "iron", 12)
+    p.cyl((0, 0, 0), 12, 10, "z", "black", 10)
+    p.cyl((0, 0, 10), 19, 10, "z", "wood", 12)
+    p.box((12, 0, 15), (10, 4, 1), "yellow")                            # marca de giro
+
+
+def stake_s(p):       # 15 x 15 x 20
+    p.cyl((0, 0, 4), 6, 10, "z", "wood", 8)
+    p.cyl((0, 0, -6), 6, 8, "z", "iron", 8, radius2=0.5)
+    p.cyl((0, 0, 9), 7.5, 2, "z", "iron", 8)
+
+
+def spring_s(p):      # 30 x 30 x 18
+    p.box((0, 0, -7), (30, 30, 4), "wood", bevel=0.8)
+    p.box((0, 0, 7), (30, 30, 4), "wood", bevel=0.8)
+    for i in range(3):
+        p.cyl((0, 0, -3 + i * 3), 10, 1.5, "z", "iron", 10)
+
+
+def jet(p):           # 60 x 40 x 40, tobera hacia -X
+    p.cyl((5, 0, 0), 18, 40, "x", "iron", 12)
+    p.cyl((-20, 0, 0), 14, 14, "x", "black", 12, radius2=18)
+    p.cyl((26, 0, 0), 20, 6, "x", "copper", 12)
+    p.cyl((24, 0, 0), 12, 3, "x", "black", 12)
+
+
+def turbine(p):       # 25 x 90 x 90
+    p.ring((0, 0, 0), 45, 40, 25, "x", "iron", 20)
+    p.cyl((0, 0, 0), 8, 25, "x", "wood_dark", 10)
+    for k in range(6):
+        a = 90 + 60 * k
+        p.box((0, math.cos(math.radians(a)) * 22, math.sin(math.radians(a)) * 22), (4, 9, 34), "wood")
+        rot_last(p, 8, (0, math.cos(math.radians(a)) * 22, math.sin(math.radians(a)) * 22), "X", -(a - 90))
+
+
+def hover_stone(p):   # 45 x 45 x 45
+    p.sphere((0, 0, 0), 22, "stone", subdiv=1)
+    p.cyl((0, 0, -16), 8, 8, "z", "cyan", 6, radius2=2)
+    p.cyl((0, 0, 0), 22.8, 4, "z", "cyan", 10)                        # vena brillante
+
+
+def wing_s(p):        # 80 x 160 x 6
+    p.box((0, 0, 0), (80, 160, 4), "cloth", bevel=0.5)
+    for y in (-75, -38, 0, 38, 75):
+        p.box((0, y, 0), (82, 4, 6), "wood")
+    p.box((30, 0, 0), (6, 160, 6), "wood_dark")
+
+
+def sail(p):          # 10 x 120 x 100
+    p.box((0, 0, 0), (3, 110, 96), "cloth")
+    p.box((-3, 0, 48), (6, 120, 4), "wood_dark")
+    p.box((-3, 0, -48), (6, 120, 4), "wood_dark")
+    p.box((-3, 0, 0), (6, 5, 100), "wood")
+
+
+def stabilizer(p):    # 30 x 30 x 20
+    p.cyl((0, 0, -5), 15, 10, "z", "iron", 10)
+    p.sphere((0, 0, 5), 9, "copper", subdiv=1)
+    p.cyl((0, 0, 0), 15.3, 2, "z", "cyan", 10)
+
+
+def head_c(p):        # 40 x 40 x 40
+    p.cyl((0, 0, -15), 18, 10, "z", "iron", 10)
+    p.cyl((0, 0, -6), 5, 8, "z", "iron", 8)
+    p.box((0, 0, 8), (30, 28, 22), "wood", bevel=1.5)
+    p.cyl((15.5, 0, 9), 7, 3, "x", "cyan", 10)
+
+
+def battery_c(p):     # 35 x 35 x 35
+    p.box((0, 0, -3), (35, 35, 28), "iron", bevel=1.5)
+    p.box((0, 0, -3), (36, 25, 9), "yellow")
+    for y in (-9, 9):
+        p.cyl((0, y, 13), 3, 6, "z", "black" if y < 0 else "red", 8)
+
+
+def emitter(color_tank, tip):
+    def b(p):         # 40 x 25 x 25, boquilla hacia +X
+        p.cyl((-6, 0, 0), 10, 26, "x", color_tank, 10)
+        for x in (-12, 0):
+            p.cyl((x, 0, 0), 10.5, 2, "x", "iron", 10)
+        p.cyl((14, 0, 0), 5, 14, "x", "iron", 8, radius2=7)
+        p.cyl((20, 0, 0), 7.5, 2, "x", tip, 8)
+    return b
+
+
+def shock_c(p):       # 40 x 25 x 25
+    p.box((-8, 0, 0), (22, 24, 24), "wood_dark", bevel=1)
+    for i in range(3):
+        p.cyl((6 + i * 4, 0, 0), 8 - i * 1.6, 2.5, "x", "copper", 10)
+    p.sphere((18, 0, 0), 3.5, "spark", subdiv=1)
+
+
+def beam_c(p):        # 50 x 12 x 12
+    p.cyl((-5, 0, 0), 5.5, 40, "x", "iron", 8)
+    p.cyl((18, 0, 0), 6, 6, "x", "copper", 8)
+    p.cyl((23, 0, 0), 4, 3, "x", "cyan", 8)
+
+
+def bomb_c(p):        # 30 x 30 x 30
+    p.sphere((0, 0, -2), 13, "black", subdiv=2)
+    p.cyl((0, -12.5, 0), 6, 2, "y", "white", 12)
+    p.cyl((0, 0, 12), 3, 5, "z", "iron", 8)
+
+
+def hydrant(p):       # 40 x 30 x 30, boquilla hacia +X
+    p.cyl((-5, 0, 0), 13, 28, "z", "red", 10)
+    p.cyl((-5, 0, 15), 11, 4, "z", "iron", 10, radius2=4)
+    p.cyl((12, 0, 2), 4, 14, "x", "iron", 8)
+    p.cyl((19, 0, 2), 5.5, 2, "x", "cyan", 8)
+
+
+def light_c(p):       # 25 x 25 x 25, luz hacia +X
+    p.box((-3, 0, -4), (18, 22, 12), "iron", bevel=1)
+    p.cyl((4, 0, 3), 9, 12, "x", "iron", 10, radius2=11)
+    p.cyl((10.5, 0, 3), 10.5, 1.5, "x", "spark", 10)
+
+
+FX = [("Fx_Out", "Front")]
+LOT4 = [
+    ("Building", "SM_PART_WALL", (30, 200, 150), wall_v, "box", "center", SIX),
+    ("Building", "SM_PART_PANEL", (10, 100, 100), panel_v, "box", "center", SIX),
+    ("Building", "SM_PART_GIRDER", (300, 20, 20), girder, "box", "center", SIX),
+    ("Building", "SM_DEV_SLED", (160, 70, 15), sled, "box", "center", SIX),
+    ("Building", "SM_JOINT_HINGE", (20, 60, 20), hinge_v, "box", "center", SIX),
+    ("Building", "SM_JOINT_TURNTABLE", (40, 40, 30), turntable, "box", "center", SIX),
+    ("Building", "SM_ANCHOR_STAKE", (15, 15, 20), stake_s, "box", "center", SIX),
+    ("Building", "SM_DEV_SPRING", (30, 30, 18), spring_s, "box", "center", SIX),
+    ("Building", "SM_DEV_JET", (60, 40, 40), jet, "box", "center", SIX + [("Fx_Out", "Back")]),
+    ("Building", "SM_DEV_TURBINE", (25, 90, 90), turbine, "box", "center", SIX + FX),
+    ("Building", "SM_DEV_HOVER", (45, 45, 45), hover_stone, "box", "center", SIX),
+    ("Building", "SM_DEV_WING", (80, 160, 6), wing_s, "box", "center", SIX),
+    ("Building", "SM_DEV_SAIL", (10, 120, 100), sail, "box", "center", SIX),
+    ("Building", "SM_DEV_STABILIZER", (30, 30, 20), stabilizer, "box", "center", SIX),
+    ("Building", "SM_CTRL_HEAD", (40, 40, 40), head_c, "box", "center", SIX + FX),
+    ("Building", "SM_PWR_BATTERY_L", (35, 35, 35), battery_c, "box", "center", SIX),
+    ("Building", "SM_DEV_FROST", (40, 25, 25), emitter("cyan", "white"), "box", "center", SIX + FX),
+    ("Building", "SM_DEV_SHOCK", (40, 25, 25), shock_c, "box", "center", SIX + FX),
+    ("Building", "SM_DEV_BEAM", (50, 12, 12), beam_c, "box", "center", SIX + FX),
+    ("Building", "SM_CTRL_TIMEBOMB", (30, 30, 30), bomb_c, "box", "center", SIX),
+    ("Building", "SM_DEV_HYDRANT", (40, 30, 30), hydrant, "box", "center", SIX + FX),
+    ("Building", "SM_DEV_LIGHT", (25, 25, 25), light_c, "box", "center", SIX + FX),
+]
+
+
 def apply_pivot(obj, size, pivot):
     """fit_to_box deja el centro en el origen; mueve la malla para poner el pivote donde corresponde."""
     dz = {"center": 0.0, "bottom": size[2] / 2, "top": -size[2] / 2, "top_deck": -size[2] / 2 + 0.1}[pivot] / 100.0
@@ -453,7 +637,9 @@ def main():
     root = os.path.abspath(argv[0] if argv else os.path.join(os.path.dirname(__file__), "..", ".."))
     preview_dir = os.path.abspath(argv[1]) if len(argv) > 1 else root
     lot = argv[2] if len(argv) > 2 else "lot2"
-    assets = LOT3 if lot == "lot3" else ASSETS
+    assets = {"lot3": LOT3, "lot4": LOT4}.get(lot, ASSETS)
+    if lot != "lot4":  # las piezas de Building de los lotes 2 y 3 quedaron reemplazadas por LOT4 (medidas del código)
+        assets = [a for a in assets if a[0] != "Building"]
     os.makedirs(preview_dir, exist_ok=True)
 
     gp.clear_scene()
