@@ -1,29 +1,173 @@
 {
-  "_doc": "Lote 1: piezas del vehiculo. Size (cm, X adelante, Y derecha, Z arriba) = tabla de Source/GameJamm/Building/JamBuildPart.cpp. 'detail' va despues de 'Game asset, single object only:' y antes del estilo (ver README).",
-  "parts": [
-    {"type": "Wheel", "name": "SM_DEV_WHEEL_S", "size": [50, 20, 50], "sockets": "lr", "fx": [], "tex": 1024, "status": "v1 ok",
-     "detail": "a small wooden wheel for a handmade cart. Solid wooden disc wheel with a thick dark iron rim, a round wooden hub with four big iron bolts, visible wood grain and slightly worn edges. The wheel is fairly thick (width about 40% of its diameter)"},
-    {"type": "Plank", "name": "SM_PART_PLANK", "size": [200, 60, 10], "sockets": "six", "fx": [], "tex": 1024,
-     "detail": "one long flat wooden plank board, about 3.3 times longer than it is wide and very thin, visible warm wood grain, two big iron bolts near each end, slightly worn rounded edges. Seen from above at three-quarter angle"},
-    {"type": "Block", "name": "SM_PART_BLOCK", "size": [60, 60, 60], "sockets": "six", "fx": [], "tex": 1024,
-     "detail": "a solid wooden crate cube made of thick planks, chunky dark iron corner brackets with big bolts on all eight corners, plain sides"},
-    {"type": "Cylinder", "name": "SM_PART_CYLINDER", "size": [150, 50, 50], "sockets": "six", "fx": [], "tex": 1024,
-     "detail": "a thick wooden log-like tube made of wooden staves lying horizontally, three times longer than its diameter, two dark iron bands near both ends, flat round end caps"},
-    {"type": "BigWheel", "name": "SM_DEV_WHEEL_L", "size": [80, 30, 80], "sockets": "lr", "fx": [], "tex": 1024,
-     "detail": "a large chunky off-road wooden wheel, thick dark iron rim with big blocky iron treads all around, big round wooden hub with iron bolts, width about 40% of its diameter"},
-    {"type": "Fan", "name": "SM_DEV_FAN", "size": [15, 50, 50], "sockets": "six", "fx": ["Fx_Out:Front"], "tex": 1024,
-     "detail": "a handmade wooden propeller fan seen from the front: three oversized wooden blades with a central hub inside a round dark iron-banded wooden ring frame, shallow depth like a disc"},
-    {"type": "Seat", "name": "SM_CTRL_SEAT", "size": [40, 40, 30], "sockets": "six", "fx": [], "tex": 1024,
-     "detail": "a simple low wooden pilot seat: square wooden base, padded brown leather cushion and a short wooden backrest, dark iron brackets with bolts, wider than tall"},
-    {"type": "Battery", "name": "SM_PWR_BATTERY_S", "size": [20, 20, 20], "sockets": "six", "fx": [], "tex": 512,
-     "detail": "a chunky cube-shaped battery box with a dark iron frame, a big painted yellow lightning bolt on the front, two terminals on top (one red, one black)"},
-    {"type": "Cannon", "name": "SM_DEV_CANNON", "size": [70, 20, 20], "sockets": "six", "fx": ["Fx_Out:Front"], "tex": 1024,
-     "detail": "a squat dark iron cannon barrel lying horizontally on a small low wooden base, oversized muzzle ring at the front, about 3.5 times longer than it is tall, side view at three-quarter angle"},
-    {"type": "Flamethrower", "name": "SM_DEV_FLAME", "size": [40, 20, 20], "sockets": "six", "fx": ["Fx_Out:Front"], "tex": 512,
-     "detail": "a handmade flamethrower device lying horizontally: a red fuel canister with leather straps and a short dark iron nozzle pointing forward, twice as long as it is tall"},
-    {"type": "Rocket", "name": "SM_DEV_ROCKET", "size": [60, 20, 20], "sockets": "six", "fx": ["Fx_Out:Back"], "tex": 512,
-     "detail": "a handmade rocket lying horizontally: riveted metal body with painted red stripes, pointed nose at the front, three small fins and a dark nozzle at the back, three times longer than its diameter"},
-    {"type": "Balloon", "name": "SM_DEV_BALLOON", "size": [90, 90, 90], "sockets": "six", "fx": [], "tex": 1024,
-     "detail": "a round hot-air balloon made of patched red and cream canvas with a yellow band, ropes hanging down to a small wooden basket, overall as wide as it is tall"}
-  ]
+ "_doc": "Lote 1: piezas del vehiculo. Size (cm, X adelante, Y derecha, Z arriba) = tabla de Source/GameJamm/Building/JamBuildPart.cpp. 'detail' va despues de 'Game asset, single object only:' y antes del estilo (ver README).",
+ "parts": [
+  {
+   "type": "Wheel",
+   "name": "SM_DEV_WHEEL_S",
+   "size": [
+    50,
+    20,
+    50
+   ],
+   "sockets": "lr",
+   "fx": [],
+   "tex": 1024,
+   "status": "v1 ok",
+   "detail": "a small wooden wheel for a handmade cart. Solid wooden disc wheel with a thick dark iron rim, a round wooden hub with four big iron bolts, visible wood grain and slightly worn edges. The wheel is fairly thick (width about 40% of its diameter)"
+  },
+  {
+   "type": "Plank",
+   "name": "SM_PART_PLANK",
+   "size": [
+    200,
+    60,
+    10
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 1024,
+   "detail": "one long flat wooden plank board, about 3.3 times longer than it is wide and very thin, visible warm wood grain, two big iron bolts near each end, slightly worn rounded edges. Seen from above at three-quarter angle"
+  },
+  {
+   "type": "Block",
+   "name": "SM_PART_BLOCK",
+   "size": [
+    60,
+    60,
+    60
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 1024,
+   "detail": "a solid wooden crate cube made of thick planks, chunky dark iron corner brackets with big bolts on all eight corners, plain sides"
+  },
+  {
+   "type": "Cylinder",
+   "name": "SM_PART_CYLINDER",
+   "size": [
+    150,
+    50,
+    50
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 1024,
+   "detail": "a thick wooden log-like tube made of wooden staves lying horizontally, three times longer than its diameter, two dark iron bands near both ends, flat round end caps"
+  },
+  {
+   "type": "BigWheel",
+   "name": "SM_DEV_WHEEL_L",
+   "size": [
+    80,
+    30,
+    80
+   ],
+   "sockets": "lr",
+   "fx": [],
+   "tex": 1024,
+   "detail": "a large chunky off-road wooden wheel, thick dark iron rim with big blocky iron treads all around, big round wooden hub with iron bolts, width about 40% of its diameter"
+  },
+  {
+   "type": "Fan",
+   "name": "SM_DEV_FAN",
+   "size": [
+    15,
+    50,
+    50
+   ],
+   "sockets": "six",
+   "fx": [
+    "Fx_Out:Front"
+   ],
+   "tex": 1024,
+   "detail": "a handmade wooden propeller fan seen from the front: three oversized wooden blades with a central hub inside a round dark iron-banded wooden ring frame, shallow depth like a disc"
+  },
+  {
+   "type": "Seat",
+   "name": "SM_CTRL_SEAT",
+   "size": [
+    40,
+    40,
+    30
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 1024,
+   "detail": "a simple low wooden pilot seat: square wooden base, padded brown leather cushion and a short wooden backrest, dark iron brackets with bolts, wider than tall",
+   "rot": "z180"
+  },
+  {
+   "type": "Battery",
+   "name": "SM_PWR_BATTERY_S",
+   "size": [
+    20,
+    20,
+    20
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 512,
+   "detail": "a chunky cube-shaped battery box with a dark iron frame, a big painted yellow lightning bolt on the front, two terminals on top (one red, one black)"
+  },
+  {
+   "type": "Cannon",
+   "name": "SM_DEV_CANNON",
+   "size": [
+    70,
+    20,
+    20
+   ],
+   "sockets": "six",
+   "fx": [
+    "Fx_Out:Front"
+   ],
+   "tex": 1024,
+   "detail": "a squat dark iron cannon barrel lying horizontally on a small low wooden base, oversized muzzle ring at the front, about 3.5 times longer than it is tall, side view at three-quarter angle",
+   "rot": "z180"
+  },
+  {
+   "type": "Flamethrower",
+   "name": "SM_DEV_FLAME",
+   "size": [
+    40,
+    20,
+    20
+   ],
+   "sockets": "six",
+   "fx": [
+    "Fx_Out:Front"
+   ],
+   "tex": 512,
+   "detail": "a handmade flamethrower device lying horizontally: a red fuel canister with leather straps and a short dark iron nozzle pointing forward, twice as long as it is tall"
+  },
+  {
+   "type": "Rocket",
+   "name": "SM_DEV_ROCKET",
+   "size": [
+    60,
+    20,
+    20
+   ],
+   "sockets": "six",
+   "fx": [
+    "Fx_Out:Back"
+   ],
+   "tex": 512,
+   "detail": "a handmade rocket lying horizontally: riveted metal body with painted red stripes, pointed nose at the front, three small fins and a dark nozzle at the back, three times longer than its diameter",
+   "rot": "z180"
+  },
+  {
+   "type": "Balloon",
+   "name": "SM_DEV_BALLOON",
+   "size": [
+    90,
+    90,
+    90
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 1024,
+   "detail": "a round hot-air balloon made of patched red and cream canvas with a yellow band, ropes hanging down to a small wooden basket, overall as wide as it is tall"
+  }
+ ]
 }
