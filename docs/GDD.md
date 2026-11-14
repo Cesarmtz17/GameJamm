@@ -494,6 +494,8 @@ No va en el repo (`Config/DefaultSecrets.ini` o variables de entorno). **Propues
 
 ## Pendientes para otras áreas (lo que el GDD pide y falta en su parte)
 
+> Lo que falta del MVP fuera de Construcción (mapa y partida, combate, minions y bots, loot, menú y audio) está repartido en tareas en [TAREAS-PC.md](TAREAS-PC.md).
+
 > Para personas y agentes: si eres dueño del área, toma tu fila, hazlo y márcala `[x]` (o di aquí por qué no). Los cambios al
 > diseño se piden en este mismo GDD.
 

@@ -1,0 +1,95 @@
+# Tareas para el Claude de la PC de escritorio de Cesar
+
+> **Solo para la sesión de Claude Code en la PC de escritorio de Cesar** (la que tiene Unreal y compila). Los agentes de
+> los demás integrantes no toman estas tareas. Las escribe la sesión de la Mac de Cesar a partir de [GDD.md](GDD.md);
+> si una tarea choca con lo que ya hizo alguien, avisa a Cesar en vez de decidir solo.
+
+## Cómo trabajar esta lista
+
+1. `git pull --rebase --autostash`. Lee `CLAUDE.md`, `docs/TEAM.md` y `docs/GDD.md` (Jugabilidad).
+2. Toma la **primera tarea sin marcar**, en orden. Al empezar, cámbiala a `[~] (PC, <hora>)` y haz push de este archivo, para que
+   no se repita.
+3. No toques `Source/GameJamm/Building/` ni `Content/Game/Building/` (son de Jesús Daniel): usa sus APIs públicas. Si hace falta
+   un cambio ahí, escríbelo en *Pendientes para otras áreas* del GDD.
+4. Haz commits chicos `<area>: <qué>`, con `git add` solo de tus rutas. Antes de cada push: compilar, probar en PIE,
+   `git pull --rebase --autostash` y luego `git push`.
+5. Nunca subas `Saved/`, `Intermediate/`, `Binaries/`, claves ni la sección `AndroidFileServer` de `Config/DefaultEngine.ini`.
+   `git lfs lock` antes de editar un `.uasset` que ya exista.
+6. Al terminar, marca `[x]`, pon el hash del commit y una línea de cómo probarlo. Si algo no se pudo hacer, pon `[!]` y el motivo.
+7. Freeze de features: **dom 15 nov, 12:00 CDMX**. Después de esa hora, solo arreglos.
+
+## Tareas (en orden de prioridad)
+
+### [ ] 0. Probar el brillo al prender
+`git checkout build/brillo-encendido`, compilar y en PIE correr `Jam.Say un carro` y luego **C**: la malla debe brillar
+(parámetro `Emissive` de `M_Part_Master`; si el material no lo tiene, agrégalo: Scalar 0–1 × `#E7B65A` a Emissive Color).
+Si funciona, haz merge a `main` y push. Si no compila, pon aquí el primer error.
+
+### [ ] 1. Partida jugable (Core + mapa)
+Core no tiene dueño: anota "Cesar" en la fila Core de `docs/TEAM.md` y haz push.
+1. Importa `SourceArt/World/FBX/SM_MAP_Dressed.fbx` (o el blockout) y arma `Content/Game/Maps/L_Main` con World Partition + OFPA.
+   Las posiciones están en `SourceArt/World/map_layout.json` (bases en ±12400 X, torres en ±8200 y ±4400).
+2. Coloca `ATeamStructure` (`Source/GameJamm/Core/TeamStructure`) con `SM_TOWER_WATCH` y `SM_BASE_KEEP`: 2 torres y 1 base por
+   equipo, con los valores de GDD §9 (torre 1500 HP, 15 m, 20 de daño cada 1.5 s; base 3000 HP, que solo recibe daño al caer
+   sus 2 torres).
+3. Personaje `AJamCharacter` en Core, a partir de la tercera persona de `AJamTestCharacter` (Building/JamPlayConsole), con
+   `UHealthComponent` (150 HP, Team), `UInventoryComponent` y respawn en la base (5 s + 1 s por minuto, tope 15 s). Todas las
+   teclas de construcción de Jesús tienen que seguir funcionando con este personaje.
+4. `AJamGameMode`: Rojo contra Azul; gana quien destruya la base. Muerte súbita a las 12:00 y a las 15:00 gana la base con más
+   HP (§10). Pantalla simple de victoria o derrota.
+5. Prueba: Play en L_Main, caminar a la torre enemiga, recibir daño, morir y reaparecer.
+
+### [ ] 2. Combate y fusión (GDD §8)
+Combate figura como de Jesús Daniel "por confirmar": **pregúntale a Cesar antes de empezar** y anota en `TEAM.md` quién lo hace.
+1. Espada (20 de daño cada 0.6 s, 2 m) y arco (15 de daño cada 0.8 s, 40 m, flecha física) con `SM_WPN_SWORD`, `SM_WPN_BOW` y
+   `SM_WPN_ARROW`. Clic izquierdo ataca. No uses las teclas de Building (1-9, C, E, X, V, H, G, T); ver la tabla §7.
+2. `UFusionComponent`: pega 1 material al arma por 20 golpes. Valores en DataAsset o JSON:
+   - Roca: +12 de daño, empuje ×2, ataque 30 % más lento.
+   - Fuego: 5 de daño por segundo durante 3 s.
+   - Hielo: ralentiza 50 % durante 2 s.
+   - Rayo: aturde 0.5 s.
+   - Bomba: 35 de daño en 2.5 m y se gasta.
+
+   Usa los meshes `SM_FUSE_*` pegados a la punta del arma.
+3. Los materiales salen de `UInventoryComponent` (`Mat.Rock`, `Mat.Fire`, `Mat.Ice`, `Mat.Shock`, `Mat.Bomb`).
+4. Todo el daño va por `ApplyDamage` a `UHealthComponent`, y nunca a aliados (`UJamStatics::AreEnemies`).
+5. Prueba: pegarle a un dummy con cada material.
+
+### [ ] 3. Minions y bots (GDD §3 y §11)
+IA no tiene dueño: anota "Cesar" en la fila IA de `TEAM.md`. Por tiempo, nada de StateTree: máquina de estados en C++ en
+`Source/GameJamm/AI/`.
+1. `AJamMinion`, con el maniquí en el color de su equipo pero más apagado (ART.md §6):
+   - Salen en oleadas cada 30 s desde cada base: 3 melee y 1 ranged, y un heavy a partir del minuto 8. Vida: 60 / 40 / 200.
+   - Recorren el carril (puntos de `map_layout.json`) y atacan al enemigo más cercano o a la torre.
+   - Las torres apuntan primero a los minions. Sin minions aliados cerca, se le hace 50 % de daño a las torres.
+   - Matar un minion da +3 de energía (`AJamBuildPart::SetPlayerEnergy`).
+2. Bot héroe: 2 por equipo para completar el 3v3, con los roles Constructor, Peleador y Tirador.
+   - Estados: ir al carril, pelear, retirarse con poca vida y lootear.
+   - El Constructor arma con el asistente de Jesús usando frases fijas ("un carro con lanzallamas"), vía
+     `AJamBuildSpawner::SetPromptAndBuild`.
+3. Prueba: una partida de 5 minutos sin tocar nada; los minions chocan en el centro y los bots pelean.
+
+### [ ] 4. Loot y energía (GDD §4, §5 y §12, en Core)
+1. Coloca en las 4 islas de `map_layout.json` el `ALootChest` (`SM_PROP_CHEST`), el cofre raro (con tapa animable) y las pilas
+   de chatarra, más el cofre raro central a partir del minuto 5.
+   - Se abren con E y llenan `UInventoryComponent`.
+   - Topes de la mochila (§4): 40 en total; 8 por tipo común, 4 por dispositivo y 2 por raro.
+2. Pickups: `SM_PICKUP_PART`, `SM_PICKUP_MATERIAL` y `SM_PICKUP_ENERGY_ORB`.
+   - Cristal chico +15 y grande +40 (el mismo orbe, escalado y en cian).
+   - Al morir sueltas una bolsa con el 50 % de tus piezas y un orbe con el 50 % de la energía que tenías arriba del mínimo.
+3. Cofre garantizado junto al spawn (§12): 1 Plank, 4 Wheel, 1 Flamethrower, 1 Fan y 1 Fuego. Va con el letrero
+   "Prueba: un carro que queme todo".
+4. Guardias de campamento (§11): Guardia de 80 HP y Lanzador de 50 HP, usando `AJamMinion` con equipo Neutral.
+
+### [ ] 5. Menú, pantalla final y audio (GDD §13 y §17)
+Avísale a Emilio (dueño de Audio/UI) antes de empezar.
+1. Importa `SourceArt/Audio` (23 SFX y 3 loops) a `Content/Game/Audio/` y conéctalos a los eventos de §17: armar, encender, sin
+   energía, golpes, torre destruida, loot, mochila llena, muerte y respawn. Música: `MUS_Match_Loop`, y
+   `MUS_Match_Intense_Loop` en la muerte súbita.
+2. Importa `SourceArt/Icons` (`T_Icon_*` y `T_UI_*`) a `Content/Game/UI/`.
+3. Menú de inicio (Jugar Asalto, Controles, Salir) y pantalla final "tu corte final", con la construcción de la partida y el
+   ganador.
+
+## Registro
+| Tarea | Estado | Commit | Cómo probar |
+|---|---|---|---|
