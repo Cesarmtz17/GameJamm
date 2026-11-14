@@ -1,6 +1,7 @@
 #include "Building/JamPlayConsole.h"
 
 #include "Building/JamBuildPart.h"
+#include "Building/JamDrivePhysics.h"
 #include "Building/JamBuildSpawner.h"
 #include "Building/JamVoice.h"
 #include "Blueprint/WidgetTree.h"
@@ -1156,6 +1157,17 @@ void AJamTestCharacter::DriveMount(AJamBuildPart* Seat, float Throttle, float St
 	AJamBuildPart* Root = Seat->Build->Parts[0].Get();
 	const FVector Right = Root->GetActorRightVector();
 	bool bWheels = false;
+	// A velocidad alta, limitar el giro para que la aceleracion lateral no vuelque el vehiculo.
+	double HalfTrack = 0.0, Height = 1.0;
+	const FVector Com = Root->GetBuildCenterOfMass();
+	for (const TWeakObjectPtr<AJamBuildPart>& P : Seat->Build->Parts)
+	{
+		if (!P.IsValid() || P->Kind != EJamPartKind::Wheel) { continue; }
+		HalfTrack = FMath::Max(HalfTrack, FMath::Abs(FVector::DotProduct(P->GetActorLocation() - Com, Right)));
+		Height = FMath::Max(Height, Com.Z - P->GetActorLocation().Z + P->Mesh->Bounds.BoxExtent.Z);
+	}
+	const float MaxYawRate = HalfTrack > 1.0 ? JamDrivePhysics::YawRate(Root->Mesh->GetPhysicsLinearVelocity().Size2D(), HalfTrack, Height) : 1.5f;
+	const float DriveSteer = SmoothSteer * MaxYawRate / 1.5f;
 	// Controles por CAPACIDAD de las piezas que haya (no por plantilla):
 	//   clic = armas mientras se mantiene; Espacio = encender cohetes / armar bombas; W = propulsores que empujan.
 	for (const TWeakObjectPtr<AJamBuildPart>& P : Seat->Build->Parts)
@@ -1167,7 +1179,8 @@ void AJamTestCharacter::DriveMount(AJamBuildPart* Seat, float Throttle, float St
 		if (bBoost && (Kd == EJamPartKind::Rocket || Kd == EJamPartKind::Bomb) && !P->bActive) { P->SetActive(true); }
 		if (Kd == EJamPartKind::Fan && FMath::Abs(P->GetActorQuat().RotateVector(P->LocalDirection).Z) < 0.5)
 		{
-			const bool bPush = Throttle > 0.1f;
+			P->SetDrive(FMath::Max(SmoothThrottle, 0.f));
+			const bool bPush = SmoothThrottle > 0.01f;
 			if (P->bActive != bPush) { P->SetActive(bPush); }
 		}
 	}
@@ -1178,7 +1191,7 @@ void AJamTestCharacter::DriveMount(AJamBuildPart* Seat, float Throttle, float St
 			// Giro diferencial: las ruedas de un lado van mas rapido que las del otro.
 			bWheels = true;
 			const float Side = FVector::DotProduct(P->GetActorLocation() - Root->GetActorLocation(), Right) >= 0.0 ? 1.f : -1.f;
-			P->SetDrive(FMath::Clamp(SmoothThrottle - 1.5f * SmoothSteer * Side, -1.f, 1.f)); // a tope de giro, el lado interior va en reversa
+			P->SetDrive(FMath::Clamp(SmoothThrottle - 1.5f * DriveSteer * Side, -1.f, 1.f)); // a tope de giro, el lado interior va en reversa
 		}
 	}
 	// Auto-enderezar: un vehiculo con ruedas que queda de cabeza o de lado, casi quieto, mas de 1 s, se voltea solo
@@ -1245,6 +1258,14 @@ void AJamTestCharacter::DriveMount(AJamBuildPart* Seat, float Throttle, float St
 	}
 	if (bLifts)
 	{
+		// W/S inclina el objetivo del estabilizador: la fuerza horizontal sale de las helices inclinadas.
+		// Al desmontar expira el objetivo y vuelve a nivelarse; no agrega propulsion a piezas sin empuje.
+		if (!bWheels)
+		{
+			const FVector Forward = FVector::VectorPlaneProject(Root->GetActorForwardVector(), FVector::UpVector).GetSafeNormal();
+			Seat->Build->PilotUp = (FVector::UpVector + Forward * SmoothThrottle * 0.3f).GetSafeNormal();
+			Seat->Build->PilotTiltUntil = Root->GetWorld()->GetTimeSeconds() + 0.2f;
+		}
 		const double Vz = Root->Mesh->GetPhysicsLinearVelocity().Z;
 		const double WantVz = 350.0 * GLiftInput; // cm/s
 		Root->Mesh->AddForce(FVector(0, 0, FMath::Max(Seat->Build->MassKg, 1.f) * FMath::Clamp(12.0 * (WantVz - Vz), -2500.0, 300.0)));
@@ -1268,7 +1289,7 @@ void AJamTestCharacter::DriveMount(AJamBuildPart* Seat, float Throttle, float St
 		const double ScrubArm = FMath::Max(WheelN > 0 ? WheelArm / WheelN : 0.0, 100.0);
 		const double MaxTorque = Inertia * 6.0 + BuildMass * 980.0 * 0.8 * ScrubArm;
 		const double Wz = Root->Mesh->GetPhysicsAngularVelocityInRadians().Z;
-		Root->Mesh->AddTorqueInRadians(FVector(0, 0, FMath::Clamp(Inertia * 20.0 * (1.5 * SmoothSteer - Wz), -MaxTorque, MaxTorque)));
+		Root->Mesh->AddTorqueInRadians(FVector(0, 0, FMath::Clamp(Inertia * 20.0 * (MaxYawRate * SmoothSteer - Wz), -MaxTorque, MaxTorque)));
 	}
 }
 

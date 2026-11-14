@@ -2,6 +2,7 @@
 
 #include "Algo/Reverse.h"
 #include "Building/JamBuildPart.h"
+#include "Building/JamDrivePhysics.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSocket.h"
@@ -153,6 +154,8 @@ namespace
 					const FVector CH = Item.Size * 0.5;
 					Item.Center = Parent->Center + Dir * (FaceDistance(*Parent, Dir) + FVector::DotProduct(Abs(Dir), CH));
 					Item.Center += Shift * (FVector::DotProduct(Abs(Shift), PH) - FVector::DotProduct(Abs(Shift), CH));
+					// Separar el cilindro del chasis: el borde no debe rozar al girar.
+					if (Item.Def.Kind == EJamPartKind::Wheel) { Item.Center += Dir * 2.0; }
 				}
 				Placed.Add(P.Id, Item);
 				Pending.RemoveAt(i);
@@ -455,6 +458,12 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 	struct FForce { const FPlaced* P; FVector Fv; };
 	TArray<FForce> Prop, Lift;
 	bool bDown = false, bAnyForce = false;
+	double RocketPower = 0.0;
+	for (const auto& KV : F.Pl)
+	{
+		if (KV.Value.Def.Kind == EJamPartKind::Rocket && FMath::Abs(KV.Value.Facing.Z) < 0.5 && !F.Spun.Contains(KV.Key)) { RocketPower += KV.Value.Def.Power; }
+	}
+	const double BoostScale = Wheels.Num() >= 2 ? JamDrivePhysics::GroundBoostScale(M, RocketPower) : 1.0;
 	for (const FName& Id : F.Ids)
 	{
 		const FPlaced& A = F.Pl[Id];
@@ -463,6 +472,7 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 		if ((Kd == EJamPartKind::Fan || Kd == EJamPartKind::Rocket) && !F.Spun.Contains(Id) && !A.Parent.IsNone()) { Fv = -A.Facing * A.Def.Power; }
 		else if (Kd == EJamPartKind::Balloon || Kd == EJamPartKind::Hover) { Fv = FVector(0, 0, A.Def.Power); }
 		else { continue; }
+		if (Kd == EJamPartKind::Rocket && FMath::Abs(Fv.Z) < 1.0) { Fv *= BoostScale; }
 		bAnyForce = true;
 		if (FMath::Abs(Fv.Z) < 1.0) { Prop.Add({ &A, Fv }); }
 		else if (Fv.Z > 1.0) { Lift.Add({ &A, Fv }); }
@@ -476,7 +486,11 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 		{
 			Sx += P.Fv.X;
 			Tot += FMath::Sqrt(P.Fv.X * P.Fv.X + P.Fv.Y * P.Fv.Y);
-			Yaw += (P.P->Center.X - Com.X) * P.Fv.Y - (P.P->Center.Y - Com.Y) * P.Fv.X;
+			// El cohete aplica su fuerza en el centro de masa durante Tick, sin par.
+			if (P.P->Def.Kind != EJamPartKind::Rocket)
+			{
+				Yaw += (P.P->Center.X - Com.X) * P.Fv.Y - (P.P->Center.Y - Com.Y) * P.Fv.X;
+			}
 		}
 		const double YawRel = FMath::Abs(Yaw) / FMath::Max(1.0, Tot * L / 2);
 		E = FMath::Min3(E, FMath::Max(0.0, Sx / Tot), FMath::Max(0.0, 1.0 - YawRel / 0.3));
@@ -488,7 +502,11 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 	if (Lift.Num())
 	{
 		double Cx = 0, Cy = 0;
-		for (const FForce& P : Lift) { Cx += P.P->Center.X * P.Fv.Z; Cy += P.P->Center.Y * P.Fv.Z; }
+		for (const FForce& P : Lift)
+		{
+			const FVector At = P.P->Def.Kind == EJamPartKind::Rocket ? Com : P.P->Center;
+			Cx += At.X * P.Fv.Z; Cy += At.Y * P.Fv.Z;
+		}
 		const double Dist = FMath::Sqrt(FMath::Square(Cx / Up - Com.X) + FMath::Square(Cy / Up - Com.Y));
 		const double Off = Dist / FMath::Max(1.0, L / 2) * FMath::Min(1.0, Up / (M * 980.0)); // pesa segun cuanto del peso carga
 		E = FMath::Min(E, FMath::Max(0.0, 1.0 - Off / 0.3));
@@ -765,15 +783,32 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 		// todo lo que colgaba de un tramo añadido del chasis - ruedas, cañones - tiraba hacia otro sitio.)
 		C->SetConstrainedComponents(Placed[RootOf(P.AttachTo)].Actor->Mesh, NAME_None, Child.Actor->Mesh, NAME_None);
 	}
-	// Motor de las ruedas proporcional al peso que les toca: un tanque de 70 kg sobre 4 ruedas no puede quedarse parado.
-	// ponytail: la fuerza crece lineal con la masa por rueda motriz (base = carro de 30 kg sobre 4 ruedas); afinar jugando.
+	// Limitar el par total por traccion y margen longitudinal del centro de masa.
+	// El limite anterior (2e6 por rueda) levantaba el chasis antes de hacerlo avanzar.
 	{
 		int32 Motors = 0;
-		for (AJamBuildPart* Part : OutParts) { Motors += (Part->Kind == EJamPartKind::Wheel && Part->DriveConstraint) ? 1 : 0; }
-		const float Scale = Motors > 0 ? FMath::Clamp(State->MassKg / (7.5f * Motors), 1.f, 12.f) : 1.f;
-		for (AJamBuildPart* Part : OutParts)
+		double Mass = 0.0, ComX = 0.0;
+		double MinX = TNumericLimits<double>::Max(), MaxX = -TNumericLimits<double>::Max();
+		for (const auto& KV : Placed)
 		{
-			if (Part->Kind == EJamPartKind::Wheel && Part->DriveConstraint) { Part->DriveConstraint->SetAngularDriveParams(0.f, 5000.f * Scale, 2000000.f * Scale); }
+			const FPlaced& A = KV.Value;
+			Mass += A.Def.MassKg;
+			ComX += A.Center.X * A.Def.MassKg;
+			if (A.Def.Kind == EJamPartKind::Wheel && !A.Parent.IsNone())
+			{
+				MinX = FMath::Min(MinX, A.Center.X); MaxX = FMath::Max(MaxX, A.Center.X);
+				Motors += A.Actor->DriveConstraint != nullptr ? 1 : 0;
+			}
+		}
+		ComX /= FMath::Max(Mass, 0.001);
+		// Apoyo en un solo eje (dos ruedas laterales): traccion limitada, equilibrio a cargo del estabilizador/piloto.
+		const double Margin = MaxX - MinX > 1.0 ? FMath::Max(0.0, FMath::Min(ComX - MinX, MaxX - ComX)) : 10.0;
+		for (const auto& KV : Placed)
+		{
+			const FPlaced& A = KV.Value;
+			if (A.Def.Kind != EJamPartKind::Wheel || !A.Actor->DriveConstraint) { continue; }
+			const float Torque = JamDrivePhysics::WheelTorque(Mass, A.Def.Size.Z * 0.5, Motors, Margin);
+			A.Actor->DriveConstraint->SetAngularDriveParams(0.f, 5000.f, FMath::Max(Torque, 1.f)); // Chaos: 0 significa fuerza ilimitada
 		}
 	}
 	// La masa del cuerpo soldado es la suma de sus piezas.

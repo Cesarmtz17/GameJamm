@@ -54,6 +54,8 @@ struct FJamBuildState
 	EJamTeam Team = EJamTeam::Neutral;                      // equipo del dueño; la cabeza no apunta a los suyos
 	float StunUntil = 0.f;                                  // descarga electrica: apagada hasta esta hora
 	TArray<TWeakObjectPtr<AJamBuildPart>> Stunned;          // piezas que estaban encendidas y hay que reencender
+	FVector PilotUp = FVector::UpVector;                    // objetivo de inclinacion del estabilizador al pilotar un volador
+	float PilotTiltUntil = 0.f;                             // al soltar el mando vuelve a enderezar
 	float LastPowerSound = -100.f;
 	TWeakObjectPtr<AActor> Owner;                           // quien la pidio: la cabeza nunca le apunta
 	TWeakObjectPtr<AActor> AimTarget;                       // a quien apunta la cabeza: el cañon eleva el tiro hacia el
@@ -188,9 +190,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
 	void SetActive(bool bNewActive);
 
-	/** Conduccion: escala -1..1 de la velocidad del motor de eje (ruedas). Solo tiene efecto si la pieza esta encendida. */
+	/** Conduccion: escala -1..1 de velocidad de ruedas, o 0..1 de empuje de helices. */
 	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
 	void SetDrive(float Scale);
+
+	/** Centro de masa fisico del conjunto, contando una sola vez cada cuerpo soldado. */
+	FVector GetBuildCenterOfMass() const;
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -211,6 +216,7 @@ private:
 	void Puff(const FVector& At, float SizeCm, const FLinearColor& Color, float Life = 0.25f);
 
 	float Power = 0.f;
+	float DriveScale = 1.f; // acelerador de helices; sin piloto conserva empuje completo
 	float EnergyPerSecond = 0.f;
 	float BurnLeft = 3.f;
 	float ReadyAt = 0.f;       // cohete: hora a la que se puede volver a encender (recarga)

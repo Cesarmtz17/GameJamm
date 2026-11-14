@@ -1,6 +1,7 @@
 #include "Building/JamBuildPart.h"
 
 #include "Building/JamPlayConsole.h"
+#include "Building/JamDrivePhysics.h"
 
 #include "Components/AudioComponent.h"
 #include "Components/SpotLightComponent.h"
@@ -713,8 +714,24 @@ void AJamBuildPart::SetActive(bool bNewActive)
 static TAutoConsoleVariable<float> CVarJamWheelSpeed(TEXT("jam.Build.WheelSpeed"), 1.f,
 	TEXT("Multiplicador de la velocidad de las ruedas al manejar. 1 = valores de la tabla (Wheel 250 cm/s, BigWheel 320 cm/s); 3.6 = unos 900 cm/s."));
 
+FVector AJamBuildPart::GetBuildCenterOfMass() const
+{
+	if (!Build.IsValid()) { return Mesh->GetCenterOfMass(); }
+	FVector Weighted = FVector::ZeroVector;
+	double Mass = 0.0;
+	for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts)
+	{
+		if (!P.IsValid() || P->bWelded) { continue; }
+		const double BodyMass = P->Mesh->GetMass();
+		Weighted += P->Mesh->GetCenterOfMass() * BodyMass;
+		Mass += BodyMass;
+	}
+	return Mass > 0.0 ? Weighted / Mass : Mesh->GetCenterOfMass();
+}
+
 void AJamBuildPart::SetDrive(float Scale)
 {
+	if (Kind == EJamPartKind::Fan) { DriveScale = FMath::Clamp(Scale, 0.f, 1.f); }
 	if (DriveConstraint && bActive)
 	{
 		const float Dir = Kind == EJamPartKind::Wheel ? -1.f : 1.f;
@@ -943,14 +960,30 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 				Thrust *= Mesh->GetPhysicsLinearVelocity().Z > 0.0 ? 0.3 : 1.0;
 			}
 		}
-		Mesh->AddForce(WorldDir * Power * Thrust);
+		Mesh->AddForce(WorldDir * Power * Thrust * DriveScale);
 		if (bFx && Power > 50000.f) { Puff(GetActorLocation() - WorldDir * (Length * 0.5f + FMath::FRandRange(10.f, 50.f)), 18.f, FLinearColor(0.3f, 0.6f, 1.f)); } // jet/turbina
 		break;
 	}
 	case EJamPartKind::Rocket:
-		// El empuje va por el centro de masa de la raiz: aplicado en la pieza (atras y arriba del centro) hacia caballito y
-		// volteaba al carro cohete. Conserva la direccion del cohete; solo quita el par que lo vuelca.
-		RootMesh->AddForceAtLocation(WorldDir * Power, RootMesh->GetCenterOfMass());
+	{
+		// Fuerza por el centro de masa de TODO el conjunto, incluidas piezas con constraint.
+		// El centro de la raiz sola no incluye el peso del cohete ni de las ruedas.
+		double BoostPower = 0.0;
+		int32 Wheels = 0;
+		const FVector BuildUp = Build.IsValid() && Build->Parts[0].IsValid() ? Build->Parts[0]->GetActorUpVector() : FVector::UpVector;
+		if (Build.IsValid())
+		{
+			for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts)
+			{
+				if (!P.IsValid()) { continue; }
+				Wheels += P->Kind == EJamPartKind::Wheel && P->ParentPart.IsValid() ? 1 : 0;
+				if (P->Kind == EJamPartKind::Rocket && P->bActive && FMath::Abs(FVector::DotProduct(P->GetActorQuat().RotateVector(P->LocalDirection), BuildUp)) < 0.5) { BoostPower += P->Power; }
+			}
+		}
+		// En un vehiculo terrestre, repartir como maximo 0.65 g entre todos los cohetes.
+		// Evita que un turbo de varios g convierta una pequena inclinacion en un despegue involuntario.
+		const double BoostScale = Wheels >= 2 && FMath::Abs(FVector::DotProduct(WorldDir, BuildUp)) < 0.5 ? JamDrivePhysics::GroundBoostScale(BuildMass, BoostPower) : 1.0;
+		RootMesh->AddForceAtLocation(WorldDir * Power * BoostScale, GetBuildCenterOfMass());
 		if (bFx) { Puff(GetActorLocation() - WorldDir * (Length * 0.5f + FMath::FRandRange(10.f, 80.f)) + FMath::VRand() * 8.f, FMath::FRandRange(15.f, 30.f), FLinearColor(1.f, 0.6f, 0.1f), 0.35f); }
 		BurnLeft -= DeltaSeconds;
 		if (BurnLeft <= 0.f)
@@ -959,6 +992,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			SetActive(false);
 		}
 		break;
+	}
 	case EJamPartKind::Balloon:
 		// Fuego cerca (cualquier lanzallamas) = sube el doble. El globo frena con el aire: sube y avanza despacio.
 		Mesh->AddForce(FVector(0, 0, Power * (Now < HeatedUntil ? 2.f : 1.f)));
@@ -996,7 +1030,8 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		FVector W = RootMesh->GetPhysicsAngularVelocityInRadians();
 		W.Z = 0;
 		// Como aceleracion (no depende de la inercia): estable aunque la construccion sea muy ligera o el frame rate bajo.
-		RootMesh->AddTorqueInRadians(FVector::CrossProduct(GetActorUpVector(), FVector::UpVector) * Power - W * Power * 0.2f, NAME_None, true);
+		const FVector TargetUp = Build.IsValid() && Now < Build->PilotTiltUntil ? Build->PilotUp : FVector::UpVector;
+		RootMesh->AddTorqueInRadians(FVector::CrossProduct(GetActorUpVector(), TargetUp) * Power - W * Power * 0.2f, NAME_None, true);
 		break;
 	}
 	case EJamPartKind::Flame:
