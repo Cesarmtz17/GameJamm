@@ -1,5 +1,25 @@
 # GDD — GameJamm (título por definir)
 
+## ⚠️ REGLA PRINCIPAL (no negociable): construcción emergente estilo *Zelda: Tears of the Kingdom*
+**La idea central del juego es un sistema donde el jugador arma estructuras combinando muchos elementos básicos (tablas/paredes, llantas, cilindros, bloques, rocas, motores, lanzallamas…) y las propiedades de esas piezas se traducen en mecánicas.** Lo que construyes determina lo que hace. Todo lo demás (tower push, loot, fusión, bots, arte) existe para alimentar este sistema.
+
+Reglas derivadas, valen para todos los roles y para cualquier agente de IA:
+1. **Las mecánicas salen de las propiedades de las piezas, no de objetos cerrados.** Una "rueda con lanzallamas" rueda y quema porque combina `Llanta` (rotación) con `Lanzallamas` (daño de fuego), no porque exista un objeto "Rueda Infernal" programado a mano.
+2. **Catálogo grande de piezas, definido por datos** (`UBuildPartData`): cada pieza declara forma, masa, vida, puntos de anclaje y *capacidades* (rotar, empujar, dañar, quemar, soportar peso, bloquear…). Agregar una pieza = agregar datos, no código nuevo.
+3. **Capa de decisión:** un modelo recibe el pedido del jugador y su inventario y *decide* qué piezas usar y cómo ensamblarlas (receta JSON). El juego valida y construye. Ver [Capa de decisión](#capa-de-decisión).
+4. **Siempre hay fallback** (recetas fijas) para que el juego nunca se bloquee.
+5. **Prioridad de recorte:** cualquier feature que no sirva a esta regla se recorta primero. **Nadie del equipo, ni ningún agente, cambia este enfoque sin acuerdo de todos.**
+
+### De propiedades a mecánicas (ejemplos)
+| Propiedad de la pieza | Mecánica que produce |
+|---|---|
+| Rotación (llanta, cilindro) | Rodar, vehículos, rodillos que aplastan |
+| Empuje (motor, cohete) | Movimiento autónomo, lanzamientos, saltos |
+| Daño de contacto / fuego (lanzallamas) | Daño en área, quemadura |
+| Masa y solidez (tabla, bloque, roca) | Muros, puentes, escudos, contrapesos |
+| Anclaje (puntos de unión) | Qué piezas se pueden conectar y con qué orientación (constraints Chaos) |
+| Fusión de material (piedra/fuego/hielo) | Modifica la pieza: más dura, incendiaria, ralentizadora |
+
 ## Pitch
 PvP de dos equipos tipo *tower push*: avanza por el mapa destruyendo torres hasta llegar a la base enemiga y destruirla. Apareces **sin loot**; el mapa tiene **estructuras/campamentos** donde peleas y looteas materiales y piezas. Con ellos:
 - **Fusionas armas** (piedra en la espada, fuego en la flecha…).
@@ -60,8 +80,19 @@ Dirección de arte, UI y audio: **[ART.md](ART.md)** (islas flotantes + campo ab
 | Combate | `UHealthComponent`, `AJamWeapon`, `UFusionComponent` | `UFusionMaterialData` (DataAsset por material) |
 | Construcción | `ABuildPart`, `UAttachPointComponent`, `UBuilderComponent` | `UBuildPartData`, BP por pieza |
 | IA bots | `AJamAIController`, StateTree tasks | StateTrees, carriles (spline) |
-| Asistente | `UAIAssistantSubsystem` (HTTP → LLM → JSON) | `UBuildRecipeData` (recetas fallback) |
+| Asistente / decisión | `UAIAssistantSubsystem`, `IBuildDecisionProvider` (HTTP → modelo → JSON) | `UBuildRecipeData` (recetas fallback) |
 | Loot | `ALootCamp`, `ALootChest` | Tablas de loot |
+
+### Capa de decisión
+La decisión de *qué construir y con qué piezas* va detrás de una interfaz única (`IBuildDecisionProvider`, en `Source/GameJamm/AI/`): entra `{pedido, inventario, contexto}` y sale una receta JSON (formato de abajo, sin cambios). Así el modelo se puede cambiar sin tocar construcción ni combate.
+
+| Proveedor | Estado | Notas |
+|---|---|---|
+| LLM (Claude `claude-haiku-5-5`, sube a `claude-sonnet-5-5` si el pedido es ambiguo) | **MVP** | Mapea el catálogo de piezas y sus propiedades al pedido del jugador |
+| Recetas fijas | **Fallback obligatorio** | Se usa sin red, si tarda más de 3 s o si la receta no valida |
+| Modelo predictivo tipo JEPA | **Por definir** | Idea del equipo: predecir/evaluar el resultado de varias estructuras candidatas y elegir la mejor. Falta definir qué modelo concreto y cómo se integra (pendiente del material que compartió el equipo) |
+
+El proveedor **solo puede usar piezas del inventario**, y el juego valida la receta antes de construir.
 
 ### Formato de receta (contrato entre IA y sistema de construcción)
 ```json
