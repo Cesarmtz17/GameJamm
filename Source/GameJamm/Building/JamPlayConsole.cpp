@@ -190,7 +190,7 @@ namespace
 		const TCHAR* Backend = Status.Contains(TEXT("fallback")) ? TEXT("respaldo (fallo Jev)") : Status.Contains(TEXT("(jev")) ? TEXT("Jev") : Status.Contains(TEXT("keywords")) ? TEXT("palabras clave") : TEXT("?");
 		TArray<FString> Seen;
 		if (T.Disp > 60) { Seen.Add(FString::Printf(TEXT("se movio %.0f cm (max %.0f cm/s)"), T.Disp, T.MaxSpeed)); }
-		if (T.MaxUp > 80) { Seen.Add(FString::Printf(TEXT("subio %.0f cm"), T.MaxUp)); }
+		if (T.MaxUp > 40) { Seen.Add(FString::Printf(TEXT("subio %.0f cm"), T.MaxUp)); }
 		if (T.MaxSpin > 2) { Seen.Add(FString::Printf(TEXT("algo gira a %.1f rad/s"), T.MaxSpin)); }
 		if (T.MaxBalls > 0) { Seen.Add(FString::Printf(TEXT("disparo/lanzo %d bolas"), T.MaxBalls)); }
 		if (T.Hits > 0) { Seen.Add(FString::Printf(TEXT("su efecto toco al objetivo (%d)"), T.Hits)); }
@@ -302,6 +302,7 @@ namespace
 			C->SetMobility(EComponentMobility::Movable);
 			C->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
 			C->SetWorldScale3D(FVector(0.6));
+			C->SetCollisionProfileName(TEXT("PhysicsActor")); // como cualquier cuerpo fisico del juego: los emisores lo detectan
 			C->SetSimulatePhysics(true);
 			C->SetMassOverrideInKg(NAME_None, 20.f, true);
 			T.Dummy = D;

@@ -322,6 +322,7 @@ void AJamBuildPart::SpawnBall(const FVector& At, const FVector& Velocity)
 		C->SetMobility(EComponentMobility::Movable);
 		C->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, SphereMesh));
 		C->SetWorldScale3D(FVector(0.2));
+		C->SetCollisionProfileName(TEXT("PhysicsActor"));
 		C->SetSimulatePhysics(true);
 		C->SetMassOverrideInKg(NAME_None, 2.f, true);
 		C->AddImpulse(Velocity, NAME_None, true);
@@ -626,7 +627,8 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 	{
 		// Sustentacion: crece con la velocidad hacia adelante (el ala no se rota: su X = frente del vehiculo).
 		const double Fwd = FVector::DotProduct(Mesh->GetPhysicsLinearVelocity(), GetActorForwardVector());
-		Mesh->AddForce(FVector(0, 0, FMath::Clamp(Fwd, 0.0, 2500.0) * Power));
+		// Con tope y con freno de aire, para que planee en vez de salir disparada.
+		Mesh->AddForce(FVector(0, 0, FMath::Clamp(Fwd, 0.0, 900.0) * Power) - Mesh->GetPhysicsLinearVelocity() * 12.f);
 		break;
 	}
 	case EJamPartKind::Sail:
