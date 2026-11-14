@@ -25,6 +25,13 @@ status: borrador-v1
 > - Los números (masa, consumo, tamaño) son **valores iniciales de diseño** para tunear en DataAssets; no son datos oficiales.
 > - Cambios a assets existentes: `git lfs lock` primero. Carpeta sugerida: `Content/Game/Building/`.
 
+> [!note] Verificación de la lista de dispositivos (2026-11-13)
+> Cotejada con 2 guías públicas: una lista **27** dispositivos (incluye cohete, piedra flotante, emisor de rayo,
+> vagón teledirigido, cabeza objetivo, trineo y batería grande) y otra, más antigua ("los encontrados hasta ahora"),
+> lista 21, todos contenidos en los 27. No hay contradicciones. Los demás sitios consultados bloquearon el acceso (403), así que
+> la lista completa se apoya en esas dos fuentes más la research de Javier (doc 03). Las piezas estructurales (tablas, vigas, bloques)
+> y las uniones son **diseño nuestro**, no parte de esa lista.
+
 ## 0. Convenciones para TODAS las piezas
 
 | Tema | Regla |
