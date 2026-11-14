@@ -40,6 +40,8 @@ namespace JamDevices
 	constexpr float SeatYawGain = 8.f;             // 1/s
 	constexpr float SeatLevelKp = 25.f;            // 1/s^2
 	constexpr float SeatLevelKd = 8.f;             // 1/s
+	constexpr float SeatClimbSpeed = 300.f;        // cm/s al mantener Space/Ctrl
+	constexpr float SeatClimbGain = 3.f;           // 1/s
 	constexpr float SeatMaxTiltDeg = 15.f;         // inclinación hacia adelante con W cuando solo hay empuje vertical
 
 	/** Barra del jugador + reserva de baterías pegadas a la construcción. */
@@ -92,6 +94,12 @@ namespace JamDevices
 
 	/** Fan de sustentación: 0.5…1.5 según Lift. Fan de empuje: Throttle (-1…+1). */
 	GAMEJAMM_API float FanScale(bool bLiftFan, float Throttle, float Lift);
+
+	/**
+	 * Multiplicador de los Fan de sustentación con asiento: mantiene la altura (peso = empuje) y sube/baja a
+	 * SeatClimbSpeed según LiftInput. MaxLift = empuje vertical de esos Fan a potencia 1; ExtraLift = globos.
+	 */
+	GAMEJAMM_API float HoverScale(float MassKg, float Gravity, float MaxLift, float ExtraLift, float VerticalSpeed, float LiftInput);
 
 	/** true si el empuje apunta (casi) hacia arriba de la construcción: es un Fan en la cara Bottom. */
 	GAMEJAMM_API bool IsLiftDirection(const FVector& ThrustDir, const FVector& BuildUp);

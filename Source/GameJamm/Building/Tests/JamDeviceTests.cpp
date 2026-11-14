@@ -209,6 +209,24 @@ bool FJamDeviceSpinAndSeat::RunTest(const FString& Parameters)
 	TestEqual(TEXT("lift fan up"), JamDevices::FanScale(true, 0.f, 1.f), 1.5f);
 	TestEqual(TEXT("lift fan down"), JamDevices::FanScale(true, 1.f, -1.f), 0.5f);
 
+	// Hover: 16 kg con 2 Fan (50000) flota a 0.3136 de potencia; con Space sube; cayendo rápido da todo; subiendo de más corta.
+	TestTrue(TEXT("hover holds weight"), FMath::IsNearlyEqual(JamDevices::HoverScale(16.f, 980.f, 50000.f, 0.f, 0.f, 0.f), 0.3136f, 1.e-4f));
+	TestTrue(TEXT("hover climbs with input"), FMath::IsNearlyEqual(JamDevices::HoverScale(16.f, 980.f, 50000.f, 0.f, 0.f, 1.f), 0.6016f, 1.e-4f));
+	TestEqual(TEXT("hover saturates when falling"), JamDevices::HoverScale(16.f, 980.f, 50000.f, 0.f, -3000.f, 0.f), 1.5f);
+	TestEqual(TEXT("hover cuts when rising too fast"), JamDevices::HoverScale(16.f, 980.f, 50000.f, 0.f, 1000.f, 0.f), 0.f);
+	TestEqual(TEXT("balloons carry the weight"), JamDevices::HoverScale(16.f, 980.f, 50000.f, 15680.f, 0.f, 0.f), 0.f);
+	TestEqual(TEXT("no lift fans -> 1"), JamDevices::HoverScale(16.f, 980.f, 0.f, 0.f, 0.f, 0.f), 1.f);
+	{
+		// Lazo cerrado: manteniendo Space, la velocidad vertical llega a SeatClimbSpeed (300 cm/s).
+		float Vz = 0.f;
+		for (int32 i = 0; i < 240; ++i)
+		{
+			const float Scale = JamDevices::HoverScale(16.f, 980.f, 50000.f, 0.f, Vz, 1.f);
+			Vz += (Scale * 50000.f / 16.f - 980.f) * Dt;
+		}
+		TestTrue(TEXT("hover reaches climb speed"), FMath::IsNearlyEqual(Vz, JamDevices::SeatClimbSpeed, 1.f));
+	}
+
 	const FVector Up = FVector::UpVector, Fwd = FVector::ForwardVector;
 	TestTrue(TEXT("up is lift"), JamDevices::IsLiftDirection(Up, Up));
 	TestFalse(TEXT("forward is not lift"), JamDevices::IsLiftDirection(Fwd, Up));

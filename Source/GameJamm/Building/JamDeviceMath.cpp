@@ -144,6 +144,17 @@ float JamDevices::FanScale(bool bLiftFan, float Throttle, float Lift)
 	return FMath::Clamp(Throttle, -1.f, 1.f);
 }
 
+float JamDevices::HoverScale(float MassKg, float Gravity, float MaxLift, float ExtraLift, float VerticalSpeed, float LiftInput)
+{
+	if (MaxLift <= 0.f)
+	{
+		return 1.f;
+	}
+	const float TargetSpeed = FMath::Clamp(LiftInput, -1.f, 1.f) * SeatClimbSpeed;
+	const float Force = MassKg * Gravity - ExtraLift + MassKg * SeatClimbGain * (TargetSpeed - VerticalSpeed);
+	return FMath::Clamp(Force / MaxLift, 0.f, 1.5f);
+}
+
 bool JamDevices::IsLiftDirection(const FVector& ThrustDir, const FVector& BuildUp)
 {
 	return FVector::DotProduct(ThrustDir.GetSafeNormal(), BuildUp.GetSafeNormal()) > 0.7;

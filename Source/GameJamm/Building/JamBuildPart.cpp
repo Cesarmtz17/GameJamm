@@ -915,6 +915,7 @@ bool AJamBuildPart::Mount(AActor* Rider, bool bAttachRider)
 		}
 	}
 	BuildInertia = static_cast<float>(Inertia);
+	BuildMass = static_cast<float>(TotalMass);
 	bSeatLevel = (bAirborne || bSeatHasLiftFans) && FVector::DotProduct(BuildUp, FVector::UpVector) > 0.7;
 
 	if (bAttachRider)
@@ -1015,6 +1016,34 @@ void AJamBuildPart::TickSeat(float DeltaSeconds)
 	const FVector RootLocation = Root->GetActorLocation();
 
 	// 1) Acelerador, diferencial y sustentación: multiplicador por pieza.
+	// Empuje vertical disponible (Fan en Bottom a potencia 1) y lo que ya cargan los globos, para mantener la altura.
+	double MaxLift = 0.0;
+	double ExtraLift = 0.0;
+	for (const TWeakObjectPtr<AJamBuildPart>& Member : BuildMembers)
+	{
+		const AJamBuildPart* Part = Member.Get();
+		if (!Part || !Part->bActive)
+		{
+			continue;
+		}
+		if (Part->Kind == EJamPartKind::Fan)
+		{
+			const FVector Thrust = Part->GetActorQuat().RotateVector(Part->LocalDirection);
+			if (JamDevices::IsLiftDirection(Thrust, Up))
+			{
+				MaxLift += static_cast<double>(Part->Power) * FMath::Max(0.0, FVector::DotProduct(Thrust, FVector::UpVector));
+			}
+		}
+		else if (Part->Kind == EJamPartKind::Balloon)
+		{
+			ExtraLift += static_cast<double>(Part->Power) * (Part->HeatLeft > 0.f ? JamDevices::BalloonHeatMultiplier : 1.f);
+		}
+	}
+	const float LiftScale = MaxLift > 1.0
+		? JamDevices::HoverScale(BuildMass, -GetWorld()->GetGravityZ(), static_cast<float>(MaxLift), static_cast<float>(ExtraLift),
+			static_cast<float>(Root->Mesh->GetPhysicsLinearVelocity().Z), SeatLift)
+		: JamDevices::FanScale(true, SeatThrottle, SeatLift);
+
 	for (const TWeakObjectPtr<AJamBuildPart>& Member : BuildMembers)
 	{
 		AJamBuildPart* Part = Member.Get();
@@ -1031,7 +1060,7 @@ void AJamBuildPart::TickSeat(float DeltaSeconds)
 		else if (Part->Kind == EJamPartKind::Fan)
 		{
 			const bool bLiftFan = JamDevices::IsLiftDirection(Part->GetActorQuat().RotateVector(Part->LocalDirection), Up);
-			Part->SetDriveScale(JamDevices::FanScale(bLiftFan, SeatThrottle, SeatLift));
+			Part->SetDriveScale(bLiftFan ? LiftScale : JamDevices::FanScale(false, SeatThrottle, SeatLift));
 		}
 	}
 

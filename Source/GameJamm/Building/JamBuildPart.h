@@ -260,5 +260,6 @@ private:
 	float SeatSteer = 0.f;
 	float SeatLift = 0.f;
 	float BuildInertia = 0.f;
+	float BuildMass = 0.f;
 	TWeakObjectPtr<AActor> SeatRider;
 };

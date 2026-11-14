@@ -2,9 +2,12 @@
 // No define Jam.Build, Jam.Inv*, Jam.Clear ni Jam.Prompts (son de la rama de integración).
 #include "Building/JamPocDevices.h"
 
+#include "Building/BuildRecipe.h"
+#include "Building/JamAssembler.h"
 #include "Building/JamBuildPart.h"
 #include "Building/JamDeviceMath.h"
 #include "Building/JamEnergyComponent.h"
+#include "Building/JamProjectile.h"
 #include "Building/JamSlowComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Core/HealthComponent.h"
@@ -210,6 +213,167 @@ namespace JamPocDevicesPrivate
 		Near->SetBuildPower(bOn);
 		Say(FString::Printf(TEXT("Jam.Power: construccion mas cercana (%d piezas) %s"), Near->GetBuildParts().Num(), bOn ? TEXT("ENCENDIDA") : TEXT("apagada")));
 	}
+
+	/** Construcciones de ejemplo, una por mecánica (recetas en el formato JSON compartido). */
+	struct FPreset
+	{
+		const TCHAR* Name;
+		const TCHAR* Help;
+		const TCHAR* Json;
+		bool bFlat;        // acostada: toda la construcción rotada 90° sobre X
+		bool bActivate;    // encender al aparecer (las de asiento esperan a Jam.Seat)
+	};
+
+	const FPreset Presets[] = {
+		{ TEXT("wheel"), TEXT("rueda raiz parada con 2 lanzallamas: rueda sola y las llamas giran con ella (Roller)"),
+			TEXT(R"({"name":"Rueda Infernal","parts":[{"id":"w","type":"BigWheel"},{"id":"f1","type":"Flamethrower","attach_to":"w","socket":"Front"},{"id":"f2","type":"Flamethrower","attach_to":"w","socket":"Back"}],"activate":["w","f1","f2"]})"),
+			false, true },
+		{ TEXT("spinner"), TEXT("la misma rueda acostada: gira como trompo y barre un anillo de fuego"),
+			TEXT(R"({"name":"Spinner","parts":[{"id":"w","type":"BigWheel"},{"id":"f1","type":"Flamethrower","attach_to":"w","socket":"Front"},{"id":"f2","type":"Flamethrower","attach_to":"w","socket":"Back"}],"activate":["w","f1","f2"]})"),
+			true, true },
+		{ TEXT("flame"), TEXT("bloque clavado con lanzallamas al frente: cono con dano en el tiempo"),
+			TEXT(R"({"name":"Lanzallamas","parts":[{"id":"b","type":"Block"},{"id":"s","type":"Stake","attach_to":"b","socket":"Bottom"},{"id":"f","type":"Flamethrower","attach_to":"b","socket":"Front"}],"activate":["s","f"]})"),
+			false, true },
+		{ TEXT("frost"), TEXT("bloque clavado con emisor de hielo: lento 50% por 3 s"),
+			TEXT(R"({"name":"Hielo","parts":[{"id":"b","type":"Block"},{"id":"s","type":"Stake","attach_to":"b","socket":"Bottom"},{"id":"f","type":"Frost","attach_to":"b","socket":"Front"}],"activate":["s","f"]})"),
+			false, true },
+		{ TEXT("beam"), TEXT("bloque clavado con laser: dano continuo en linea"),
+			TEXT(R"({"name":"Laser","parts":[{"id":"b","type":"Block"},{"id":"s","type":"Stake","attach_to":"b","socket":"Bottom"},{"id":"f","type":"Beam","attach_to":"b","socket":"Front"}],"activate":["s","f"]})"),
+			false, true },
+		{ TEXT("cannon"), TEXT("bloque clavado con canon al frente: una bala con dano cada 1.5 s"),
+			TEXT(R"({"name":"Canon","parts":[{"id":"b","type":"Block"},{"id":"s","type":"Stake","attach_to":"b","socket":"Bottom"},{"id":"c","type":"Cannon","attach_to":"b","socket":"Front"}],"activate":["s","c"]})"),
+			false, true },
+		{ TEXT("turret"), TEXT("torreta autonoma: Head sobre un bloque clavado y canon encima; apunta sola al blanco mas cercano"),
+			TEXT(R"({"name":"Torreta","parts":[{"id":"b","type":"Block"},{"id":"s","type":"Stake","attach_to":"b","socket":"Bottom"},{"id":"h","type":"Head","attach_to":"b","socket":"Top"},{"id":"c","type":"Cannon","attach_to":"h","socket":"Top"}],"activate":["s","h","c"]})"),
+			false, true },
+		{ TEXT("turntable"), TEXT("aspersor: plataforma giratoria con lanzallamas encima"),
+			TEXT(R"({"name":"Aspersor","parts":[{"id":"b","type":"Block"},{"id":"s","type":"Stake","attach_to":"b","socket":"Bottom"},{"id":"t","type":"Turntable","attach_to":"b","socket":"Top"},{"id":"f","type":"Flamethrower","attach_to":"t","socket":"Top"}],"activate":["s","t","f"]})"),
+			false, true },
+		{ TEXT("catapult"), TEXT("resorte sobre una tabla con un bloque encima: al encenderse lanza el bloque"),
+			TEXT(R"({"name":"Catapulta","parts":[{"id":"p","type":"Plank"},{"id":"s","type":"Spring","attach_to":"p","socket":"Top"},{"id":"b","type":"Block","attach_to":"s","socket":"Top"}],"activate":["s"]})"),
+			false, true },
+		{ TEXT("balloon"), TEXT("globo con lastre que solo sube cuando el lanzallamas lo calienta (x2)"),
+			TEXT(R"({"name":"Globo","parts":[{"id":"p","type":"Plank"},{"id":"k","type":"Cylinder","attach_to":"p","socket":"Bottom"},{"id":"g","type":"Balloon","attach_to":"p","socket":"Top_Front"},{"id":"f","type":"Flamethrower","attach_to":"p","socket":"Top_Back"}],"activate":["g","f"]})"),
+			false, true },
+		{ TEXT("car"), TEXT("carro con asiento, 4 ruedas, ventilador y bateria: usar Jam.Seat para manejarlo"),
+			TEXT(R"({"name":"Carro","parts":[{"id":"p","type":"Plank"},{"id":"w0","type":"Wheel","attach_to":"p","socket":"Left_Front"},{"id":"w1","type":"Wheel","attach_to":"p","socket":"Right_Front"},{"id":"w2","type":"Wheel","attach_to":"p","socket":"Left_Back"},{"id":"w3","type":"Wheel","attach_to":"p","socket":"Right_Back"},{"id":"seat","type":"Seat","attach_to":"p","socket":"Top"},{"id":"fan","type":"Fan","attach_to":"p","socket":"Back"},{"id":"bat","type":"Battery","attach_to":"p","socket":"Top_Back"}],"activate":[]})"),
+			false, false },
+		{ TEXT("hover"), TEXT("tabla con 2 ventiladores abajo y asiento: usar Jam.Seat; flota, W inclina y avanza, A/D gira, Space/Ctrl sube/baja"),
+			TEXT(R"({"name":"Hover","parts":[{"id":"p","type":"Plank"},{"id":"f0","type":"Fan","attach_to":"p","socket":"Bottom_Front"},{"id":"f1","type":"Fan","attach_to":"p","socket":"Bottom_Back"},{"id":"seat","type":"Seat","attach_to":"p","socket":"Top"}],"activate":[]})"),
+			false, false },
+	};
+
+	FString PresetNames()
+	{
+		FString Names;
+		for (const FPreset& P : Presets)
+		{
+			Names += (Names.IsEmpty() ? TEXT("") : TEXT(", ")) + FString(P.Name);
+		}
+		return Names;
+	}
+
+	void CmdDevice(const TArray<FString>& Args, UWorld* World)
+	{
+		APlayerController* PC = FirstPlayer(World);
+		if (!PC)
+		{
+			Say(TEXT("Jam.Device: no hay jugador (usar en PIE)"), FColor::Red);
+			return;
+		}
+		const FPreset* Preset = nullptr;
+		for (const FPreset& P : Presets)
+		{
+			if (Args.Num() > 0 && Args[0].Equals(P.Name, ESearchCase::IgnoreCase))
+			{
+				Preset = &P;
+				break;
+			}
+		}
+		if (!Preset)
+		{
+			Say(TEXT("Jam.Device <") + PresetNames() + TEXT(">"), FColor::Yellow);
+			return;
+		}
+
+		FBuildRecipe Recipe;
+		FString Error;
+		if (!UBuildRecipeLibrary::ParseRecipeJson(Preset->Json, Recipe, Error))
+		{
+			Say(TEXT("Jam.Device: receta invalida: ") + Error, FColor::Red);
+			return;
+		}
+
+		// 4.5 m delante de la cámara, mirando hacia donde mira el jugador (los blancos de Jam.Dummy quedan a 8 m).
+		FVector ViewLocation;
+		FRotator ViewRotation;
+		PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
+		const FRotator Yaw(0.0, ViewRotation.Yaw, 0.0);
+		FVector At = ViewLocation + Yaw.Vector() * 450.0;
+		FHitResult Ground;
+		if (World->LineTraceSingleByChannel(Ground, At + FVector(0, 0, 500), At - FVector(0, 0, 5000), ECC_Visibility))
+		{
+			At = Ground.ImpactPoint + FVector(0, 0, 10);
+		}
+		FQuat Rotation = Yaw.Quaternion();
+		if (Preset->bFlat)
+		{
+			Rotation = Rotation * FQuat(FVector::ForwardVector, HALF_PI);
+			At += FVector(0, 0, 60);
+		}
+
+		TArray<AJamBuildPart*> Parts;
+		if (!UJamAssembler::Assemble(World, Recipe, FTransform(Rotation, At), Parts, Error) || Parts.Num() == 0)
+		{
+			Say(TEXT("Jam.Device: no se pudo armar: ") + Error, FColor::Red);
+			return;
+		}
+		// Del jugador: usa su equipo y, si tiene UJamEnergyComponent (Jam.Energy), gasta de su barra.
+		if (APawn* Pawn = PC->GetPawn())
+		{
+			Parts[0]->SetBuildOwner(Pawn);
+		}
+		if (Preset->bActivate)
+		{
+			UJamAssembler::SetBuildActive(Parts, Recipe.Activate, true);
+		}
+		Say(FString::Printf(TEXT("Jam.Device %s: %s (%d piezas)%s"), Preset->Name, Preset->Help, Parts.Num(),
+			Preset->bActivate ? TEXT("") : TEXT(" -> ahora Jam.Seat")));
+	}
+
+	void CmdDeviceClear(const TArray<FString>& Args, UWorld* World)
+	{
+		if (!World)
+		{
+			return;
+		}
+		if (APlayerController* PC = FirstPlayer(World))
+		{
+			PC->ResetIgnoreMoveInput();
+		}
+		int32 Count = 0;
+		TArray<AActor*> Doomed;
+		for (TActorIterator<AJamBuildPart> It(World); It; ++It) { Doomed.Add(*It); }
+		for (TActorIterator<AJamPocDummy> It(World); It; ++It) { Doomed.Add(*It); }
+		for (TActorIterator<AJamProjectile> It(World); It; ++It) { Doomed.Add(*It); }
+		for (AActor* Actor : Doomed)
+		{
+			if (IsValid(Actor))
+			{
+				Actor->Destroy();
+				++Count;
+			}
+		}
+		Say(FString::Printf(TEXT("Jam.DeviceClear: %d actores del PoC destruidos"), Count));
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdDeviceRegistration(
+		TEXT("Jam.Device"), TEXT("Jam.Device <preset>: arma delante de la camara una construccion de ejemplo (wheel, spinner, flame, frost, beam, cannon, turret, turntable, catapult, balloon, car, hover)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&CmdDevice));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdDeviceClearRegistration(
+		TEXT("Jam.DeviceClear"), TEXT("Jam.DeviceClear: destruye todas las piezas, blancos y balas del PoC."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&CmdDeviceClear));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdDummyRegistration(
 		TEXT("Jam.Dummy"), TEXT("Jam.Dummy [n]: spawnea n blancos de prueba con vida (equipo enemigo) 8 m delante de la camara."),

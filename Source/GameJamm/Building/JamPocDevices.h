@@ -10,6 +10,8 @@ class UWorld;
 
 /**
  * PoC para VER los dispositivos en el editor sin assets nuevos. Comandos de consola (PIE, tecla ~), en JamPocDevices.cpp:
+ *   Jam.Device <preset>           arma una construcción de ejemplo por mecánica (wheel, spinner, flame, cannon, turret, car, hover...)
+ *   Jam.DeviceClear               borra piezas, blancos y balas del PoC
  *   Jam.Dummy [n]                 blancos con vida (equipo enemigo) delante de la cámara
  *   Jam.Energy [valor|full|empty] barra de energía del jugador en pantalla
  *   Jam.Seat                      monta/desmonta la construcción más cercana; WASD/flechas, Space/Ctrl

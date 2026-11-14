@@ -121,6 +121,14 @@ def fan_scale(lift_fan, throttle, lift):
     return clamp(1 + 0.5 * lift, 0.5, 1.5) if lift_fan else clamp(throttle, -1, 1)
 
 
+def hover_scale(mass, gravity, max_lift, extra_lift, vz, lift_input, climb_speed=300.0, climb_gain=3.0):
+    if max_lift <= 0:
+        return 1.0
+    target = clamp(lift_input, -1, 1) * climb_speed
+    force = mass * gravity - extra_lift + mass * climb_gain * (target - vz)
+    return clamp(force / max_lift, 0.0, 1.5)
+
+
 def is_lift_direction(thrust, build_up):
     return dot(norm(thrust), norm(build_up)) > 0.7
 
@@ -278,6 +286,21 @@ def test_spin_and_seat():
     check("Seat.RootWheelSideZero", wheel_scale(0.5, 1, 0) == 0.5)
     check("Seat.FanThrust", fan_scale(False, 0.5, 1) == 0.5 and fan_scale(False, -2, 0) == -1)
     check("Seat.FanLift", fan_scale(True, 0, 0) == 1 and fan_scale(True, 0, 1) == 1.5 and fan_scale(True, 1, -1) == 0.5)
+    check("Seat.HoverHoldsWeight", near(hover_scale(16, 980, 50000, 0, 0, 0), 0.3136))
+    check("Seat.HoverClimbsWithInput", near(hover_scale(16, 980, 50000, 0, 0, 1), 0.6016))
+    check("Seat.HoverSaturatesWhenFalling", hover_scale(16, 980, 50000, 0, -3000, 0) == 1.5)
+    check("Seat.HoverCutsWhenRisingTooFast", hover_scale(16, 980, 50000, 0, 1000, 0) == 0)
+    check("Seat.BalloonsCarryWeight", hover_scale(16, 980, 50000, 15680, 0, 0) == 0)
+    check("Seat.NoLiftFans", hover_scale(16, 980, 0, 0, 0, 0) == 1)
+    vz = 0.0
+    for _ in range(240):
+        vz += (hover_scale(16, 980, 50000, 0, vz, 1) * 50000 / 16 - 980) * (1 / 60)
+    check("Seat.HoverReachesClimbSpeed (%.1f cm/s)" % vz, near(vz, 300, 1.0))
+    vz, z = -500.0, 0.0
+    for _ in range(240):
+        vz += (hover_scale(16, 980, 50000, 0, vz, 0) * 50000 / 16 - 980) * (1 / 60)
+        z += vz / 60
+    check("Seat.HoverStopsFall (vz %.2f, cayo %.0f cm)" % (vz, -z), abs(vz) < 1.0)
     check("Seat.LiftDirection", is_lift_direction(UP, UP) and not is_lift_direction(FWD, UP) and not is_lift_direction((0, 0, -1), UP))
     t = tilted_up(FWD, 1, 15)
     check("Seat.TiltForward15deg", near(math.degrees(math.atan2(t[0], t[2])), 15) and near(t[1], 0))
