@@ -11,7 +11,7 @@
           },
           {
             "type": "command",
-            "command": "printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"Team rule (CLAUDE.md, Sincronizacion): 5 people push to main from separate machines. Run git pull --rebase --autostash now and start /loop 5m git pull --rebase --autostash. On conflict, stop and tell the user.\"}}'",
+            "command": "printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"Team rule (CLAUDE.md, Sincronizacion): 5 people push to main from separate machines. Run git pull --rebase --autostash now and start /loop 2m git pull --rebase --autostash. On conflict, stop and tell the user.\"}}'",
             "timeout": 5
           }
         ]
