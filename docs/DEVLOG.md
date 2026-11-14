@@ -1,5 +1,13 @@
 # Devlog
 
+> [!tip] Cómo escribir aquí (para personas y agentes)
+> **Quién:** todo el equipo y sus agentes (excepción explícita a "solo tus carpetas" en
+> [CLAUDE.md](../CLAUDE.md) — lo demás de `docs/` respeta dueños). **Cuándo:** al cerrar
+> trabajo notable —feature, decisión, algo que falló y se arregló—. **Formato de
+> entrada:** `## <fecha> — <tema> (quién)`, con 3-6 bullets: qué se hizo, cómo se usó la
+> IA (agente + prompt clave), qué falló, qué se aprende. Convención de MD para docs
+> nuevos: [mechanics-research/FORMATO.md](mechanics-research/FORMATO.md).
+
 Para el premio **Glass Box** (Modifier: mejor devlog de cómo construiste el juego; $2,500 + una ASUS ROG Ally por integrante). Cada quien agrega entradas cortas: qué hicimos, cómo usamos la IA (prompts, agentes, MCP), qué falló y qué aprendimos. Capturas/GIFs en `docs/devlog/` (LFS).
 
 ## Publicación (Glass Box exige un link público)
@@ -23,10 +31,19 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 - **Una captura o GIF** cuando haya algo visible.
 
 **Entradas que faltan** (el historial de git las respalda, falta la voz de quien las hizo):
-- [ ] Research de mecánicas con agentes (`docs/mechanics-research/`): cómo se hizo y qué se descartó.
+- [x] Research de mecánicas con agentes (`docs/mechanics-research/`): cómo se hizo y qué se descartó. *(hecha abajo, 13-14 nov)*
 - [ ] Prompt a estructura: catálogo de piezas, ensamblador (receta a constraints) y el cliente de decisión con LLM y fallback.
 - [ ] Cinco personas con cinco agentes en un solo repo: la regla de sync pasó de pull cada 5–10 min a cada 1 min en el mismo día; un dueño por carpeta.
 - [ ] Uso de MCP (Unreal MCP, Blender MCP) en el flujo de trabajo.
+
+---
+
+## 13-14 nov — Research de mecánicas con agentes (docs/mechanics-research)
+- Pipeline: agente **deep-research** recopiló fuentes públicas (panel de física de GDC 2024, prensa técnica, wikis, datamines de la comunidad, papers) → 8 docs con valores y fórmulas (01-08); una segunda pasada de **auditoría open source** añadió el análisis del repo de referencia ComponentFuseMechanic y el diseño del ensamblado con grafo/joints/JSON validado (docs 09-11). Todo con formato Obsidian y citado en FUENTES.md.
+- El repo es público del jam: se aplicó un **scrub** para no nombrar el juego fuente ni enlazar URLs de su ecosistema — títulos, personajes, lugares y habilidades → genérico ("el juego de referencia"); los valores datamineados se conservaron. Verificado con `git grep` en todo el árbol: 0 menciones.
+- Qué falló: una pasada paralela del equipo subió 3 docs con el nombre del juego en el filename y el contenido. Se reescribieron como 09-11 (el trabajo no se tiró) y se borraron los originales; también salió una única mención residual en la nota de provenance de un skill vendido.
+- Cómo se conectó: `FORMATO.md` como convención de formato, `AGENTS.md` + skills en `.claude/skills/`/`.opencode/skills/` para que cualquier agente (Claude, GPT/Codex, Gemini) herede la misma base de MD.
+- Herramienta de análisis: REA (reverse-engineer-anything, vendido en `.claude/vendor/`) para los planes de análisis del binario del juego de referencia **solo con copia legal** (doc 07); en esta pasada aún no se corrió sobre binarios.
 
 ---
 
