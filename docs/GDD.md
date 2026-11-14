@@ -21,10 +21,11 @@ Reglas derivadas, valen para todos los roles y para cualquier agente de IA:
 | Fusión de material (piedra/fuego/hielo) | Modifica la pieza: más dura, incendiaria, ralentizadora |
 
 ## Pitch
-PvP de dos equipos tipo *tower push*: avanza por el mapa destruyendo torres hasta llegar a la base enemiga y destruirla. Apareces **sin loot**; el mapa tiene **estructuras/campamentos** donde peleas y looteas materiales y piezas. Con ellos:
+PvP de dos equipos tipo *tower push* (3v3; **los lugares sin humano los ocupan bots**, así que se juega completo en solitario): avanza por el mapa destruyendo torres hasta llegar a la base enemiga y destruirla. Apareces **sin loot** y con la energía mínima; el mapa tiene **estructuras/campamentos** donde peleas y looteas materiales y piezas. Con ellos:
 - **Fusionas armas** (piedra en la espada, fuego en la flecha…).
 - **Construyes artefactos** con piezas (llantas, tablas, lanzallamas…) — p. ej. una llanta con lanzallamas que rueda por el mapa quemando todo.
-- Un **asistente de IA** te ayuda a diseñar creaciones con las piezas que tienes.
+- Un **asistente de IA** te ayuda: le pides por voz o texto ("un carro que queme todo") y **arma al instante la mejor opción** con las piezas que tienes; si te faltan, arma una versión reducida y te dice qué buscar.
+- Prendes y apagas lo que armas con un botón, lo manejas desde un asiento y lo desarmas para recuperar las piezas.
 
 ## Tema: DIRECTOR'S CUT
 
@@ -349,30 +350,105 @@ Los jueces juegan solos y poco tiempo. Antes del minuto 2 tienen que haber **con
 
 ---
 
+## 15. Reglas de las construcciones en PvP — Propuesta
+
+| Regla | Valor |
+|---|---|
+| Dueño | La construcción es de quien la armó (y de su equipo para el daño: no daña aliados) |
+| Quién la maneja | Solo el dueño se sube al asiento en el MVP; aliados = P1 |
+| Cuántas | **1 activa por jugador** (§4). Armar otra desarma la anterior y devuelve el 100 % de sus piezas |
+| Dónde se puede armar | A 2–6 m frente al jugador, en suelo libre. **No a menos de 15 m de una torre o base enemiga** (fuera de su alcance), para que no se "spawneen" encima |
+| Si no cabe | Se mueve hacia arriba/atrás hasta 3 m; si aún choca, no se arma y el mensaje dice "no hay espacio" |
+| Abandonada | Si el dueño se aleja más de 40 m o muere, se apaga sola; a los 20 s sin dueño se desarma y suelta el 50 % de sus piezas como loot |
+| Al morir el dueño | Se apaga; la bolsa de muerte (§4) no incluye las piezas de la construcción |
+| Destruida por el enemigo | Suelta el 50 % de las piezas (§4) |
+| Caída al vacío (islas) | Se pierde entera, sin loot: lo arriesgas por volar |
+| Daño a torres | 50 % (§9) |
+
+## 16. Interacciones entre piezas y elementos
+
+Lo que hace que el sistema se sienta vivo: las piezas reaccionan entre sí por sus propiedades (Regla principal). **"En código"** = ya lo hace `AJamBuildPart` (Construcción, Jesús Daniel); **"Propuesta"** = falta.
+
+| Interacción | Qué pasa | Estado |
+|---|---|---|
+| Fuego + globo | Un lanzallamas cerca del globo lo hace subir el doble | En código |
+| Agua (Hydrant) + fuego | El chorro apaga cualquier lanzallamas que moje y empuja cuerpos ajenos | En código |
+| Hielo (Frost) | Frena 3 s lo que toca (cuerpos ajenos) | En código |
+| Rayo de choque (Shock) | Cada 1 s descarga al cuerpo ajeno más cercano (3 m): daño, lo detiene y **apaga entera la construcción enemiga** | En código |
+| Bomba | Mecha de 4 s; explota, empuja, daña y **enciende los dispositivos apagados** que alcanza (reacciones en cadena) | En código |
+| Cohete | Empuje fuerte unos 3 s y se apaga | En código |
+| Cabeza (Head) | Gira hacia el blanco ajeno más cercano; lo que lleve encima apunta con ella | En código |
+| Fuego + madera (Plank, Wheel, Sail) | Las piezas de madera prenden y pierden 10 vida/s por 3 s | Propuesta |
+| Fuego + hielo | Se cancelan: el fuego quita la ralentización; el hielo apaga la quemadura | Propuesta |
+| Agua + choque | El agua conduce: un Shock sobre algo mojado (últimos 3 s) alcanza el doble | Propuesta (stretch) |
+| Arma fusionada vs construcción | Fuego quema piezas de madera, Rayo apaga la construcción 0.5 s, Roca empuja ×2, Bomba explota al pegar | Propuesta (Combate, Javier) |
+
+> [!NOTE]
+> Los valores en código hoy no coinciden con §9 en varias piezas. Bomba: 5 m y 30 de daño (GDD: 3 m y 60). Beam: 15 m y 12/s (GDD: 25 m y 12 cada 0.25 s). Head: 25 m (GDD: 20 m). Frost: alcance de unos 3 m y frena 3 s (GDD: 4 m, frena 50 % y congela). **Para el MVP manda lo que ya está en código**; §9 son los valores objetivo para afinar el último día (ver Pendientes).
+
+## 17. Feedback y audio (que todo se lea solo) — Propuesta
+
+Cada acción tiene que verse y oírse; los jueces no leen tutoriales.
+
+| Evento | Se ve | Se oye |
+|---|---|---|
+| El asistente arma | Las piezas aparecen una por una con un destello (≤ 1 s en total) + línea de texto ("Armé un carro; te faltan 2 Wheel") | "pop" por pieza |
+| Encender / apagar (C) | Los dispositivos se iluminan / se apagan | Clic de encendido + zumbido del motor |
+| Sin energía | La barra parpadea en rojo y todo se apaga | Bajón eléctrico |
+| Fuego / hielo / choque | Partículas por elemento (naranja, cian, amarillo) | Llama, cristal, chispa |
+| Golpe con arma fusionada | Número de daño del color del material | Golpe + sonido del material |
+| Torre destruida | Se derrumba en piezas, cámara tiembla, aviso grande | Explosión + fanfarria corta |
+| Recoger loot | El objeto vuela al jugador; contador sube | "Tin" |
+| Mochila llena | Ícono de la pieza en rojo | Error suave |
+| Muerte / reaparecer | Pantalla gris con cuenta atrás | Golpe sordo |
+
+Música: un tema de partida que sube de intensidad en la muerte súbita (§10), y otro para el menú y la pantalla final.
+
+## 18. Glosario
+
+| Término | Significado |
+|---|---|
+| Asistente | La IA que convierte tu pedido (voz/texto) en una construcción; por dentro usa Jev + el solver |
+| Jev | Modelo de decisión de TypeSafe: solo **elige** entre opciones; el código decide lo posible |
+| Solver | Código que arma la receta con tu inventario: sustituye, reduce y dice qué falta |
+| Receta | JSON con piezas, cómo se unen (`attach_to` + `socket`) y qué se enciende |
+| Pieza | Elemento básico de construcción (Plank, Wheel, Fan, Flamethrower…), con propiedades físicas |
+| Dispositivo | Pieza que gasta energía al estar encendida (motores, armas, Head…) |
+| Construcción / build | Conjunto de piezas unidas; 1 activa por jugador |
+| Fusión | Pegar un material (Roca, Fuego, Hielo, Rayo, Bomba) a un arma para cambiarle el efecto |
+| Energía | Barra tipo maná del jugador (mínimo 50, máximo 150) que gastan los dispositivos |
+| Mochila | Inventario con límite total y por tipo |
+| Minions | Unidades que avanzan solas por el carril en Asalto |
+| Bot héroe | Jugador controlado por la IA del juego que llena lugares vacíos |
+| Campamento / isla de loot | Zona con enemigos y cofre |
+| Corte final | La pantalla final que muestra tu mejor construcción de la partida (guiño al tema) |
+
 ## Decisiones clave de alcance
 1. **Los dos modos son PvP**, y **cualquier lugar sin humano lo ocupa un bot**. Los jueces juegan solos (1 humano + bots), así que el juego tiene que estar completo contra bots. El PvP en red es la meta, pero va después de que todo funcione contra bots (§2).
 2. **El asistente de IA nunca bloquea el juego**: si no hay red/API, usa recetas predefinidas.
 3. Contenido mínimo y pulido > mucho contenido roto.
 
 ## MVP (tiene que existir el 15 nov a mediodía, antes del freeze)
-- [ ] 1 mapa de **1 carril** (o 3 cortos): por equipo **2 torres + 1 base**.
+- [ ] 1 mapa de **1 carril** (blockout de Emilio, `SourceArt/World/map_layout.json`): por equipo **2 torres + 1 base**.
 - [ ] Personaje 3ra persona: moverse, atacar cuerpo a cuerpo, arco.
 - [ ] Torres/base con vida, disparan a enemigos cercanos; victoria/derrota.
-- [ ] Bots: minions que avanzan por el carril + 2–4 bots "héroe" por equipo (StateTree/Behavior Tree).
-- [ ] **3–4 campamentos de loot** con enemigos y cofre.
-- [ ] **Fusión**: 3 materiales × 2 armas. Ej.: Piedra (+daño/knockback), Fuego (DoT), Hielo (slow). Espada y flecha.
+- [ ] Bots: minions que avanzan por el carril (§3) + **2 bots héroe por equipo** para completar el 3v3 (§11, StateTree).
+- [ ] **4 islas de loot** con enemigos y cofre (posiciones del blockout) + cofre garantizado de los primeros 2 minutos (§12).
+- [ ] **Fusión**: 5 materiales (Roca, Fuego, Hielo, Rayo, Bomba) × 2 armas (Espada, Arco) (§8). Assets `SM_FUSE_*` y `SM_WPN_*` ya están.
 - [ ] **Construcción**: las piezas de `UJamPartCatalog` con física (Chaos constraints), consumo de la mochila, desarmar y recuperar, prender y apagar con una tecla, asiento para manejar (Jugabilidad §6).
 - [ ] **Asistente IA**: pedido por texto (voz = P1) → Jev → **se arma al instante la mejor opción** (o su versión reducida) con mensaje de lo que falta (§6.1). Fallback por palabras clave.
 - [ ] **Energía**: barra tipo maná con mínimo 50, sube con loot y eliminaciones (§5).
 - [ ] **Minions** en Asalto (§3) y **loot** por islas (§4).
-- [ ] HUD: vida, inventario de materiales/piezas, estado de torres. Menú inicio + pantalla final.
-- [ ] Audio: música + SFX básicos (golpes, fuego, destrucción de torre).
+- [ ] Reglas de construcciones en PvP (§15) e interacciones en código (§16).
+- [ ] HUD y pantallas según §13 (vida, energía en 15 segmentos, mochila, torres, línea del asistente). Menú inicio + pantalla final "tu corte final".
+- [ ] Audio y feedback mínimos de §17: música + SFX de golpes, fuego, armar, encender y torre destruida.
 
 ## Stretch (solo si el MVP está listo)
 - Segundo modo **Choque en la isla** (§2) contra bots.
 - PvP en red (LAN/listen server) para los dos modos.
-- Construcción a mano (§6.2), voz, editar la última construcción, fusión con piezas de construcción.
-- Más piezas/materiales, vehículos manejables.
+- Voz para el asistente (texto es MVP), N = 2.ª opción de Jev, "ahora ponle fuego" sobre la última construcción.
+- Armas Lanza/Mazo/Escudo y material Púa (§8); interacciones marcadas "Propuesta" en §16.
+- Que los aliados manejen tu construcción (§15).
 - Pantalla de repetición de la mejor jugada.
 
 ## Arquitectura técnica (C++ base + BP/DataAssets)
@@ -381,9 +457,10 @@ Los jueces juegan solos y poco tiempo. Antes del minuto 2 tienen que haber **con
 | Partida | `AJamGameMode`, `AJamGameState`, `ATeamStructure` (torre/base) | BP de torres, reglas en DataAsset |
 | Combate | `UHealthComponent`, `AJamWeapon`, `UFusionComponent` | `UFusionMaterialData` (DataAsset por material) |
 | Construcción | `AJamBuildPart`, `UJamPartCatalog`, `UJamAssembler` (receta → piezas + constraints), `AJamBuildSpawner` | `BuildKnowledge.json`; tabla de piezas en C++ (pasará a DataAssets) |
-| IA bots | `AJamAIController`, StateTree tasks | StateTrees, carriles (spline) |
+| IA bots | `AJamAIController`, StateTree tasks (**por hacer**) | StateTrees de minion, bot héroe y enemigos de campamento (§11); carril como spline sobre el blockout |
 | Asistente / decisión | `FJamDecisionClient` (Jev → OpenRouter → fal), `UJamBuildGenerator` (decisiones → receta); interfaz `IBuildDecisionProvider` por hacer | Arquetipos y extras en `JamAssembler.cpp`; `BuildKnowledge.json` |
-| Loot | `ALootCamp`, `ALootChest` | Tablas de loot |
+| Loot | `ALootCamp`, `ALootChest` (**por hacer**) | Tablas de loot por isla y límites de mochila (§4) en JSON |
+| Energía | Barra del jugador (**por hacer**; hoy cada construcción tiene la suya, ver Pendientes) | Costos por pieza en `BuildKnowledge.json` |
 
 ### Capa de decisión
 La decisión de *qué construir y con qué piezas* va detrás de una interfaz única (`IBuildDecisionProvider`, **por hacer**, junto al cliente actual en `Source/GameJamm/Building/`): entra `{pedido, inventario, contexto}` y sale una receta JSON (formato de abajo, sin cambios). Así el modelo se puede cambiar sin tocar construcción ni combate.
@@ -411,7 +488,7 @@ El proveedor **solo puede usar piezas del inventario**, y el juego valida la rec
 El asistente solo puede usar piezas que el jugador tiene en el inventario; el juego valida la receta antes de construir. Valores válidos de `socket` y de `type`: [CATALOGO-ELEMENTOS §0.1](assets/CATALOGO-ELEMENTOS.md).
 
 ### API key del LLM
-No va en el repo. Para la build de los jueces: key con límite de gasto bajo en config del build **o** solo fallback. Decidir el 14 nov.
+No va en el repo (`Config/DefaultSecrets.ini` o variables de entorno). **Propuesta para la build de los jueces:** incluir una key con límite de gasto bajo en `DefaultSecrets.ini` empaquetado solo en el build entregado (no en el repo), y que el juego funcione igual con el fallback si la key falla o se agota. Lo decide el equipo el 14 nov; si no hay acuerdo, se entrega **solo con fallback**.
 
 ---
 
@@ -423,6 +500,8 @@ No va en el repo. Para la build de los jueces: key con límite de gasto bajo en 
 | ✓ | Área (dueño) | Qué falta | Sección del GDD |
 |---|---|---|---|
 | [ ] | Construcción (Jesús Daniel) | **La energía es del jugador, no de la construcción.** Hoy el código (`c246f4d`) le da a cada construcción su propia energía (`UJamAssembler::BaseEnergy = 100`): eso deja construir una nueva para tener energía llena gratis. Debe gastar de la barra del jugador (mínimo 50, máximo 150, recarga +3/s solo hasta 50 con la construcción apagada, orbe al morir con 50 % de lo que pasa del mínimo); las Battery pegadas siguen como reserva que se gasta primero. Actualizar también `BuildKnowledge.json → energy` | Jugabilidad §5 |
+| [ ] | Construcción (Jesús Daniel) | **Valores de piezas distintos a §9**: Bomba 5 m/30 (GDD 3 m/60), Beam 15 m/12 por s (GDD 25 m/12 cada 0.25 s), Head 25 m (GDD 20 m), Frost ~3 m y frena (GDD 4 m, ralentiza y congela). Para el MVP queda lo del código; el último día afinar hacia §9 o decir aquí qué número se queda. Shock (apaga la construcción enemiga) ya está agregado al GDD | §9, §16 |
+| [ ] | Construcción (Jesús Daniel) | Reglas de PvP de §15: 1 construcción activa, no armar a menos de 15 m de torres enemigas, apagarse sola al alejarse/morir el dueño | §15 |
 | [ ] | Construcción (Jesús Daniel) | Asistente: armar **al instante la mejor opción de Jev** (o su versión reducida) con una línea de lo que falta; R = volver a pedir; N = 2.ª opción (P1) | Jugabilidad §6.1 |
 | [ ] | Construcción (Jesús Daniel) | Mochila: tope por tipo (8 común, 4 dispositivo, 2 rara; campo nuevo tipo `stack_max` en `BuildKnowledge.json`), 40 en total, 1 construcción activa, máximo 4 armas y 6 propulsores por construcción; que el solver lo respete | Jugabilidad §4 |
 | [ ] | Combate (Jesús Daniel, por confirmar) | Items de inventario `Mat.Shock` y `Mat.Bomb` para el MVP (hoy solo existen `Mat.Fire`, `Mat.Rock`, `Mat.Ice`); `Mat.Spike` es Stretch | Jugabilidad §8 |
