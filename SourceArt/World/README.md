@@ -15,6 +15,18 @@ Es **blockout**: geometría real para caminar y probar el layout; torres, bases 
 Layout: carril de ~250 m sobre X (Rojo en X−, Azul en X+). Base → puente → isla T2 → puente → pradera central (T1 de cada
 equipo en las orillas, río con puente) → T2 → base. 4 islas de loot con puente. Todo lo caminable está en Z = 0.
 
+## Versión vestida (`FBX/SM_MAP_Dressed.fbx`)
+
+Mismo layout y mismas posiciones (`map_layout.json`), pero con los modelos reales de `SourceArt/World/Props`: atalayas con
+barricada, fortalezas con banderas y plataforma de spawn, campamentos de loot con ruinas, cofre que se abre, chatarra,
+caja, barril y fogata, árboles variados, ~70 detalles en la pradera (pasto, flores, arbustos, rocas, hongos), faroles en el
+camino, mesa de construcción y tienda en cada base. Rojo/azul ya vienen pintados por equipo.
+
+![vestido](preview_dressed_close.png)
+
+Se importa igual que el blockout (pasos de abajo). Generador: `scripts/gen_map_dressed.py` (reutiliza `gen_map.py` y los
+builders de `SourceArt/Building/scripts`).
+
 ## Probarlo caminando en UE (≈5 min)
 
 1. Crear un nivel de prueba en tu carpeta, p. ej. `Content/Developers/<tu-nombre>/L_Test_Islands` (no tocar `L_Main`).

@@ -318,4 +318,5 @@ def main():
     print("MAP_OK", len(OBJS), "objetos;", len(LAYOUT["items"]), "marcadores")
 
 
-main()
+if __name__ == "__main__":
+    main()
