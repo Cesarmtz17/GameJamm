@@ -55,6 +55,9 @@ public:
 	 */
 	static bool HasOverlap(const FBuildRecipe& Recipe, FName PartId, FString& OutInfo);
 
+	/** Caja del layout en el marco de la construccion (X adelante, Z arriba), sin mundo. Para apoyarla bien sobre el suelo al aparecer. */
+	static FBox LayoutBounds(const FBuildRecipe& Recipe);
+
 	/** Ocho chequeos sin mundo ni render: conexion, solapes, simetria, apoyo, empuje, tiro y aire, centro de masa, potencia. */
 	static FJamCoherence Coherence(const FBuildRecipe& Recipe);
 

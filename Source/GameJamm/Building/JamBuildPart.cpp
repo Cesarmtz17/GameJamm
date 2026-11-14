@@ -459,6 +459,8 @@ void AJamBuildPart::InitFromDef(const FJamPartDef& Def, const FVector& BoxSize, 
 	Mesh->SetMassOverrideInKg(NAME_None, Def.MassKg, true);
 	Mesh->SetSimulatePhysics(true);
 	Mesh->SetEnableGravity(true);
+	// Si una pieza nace tocando el suelo u otra pieza, se separa despacio en vez de salir disparada.
+	if (FBodyInstance* BI = Mesh->GetBodyInstance()) { BI->SetMaxDepenetrationVelocity(150.f); }
 }
 
 void AJamBuildPart::OnPartHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)

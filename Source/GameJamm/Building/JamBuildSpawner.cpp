@@ -242,9 +242,35 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& InRecipe, const FString& InNo
 
 	LastRecipeJson = UBuildRecipeLibrary::RecipeToJson(Recipe);
 
+	// Apoyo: una construccion larga sobre terreno desigual nacia medio enterrada y la fisica la disparaba al separarla.
+	// Se mira el suelo bajo toda su huella (rejilla 5 x 3) y se sube hasta que su punto mas bajo quede sobre el punto mas alto.
+	FTransform At = GetActorTransform();
+	{
+		const FBox Box = UJamAssembler::LayoutBounds(Recipe);
+		if (Box.IsValid)
+		{
+			FCollisionQueryParams Q(NAME_None, false, this);
+			Q.AddIgnoredActor(GetOwner());
+			double Top = -TNumericLimits<double>::Max();
+			for (int32 ix = 0; ix < 5; ++ix)
+			{
+				for (int32 iy = 0; iy < 3; ++iy)
+				{
+					const FVector P = At.TransformPosition(FVector(FMath::Lerp(Box.Min.X, Box.Max.X, ix / 4.0), FMath::Lerp(Box.Min.Y, Box.Max.Y, iy / 2.0), 0.0));
+					FHitResult Hit;
+					if (World->LineTraceSingleByChannel(Hit, P + FVector(0, 0, 400), P - FVector(0, 0, 600), ECC_Visibility, Q) && !Cast<AJamBuildPart>(Hit.GetActor()))
+					{
+						Top = FMath::Max(Top, Hit.ImpactPoint.Z);
+					}
+				}
+			}
+			if (Top > At.GetLocation().Z) { At.AddToTranslation(FVector(0, 0, Top - At.GetLocation().Z + 3.0)); }
+		}
+	}
+
 	FString Err;
 	TArray<AJamBuildPart*> Built;
-	if (!UJamAssembler::Assemble(this, Recipe, GetActorTransform(), Built, Err))
+	if (!UJamAssembler::Assemble(this, Recipe, At, Built, Err))
 	{
 		LastStatus = FString::Printf(TEXT("FAIL assemble: %s"), *Err);
 		UE_LOG(LogJamBuild, Warning, TEXT("%s"), *LastStatus);

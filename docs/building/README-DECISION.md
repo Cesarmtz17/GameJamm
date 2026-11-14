@@ -174,6 +174,53 @@ funciones. `AJamBuildSpawner::RecipeJsonOverride` ya acepta la receta JSON de cu
 | Piezas sin implementar | Ramp, Rod, BallJoint, Rope, Cart, Mirror | No están en el catálogo |
 | Mapa de elementos (complemento) | Orugas, vagón teledirigido, corredera, cuerda, rótula | No implementados; bisagra y motor sí, como piezas (sin tocar el formato de receta) |
 
+## 8b. Ronda 3: sentido, utilizable y decisión medida
+
+> [!info]
+> Resumen de lo que se agregó el 14 de noviembre. El detalle medido está en `REPORTE-POC.md` (lo genera `Jam.Test`).
+
+**Sentido (coherencia).** Toda receta pasa por `UJamAssembler::Coherence` antes de construirse: puntaje 0 a 100 con ocho chequeos sin mundo (conexión, solapes, simetría, apoyo, empuje, tiro y aire libres, centro de masa, potencia).
+
+| Puntaje | Qué hace el código | Qué ve el jugador |
+|---|---|---|
+| 85 o más | Construye | Nada, o la nota normal |
+| 70 a 84 | Construye | Aviso corto con el motivo |
+| Menos de 70 | Recompone la bolsa con las reglas (`UJamBuildGenerator::Repair`) y construye lo mejor que tenga | Qué cambió, o "No quedó bien: ..." |
+
+- `ComposeFromBag` decide el chasis completo (1, 3, 5 tramos; crece gratis con tablas), coloca cada pieza en la primera cara que pasa `Fits` (sin solape, línea de tiro, chorro y columna del asiento libres, nada por debajo de las ruedas) y en grupos espejados. La pieza impar va a la línea central.
+- Las reglas de colocación son datos por pieza: bloque `place` de cada elemento en `BuildKnowledge.json` (`faces`, `odd`, `sym`, `order`, `clear`, `up`, `ground`, `avoid`, `modes`), igual que `FJamPieceRule` en `PieceTable()`. La prueba de tablas compara los dos.
+- Arma contra escudo: gana el arma; el escudo va atrás o a los lados y se avisa. Voladores que no despegan: el código agrega sustentación (hasta 4) y lo avisa.
+- Variables: `jam.Build.Coherence` (0 apagado, 1 avisa, 2 repara; por defecto 2), `jam.Build.MinCoherence` (70). Comando `Jam.Coh`: las ocho notas de la última construcción. El HUD muestra `Sentido: NN / 100`.
+
+**Decisión.** Jev sigue sin elegir plantillas: contesta sí/no por pieza (`use_<Tipo>`), los modos (`mode_lift`, `mode_launch`) y dos globales (`pattern`, `root`). La cantidad sale del texto por código. Reglas medidas contra 300 frases reales:
+
+| Regla | Ejemplo |
+|---|---|
+| Palabras clave por palabra completa y por sonido | "troca" no es "roca"; "beinticinco yantas" = 25 llantas |
+| Negaciones | "un carro sin ruedas", "que no tenga cañón" |
+| Sin carro de relleno | "una silla" no lleva llantas |
+| Umbral relativo | Si ninguna pieza pasa de 0.5 se toman las mejores |
+| Cantidad implícita | triciclo = 3 ruedas, cuadricóptero = 4 hélices |
+| Alas sin empuje | +1 cohete |
+| Torre o muro de una pieza | 3 |
+
+- Planificador LLM (`FJamDecisionClient::RequestPlan`, fal): solo cuando Jev reconoce menos de 2 piezas. Devuelve una bolsa (`type`, `count`, `mode`, `root`); el código descarta tipos que no existen y la bolsa pasa por el mismo compositor y validador.
+
+**Utilizable.** `Jam.Test` monta al jugador y simula la entrada por el mismo camino que el teclado: sin entrada (las armas deben estar quietas), clic (FUEGO), W (MOVER), W+D (GIRAR), Espacio (TURBO); ALTURA = subió más de 30 cm. Una frase pasa si se construyó, la decisión es correcta, la coherencia es 85 o más y todos sus canales responden.
+
+```text
+Jam.Test                                   bateria interna (aisladas + frases) -> docs/building/REPORTE-POC.md
+Jam.Test 12 frases                         solo frases
+Jam.Test 12 <ruta.json> [desde] [cuantas]  bateria externa -> docs/building/REPORTE-BATERIA.md
+```
+
+La batería externa es una lista de `{frase, must, forbid, counts, capability}`. `docs/building/TestFamosas.json` trae 40 construcciones conocidas del género.
+
+> [!warning]
+> No guardes baterías `.json` nuevas dentro de `Content/` con el editor abierto: el editor intenta importarlas como DataTable y se detiene en un diálogo.
+
+**Piezas y mecánicas nuevas.** `Deck`, `Rod`, `UBlock`, `Cart`, `RailSkid`, `IceBlock`, `Propeller`, `Launcher`, `WagonWheel` (rueda libre, sin motor) y `Spikes` (daño por contacto). El resorte en modo lanzar suelta y lanza la pieza que lleva encima (bola o bomba). La bomba se suelta al armarse. Con asiento, cohetes y bombas se disparan con Espacio y no con C. Los escudos y cualquier cuerpo en medio paran fuego, hielo, chorro, descarga y explosiones.
+
 ## 9. Límites conocidos
 
 - Jev decide bien el arquetipo en frases directas; en frases ambiguas puede marcar extras de más. Los textos *true/false* se

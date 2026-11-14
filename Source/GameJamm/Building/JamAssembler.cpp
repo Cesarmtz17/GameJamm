@@ -333,6 +333,18 @@ namespace
 	}
 }
 
+FBox UJamAssembler::LayoutBounds(const FBuildRecipe& Recipe)
+{
+	FBox Box(ForceInit);
+	TMap<FName, FPlaced> Placed;
+	FString Err;
+	if (LayoutAll(Recipe, Placed, Err))
+	{
+		for (const auto& KV : Placed) { Box += FBox(KV.Value.Center - KV.Value.Size * 0.5, KV.Value.Center + KV.Value.Size * 0.5); }
+	}
+	return Box;
+}
+
 FString FJamCoherence::ToText() const
 {
 	FString S = FString::Printf(TEXT("coh=%d"), Score);
@@ -733,7 +745,10 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 		{
 			LockAll(C);
 		}
-		C->SetConstrainedComponents(Parent.Actor->Mesh, NAME_None, Child.Actor->Mesh, NAME_None);
+		// Si el padre esta soldado a otra pieza, el cuerpo fisico real es la raiz de esa isla: la union se hace contra ella.
+		// (Contra el componente soldado, el marco de la union salia desplazado lo que mide el tramo y la fisica reventaba:
+		// todo lo que colgaba de un tramo añadido del chasis - ruedas, cañones - tiraba hacia otro sitio.)
+		C->SetConstrainedComponents(Placed[RootOf(P.AttachTo)].Actor->Mesh, NAME_None, Child.Actor->Mesh, NAME_None);
 	}
 	// La masa del cuerpo soldado es la suma de sus piezas.
 	for (const auto& KV : Welded)
@@ -1294,13 +1309,13 @@ const TArray<FJamPieceRule>& UJamBuildGenerator::PieceTable()
 			R.DefaultCount = 1;
 		}
 		// --- piezas de solo datos (reusan una capacidad existente) ---
-		Rule(TEXT("Deck"), K({TEXT("Top")}), TEXT("The thing needs a wide, very light square platform (flying platforms, helicopters, rafts) or the user mentions a deck or platform."),
-			TEXT("A normal plank base is enough and no platform or deck is mentioned."), K({TEXT("plataforma"), TEXT("tarima"), TEXT("cubierta"), TEXT("deck")}));
+		Rule(TEXT("Deck"), K({TEXT("Top")}), TEXT("The user explicitly asks for a wide square platform, deck or stage."),
+			TEXT("The words platform, deck or stage are not mentioned. Vehicles, aircraft, boats and bridges use a normal plank and do not count."), K({TEXT("plataforma"), TEXT("tarima"), TEXT("cubierta"), TEXT("deck")}));
 		Rule(TEXT("Rod"), K({TEXT("Front|Back|Top")}), TEXT("The user asks for a thin rod, pole, mast or antenna."), TEXT("No thin rod, mast or antenna is mentioned. A thick girder or a cannon does not count."),
 			K({TEXT("varilla"), TEXT("barra "), TEXT("asta"), TEXT("antena"), TEXT("mastil"), TEXT("mástil"), TEXT("rod")})).Chain = "Front";
 		Rule(TEXT("UBlock"), K({JAM_ANY}), TEXT("The user explicitly asks for a heavy counterweight or ballast."), TEXT("No counterweight or ballast is mentioned. A normal block is enough."),
 			K({TEXT("contrapeso"), TEXT("lastre"), TEXT("horquilla"), TEXT("bloque en u")}));
-		Rule(TEXT("Cart"), K({TEXT("Bottom")}), TEXT("The thing is pushed or towed and rolls without its own motor: cart, wagon, trailer, minecart."), TEXT("It drives with its own wheels, or no cart, wagon or trailer is mentioned."),
+		Rule(TEXT("Cart"), K({TEXT("Bottom")}), TEXT("The user explicitly asks for a wagon, trailer or minecart that is pushed or towed and has no motor."), TEXT("No wagon, trailer or minecart is mentioned. Cars, trucks, carts that drive and anything with a motor do not count."),
 			K({TEXT("carreta"), TEXT("vagon"), TEXT("vagón"), TEXT("vagoneta"), TEXT("remolque"), TEXT("wagon"), TEXT("trailer")}));
 		Rule(TEXT("RailSkid"), K({TEXT("Bottom_Left"), TEXT("Bottom_Right")}), TEXT("The user wants it to slide very fast on skids or rails with almost no friction."), TEXT("No skids or rails are mentioned."),
 			K({TEXT("patin "), TEXT("patín "), TEXT("riel"), TEXT("barandal"), TEXT("deslizador"), TEXT("skid")})).DefaultCount = 2;
@@ -1310,7 +1325,7 @@ const TArray<FJamPieceRule>& UJamBuildGenerator::PieceTable()
 			K({TEXT("aspas"), TEXT("helice grande"), TEXT("hélice grande"), TEXT("helice de helicoptero"), TEXT("hélice de helicóptero"), TEXT("rotor de helic")})).LiftSlots = K({TEXT("Top_Center_Bottom")});
 		Rule(TEXT("Launcher"), K({TEXT("Top|Top_Front")}), TEXT("The user wants a big launch pad that throws something or someone far."), TEXT("No launch pad is mentioned. A small jump or a catapult spring is enough: that is the spring."),
 			K({TEXT("plataforma de lanzamiento"), TEXT("lanzadera"), TEXT("launch pad")})).LiftSlots = K({TEXT("Top_Front|Top|Top_Back")});
-		Rule(TEXT("WagonWheel"), K({TEXT("Left_Front|Left_Back"), TEXT("Right_Front|Right_Back")}), TEXT("The wheels are plain wooden or free wheels with no motor: carts, wagons, trailers."), TEXT("No free or wooden wheels are mentioned, or it must drive by itself."),
+		Rule(TEXT("WagonWheel"), K({TEXT("Left_Front|Left_Back"), TEXT("Right_Front|Right_Back")}), TEXT("The user explicitly says wooden wheels, wagon wheels or free wheels without a motor."), TEXT("The user does not explicitly say wooden, wagon or free wheels. Cars, trucks, tanks, bikes and anything that drives use normal wheels and do not count."),
 			K({TEXT("rueda de carreta"), TEXT("ruedas de carreta"), TEXT("rueda de madera"), TEXT("ruedas de madera"), TEXT("rueda libre"), TEXT("ruedas libres")})).DefaultCount = 4;
 		Rule(TEXT("Spikes"), K({TEXT("Front_Bottom|Front")}), TEXT("The thing must hurt by touching or ramming: spikes, blades, saw, drill."), TEXT("No spikes, blades or ramming damage is mentioned. It attacks from a distance or not at all."),
 			K({TEXT("puas"), TEXT("púas"), TEXT("pinchos"), TEXT("picos"), TEXT("espinas"), TEXT("cuchillas"), TEXT("sierra"), TEXT("spikes"), TEXT("blades")}));
