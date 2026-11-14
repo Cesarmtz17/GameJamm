@@ -422,7 +422,7 @@ No va en el repo. Para la build de los jueces: key con límite de gasto bajo en 
 
 | ✓ | Área (dueño) | Qué falta | Sección del GDD |
 |---|---|---|---|
-| [ ] | Construcción (Jesús Daniel) | `BuildKnowledge.json → energy`: mínimo 50, máximo 150, recarga +3/s solo hasta 50 con la construcción apagada; orbe al morir con 50 % de lo que pasa del mínimo (hoy dice máximo 100, inicio 60, sin mínimo) | Jugabilidad §5 |
+| [ ] | Construcción (Jesús Daniel) | **La energía es del jugador, no de la construcción.** Hoy el código (`c246f4d`) le da a cada construcción su propia energía (`UJamAssembler::BaseEnergy = 100`): eso deja construir una nueva para tener energía llena gratis. Debe gastar de la barra del jugador (mínimo 50, máximo 150, recarga +3/s solo hasta 50 con la construcción apagada, orbe al morir con 50 % de lo que pasa del mínimo); las Battery pegadas siguen como reserva que se gasta primero. Actualizar también `BuildKnowledge.json → energy` | Jugabilidad §5 |
 | [ ] | Construcción (Jesús Daniel) | Asistente: armar **al instante la mejor opción de Jev** (o su versión reducida) con una línea de lo que falta; R = volver a pedir; N = 2.ª opción (P1) | Jugabilidad §6.1 |
 | [ ] | Construcción (Jesús Daniel) | Mochila: tope por tipo (8 común, 4 dispositivo, 2 rara; campo nuevo tipo `stack_max` en `BuildKnowledge.json`), 40 en total, 1 construcción activa, máximo 4 armas y 6 propulsores por construcción; que el solver lo respete | Jugabilidad §4 |
 | [ ] | Combate (Javier) | Items de inventario `Mat.Shock` y `Mat.Bomb` para el MVP (hoy solo existen `Mat.Fire`, `Mat.Rock`, `Mat.Ice`); `Mat.Spike` es Stretch | Jugabilidad §8 |
