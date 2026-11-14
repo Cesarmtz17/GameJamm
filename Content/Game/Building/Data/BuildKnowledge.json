@@ -1,0 +1,1606 @@
+{
+ "_doc": "Base de conocimiento del asistente de construcción. Diseño: docs/mechanics-research/13-conocimiento-ia-construccion.md. Valores iniciales de diseño (tunables).",
+ "version": 1,
+ "max_parts": 21,
+ "use_energy": true,
+ "elements": [
+  {
+   "id": "PART_PLANK",
+   "type": "Plank",
+   "category": "estructura",
+   "in_code": true,
+   "mass_kg": 5,
+   "energy_per_s": 0,
+   "provides": [
+    "chassis",
+    "platform"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Base larga y plana. Chasis por defecto de vehículos y voladores.",
+   "names_es": [
+    "tabla",
+    "plancha",
+    "tablón",
+    "base"
+   ],
+   "names_en": [
+    "plank",
+    "board",
+    "platform"
+   ],
+   "substitutes": [
+    "Panel",
+    "Beam"
+   ],
+   "priority": "mvp",
+   "infinite": false
+  },
+  {
+   "id": "PART_PANEL",
+   "type": "Panel",
+   "category": "estructura",
+   "in_code": false,
+   "mass_kg": 8,
+   "energy_per_s": 0,
+   "provides": [
+    "chassis",
+    "shield"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Panel cuadrado. Chasis ancho o escudo frontal.",
+   "names_es": [
+    "panel",
+    "placa",
+    "escudo de madera"
+   ],
+   "names_en": [
+    "panel",
+    "sheet",
+    "shield plate"
+   ],
+   "substitutes": [
+    "Plank",
+    "Wall"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "PART_WALL",
+   "type": "Wall",
+   "category": "estructura",
+   "in_code": false,
+   "mass_kg": 30,
+   "energy_per_s": 0,
+   "provides": [
+    "shield",
+    "ram",
+    "weight"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Muro grueso y pesado. Escudo o ariete al frente; contrapeso.",
+   "names_es": [
+    "muro",
+    "pared",
+    "barrera"
+   ],
+   "names_en": [
+    "wall",
+    "barrier"
+   ],
+   "substitutes": [
+    "Panel",
+    "Block"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "PART_BEAM",
+   "type": "Beam",
+   "category": "estructura",
+   "in_code": false,
+   "mass_kg": 6,
+   "energy_per_s": 0,
+   "provides": [
+    "chassis",
+    "link"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Viga larga y delgada. Chasis ligero o brazo largo.",
+   "names_es": [
+    "viga",
+    "barra larga",
+    "brazo"
+   ],
+   "names_en": [
+    "beam",
+    "bar",
+    "arm"
+   ],
+   "substitutes": [
+    "Rod",
+    "Plank"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "PART_BLOCK",
+   "type": "Block",
+   "category": "estructura",
+   "in_code": true,
+   "mass_kg": 15,
+   "energy_per_s": 0,
+   "provides": [
+    "chassis",
+    "weight",
+    "ram"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Cubo macizo. Base de torreta, contrapeso o proyectil de catapulta.",
+   "names_es": [
+    "bloque",
+    "cubo",
+    "caja"
+   ],
+   "names_en": [
+    "block",
+    "cube",
+    "crate"
+   ],
+   "substitutes": [
+    "Wall",
+    "Ball"
+   ],
+   "priority": "mvp",
+   "infinite": false
+  },
+  {
+   "id": "PART_CYLINDER",
+   "type": "Cylinder",
+   "category": "estructura",
+   "in_code": true,
+   "mass_kg": 10,
+   "energy_per_s": 0,
+   "provides": [
+    "chassis",
+    "axle"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Tubo/poste. Cuerpo de cohete o eje.",
+   "names_es": [
+    "cilindro",
+    "tubo",
+    "poste",
+    "barril"
+   ],
+   "names_en": [
+    "cylinder",
+    "tube",
+    "pole",
+    "barrel"
+   ],
+   "substitutes": [
+    "Beam",
+    "Rod"
+   ],
+   "priority": "mvp",
+   "infinite": false
+  },
+  {
+   "id": "PART_BALL",
+   "type": "Ball",
+   "category": "estructura",
+   "in_code": false,
+   "mass_kg": 10,
+   "energy_per_s": 0,
+   "provides": [
+    "ground_roll",
+    "weight",
+    "joint_free"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Esfera. Rueda pasiva improvisada (sin motor) o proyectil.",
+   "names_es": [
+    "bola",
+    "esfera",
+    "pelota"
+   ],
+   "names_en": [
+    "ball",
+    "sphere",
+    "orb"
+   ],
+   "substitutes": [
+    "Wheel"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "PART_RAMP",
+   "type": "Ramp",
+   "category": "estructura",
+   "in_code": false,
+   "mass_kg": 10,
+   "energy_per_s": 0,
+   "provides": [
+    "ramp",
+    "ram"
+   ],
+   "faces": [
+    "Front",
+    "Back",
+    "Bottom"
+   ],
+   "behavior": "Cuña. Al frente levanta enemigos (barredora).",
+   "names_es": [
+    "rampa",
+    "cuña"
+   ],
+   "names_en": [
+    "ramp",
+    "wedge"
+   ],
+   "substitutes": [
+    "Plank"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "PART_ROD",
+   "type": "Rod",
+   "category": "estructura",
+   "in_code": false,
+   "mass_kg": 2,
+   "energy_per_s": 0,
+   "provides": [
+    "link"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Varilla fina. Separa piezas sin peso (brazos de aspersor).",
+   "names_es": [
+    "varilla",
+    "palo",
+    "vara"
+   ],
+   "names_en": [
+    "rod",
+    "stick"
+   ],
+   "substitutes": [
+    "Beam"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "JOINT_HINGE",
+   "type": "Hinge",
+   "category": "union",
+   "in_code": false,
+   "mass_kg": 2,
+   "energy_per_s": 0,
+   "provides": [
+    "hinge"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Bisagra: lo que se pegue encima gira en un eje (puertas, brazos, flaps).",
+   "names_es": [
+    "bisagra"
+   ],
+   "names_en": [
+    "hinge"
+   ],
+   "substitutes": [],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "JOINT_TURNTABLE",
+   "type": "Turntable",
+   "category": "union",
+   "in_code": false,
+   "mass_kg": 4,
+   "energy_per_s": 0.015,
+   "provides": [
+    "rotate"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Motor de eje: hace girar lo que tenga encima a velocidad constante (aspersor, torreta giratoria).",
+   "names_es": [
+    "plato giratorio",
+    "motor de giro",
+    "giratorio",
+    "tornamesa"
+   ],
+   "names_en": [
+    "turntable",
+    "spinner",
+    "rotator",
+    "motor"
+   ],
+   "substitutes": [
+    "Wheel"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "JOINT_BALL",
+   "type": "BallJoint",
+   "category": "union",
+   "in_code": false,
+   "mass_kg": 2,
+   "energy_per_s": 0,
+   "provides": [
+    "joint_free"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Rótula: giro libre limitado.",
+   "names_es": [
+    "rótula",
+    "articulación"
+   ],
+   "names_en": [
+    "ball joint",
+    "swivel"
+   ],
+   "substitutes": [
+    "Hinge"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "ANCHOR_STAKE",
+   "type": "Stake",
+   "category": "ancla",
+   "in_code": false,
+   "mass_kg": 2,
+   "energy_per_s": 0,
+   "provides": [
+    "anchor"
+   ],
+   "faces": [
+    "Bottom"
+   ],
+   "behavior": "Se clava al suelo: la construcción queda fija (torretas, muros, aspersores en su lugar).",
+   "names_es": [
+    "estaca",
+    "ancla",
+    "clavo"
+   ],
+   "names_en": [
+    "stake",
+    "anchor",
+    "peg"
+   ],
+   "substitutes": [
+    "Wall"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "ANCHOR_ROPE",
+   "type": "Rope",
+   "category": "ancla",
+   "in_code": false,
+   "mass_kg": 1,
+   "energy_per_s": 0,
+   "provides": [
+    "link_soft"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Cuerda con holgura entre dos piezas (remolque, péndulo).",
+   "names_es": [
+    "cuerda",
+    "cadena",
+    "soga"
+   ],
+   "names_en": [
+    "rope",
+    "chain"
+   ],
+   "substitutes": [],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "DEV_WHEEL_S",
+   "type": "Wheel",
+   "category": "movilidad",
+   "in_code": true,
+   "mass_kg": 4,
+   "energy_per_s": 0.015,
+   "provides": [
+    "ground_drive",
+    "spin"
+   ],
+   "faces": [
+    "Left",
+    "Right",
+    "Bottom"
+   ],
+   "behavior": "Rueda con motor. En los lados = tracción. Sola o acostada = gira en su lugar y lo pegado a ella gira con ella.",
+   "names_es": [
+    "rueda",
+    "llanta",
+    "rueda chica"
+   ],
+   "names_en": [
+    "wheel",
+    "tire",
+    "small wheel"
+   ],
+   "substitutes": [
+    "BigWheel",
+    "Ball",
+    "Sled"
+   ],
+   "priority": "mvp",
+   "infinite": false
+  },
+  {
+   "id": "DEV_WHEEL_L",
+   "type": "BigWheel",
+   "category": "movilidad",
+   "in_code": true,
+   "mass_kg": 8,
+   "energy_per_s": 0.015,
+   "provides": [
+    "ground_drive",
+    "spin",
+    "offroad"
+   ],
+   "faces": [
+    "Left",
+    "Right",
+    "Bottom"
+   ],
+   "behavior": "Rueda grande: menos velocidad, más tracción, sube cuestas.",
+   "names_es": [
+    "rueda grande",
+    "llanta grande",
+    "rueda todoterreno"
+   ],
+   "names_en": [
+    "big wheel",
+    "large wheel",
+    "monster wheel"
+   ],
+   "substitutes": [
+    "Wheel",
+    "Ball",
+    "Sled"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "DEV_CART",
+   "type": "Cart",
+   "category": "movilidad",
+   "in_code": false,
+   "mass_kg": 6,
+   "energy_per_s": 0,
+   "provides": [
+    "ground_roll",
+    "chassis"
+   ],
+   "faces": [
+    "Bottom"
+   ],
+   "behavior": "Plataforma con ruedas libres sin motor: necesita empuje (ventilador/cohete).",
+   "names_es": [
+    "carrito",
+    "vagón",
+    "plataforma con ruedas"
+   ],
+   "names_en": [
+    "cart",
+    "wagon",
+    "trolley"
+   ],
+   "substitutes": [
+    "Sled",
+    "Ball"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "DEV_SLED",
+   "type": "Sled",
+   "category": "movilidad",
+   "in_code": false,
+   "mass_kg": 4,
+   "energy_per_s": 0,
+   "provides": [
+    "slide",
+    "chassis"
+   ],
+   "faces": [
+    "Bottom"
+   ],
+   "behavior": "Base deslizante de baja fricción: necesita empuje.",
+   "names_es": [
+    "trineo",
+    "patín",
+    "esquí"
+   ],
+   "names_en": [
+    "sled",
+    "sledge",
+    "ski"
+   ],
+   "substitutes": [
+    "Cart",
+    "Plank"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "DEV_SPRING",
+   "type": "Spring",
+   "category": "movilidad",
+   "in_code": false,
+   "mass_kg": 3,
+   "energy_per_s": 0,
+   "provides": [
+    "launch"
+   ],
+   "faces": [
+    "Top",
+    "Bottom",
+    "Front"
+   ],
+   "behavior": "Se comprime y lanza lo que tenga encima (catapulta, salto).",
+   "names_es": [
+    "resorte",
+    "muelle",
+    "catapulta",
+    "trampolín"
+   ],
+   "names_en": [
+    "spring",
+    "launcher",
+    "catapult"
+   ],
+   "substitutes": [
+    "Rocket"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "DEV_FAN",
+   "type": "Fan",
+   "category": "propulsion",
+   "in_code": true,
+   "mass_kg": 3,
+   "energy_per_s": 0.156,
+   "provides": [
+    "thrust",
+    "lift"
+   ],
+   "faces": [
+    "Back",
+    "Bottom",
+    "Left",
+    "Right",
+    "Top",
+    "Front"
+   ],
+   "behavior": "Empuja en sentido contrario a su cara: en Back = avanza, en Bottom = sube (hover), en un lado = gira. Se apilan.",
+   "names_es": [
+    "ventilador",
+    "abanico",
+    "hélice",
+    "turbina",
+    "propela"
+   ],
+   "names_en": [
+    "fan",
+    "propeller",
+    "turbine",
+    "blower"
+   ],
+   "substitutes": [
+    "Rocket",
+    "Balloon"
+   ],
+   "priority": "mvp",
+   "infinite": false
+  },
+  {
+   "id": "DEV_ROCKET",
+   "type": "Rocket",
+   "category": "propulsion",
+   "in_code": true,
+   "mass_kg": 4,
+   "energy_per_s": 0,
+   "provides": [
+    "burst_thrust"
+   ],
+   "faces": [
+    "Back",
+    "Bottom"
+   ],
+   "behavior": "Empuje muy fuerte 3 s y se apaga (un uso).",
+   "names_es": [
+    "cohete",
+    "propulsor",
+    "nitro",
+    "misil"
+   ],
+   "names_en": [
+    "rocket",
+    "booster",
+    "nitro",
+    "thruster"
+   ],
+   "substitutes": [
+    "Fan"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "DEV_WING",
+   "type": "Wing",
+   "category": "propulsion",
+   "in_code": false,
+   "mass_kg": 3,
+   "energy_per_s": 0,
+   "provides": [
+    "glide"
+   ],
+   "faces": [
+    "Left",
+    "Right",
+    "Top"
+   ],
+   "behavior": "Ala: planea si hay velocidad; en pares a los lados.",
+   "names_es": [
+    "ala",
+    "alas",
+    "planeador"
+   ],
+   "names_en": [
+    "wing",
+    "wings",
+    "glider"
+   ],
+   "substitutes": [
+    "Plank",
+    "Panel"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "DEV_BALLOON",
+   "type": "Balloon",
+   "category": "propulsion",
+   "in_code": true,
+   "mass_kg": 1,
+   "energy_per_s": 0,
+   "provides": [
+    "lift"
+   ],
+   "faces": [
+    "Top"
+   ],
+   "behavior": "Sube despacio; con fuego debajo sube más rápido.",
+   "names_es": [
+    "globo",
+    "globo aerostático"
+   ],
+   "names_en": [
+    "balloon",
+    "blimp"
+   ],
+   "substitutes": [
+    "Fan",
+    "Hover"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "DEV_HOVER",
+   "type": "Hover",
+   "category": "propulsion",
+   "in_code": false,
+   "mass_kg": 4,
+   "energy_per_s": 0.03,
+   "provides": [
+    "hover_static"
+   ],
+   "faces": [
+    "Bottom",
+    "Top"
+   ],
+   "behavior": "Flota inmóvil al activarse (plataforma, puente aéreo).",
+   "names_es": [
+    "piedra flotante",
+    "flotador",
+    "levitador"
+   ],
+   "names_en": [
+    "hover stone",
+    "floater",
+    "levitator"
+   ],
+   "substitutes": [
+    "Balloon",
+    "Fan"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "DEV_STABILIZER",
+   "type": "Stabilizer",
+   "category": "control",
+   "in_code": false,
+   "mass_kg": 2,
+   "energy_per_s": 0.03,
+   "provides": [
+    "stabilize"
+   ],
+   "faces": [
+    "Bottom",
+    "Top"
+   ],
+   "behavior": "Mantiene la construcción derecha (motos, voladores).",
+   "names_es": [
+    "estabilizador",
+    "giroscopio"
+   ],
+   "names_en": [
+    "stabilizer",
+    "gyro"
+   ],
+   "substitutes": [
+    "Seat"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "CTRL_SEAT",
+   "type": "Seat",
+   "category": "control",
+   "in_code": true,
+   "mass_kg": 5,
+   "energy_per_s": 0,
+   "provides": [
+    "control",
+    "stabilize_soft"
+   ],
+   "faces": [
+    "Top"
+   ],
+   "behavior": "Volante/asiento: te subes y diriges; enciende todo lo conectado. INFINITO: no cuesta inventario ni energía.",
+   "names_es": [
+    "asiento",
+    "volante",
+    "timón",
+    "manubrio",
+    "control",
+    "cabina"
+   ],
+   "names_en": [
+    "seat",
+    "steering",
+    "wheel control",
+    "cockpit",
+    "helm"
+   ],
+   "substitutes": [],
+   "priority": "mvp",
+   "infinite": true
+  },
+  {
+   "id": "CTRL_HEAD",
+   "type": "Head",
+   "category": "control",
+   "in_code": false,
+   "mass_kg": 3,
+   "energy_per_s": 0.03,
+   "provides": [
+    "aim"
+   ],
+   "faces": [
+    "Top",
+    "Front"
+   ],
+   "behavior": "Cabeza sensor: gira hacia el enemigo; con arma encima = torreta autónoma.",
+   "names_es": [
+    "cabeza",
+    "sensor",
+    "apuntador",
+    "radar"
+   ],
+   "names_en": [
+    "head",
+    "sensor",
+    "targeting",
+    "radar"
+   ],
+   "substitutes": [],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "CTRL_TIMEBOMB",
+   "type": "TimeBomb",
+   "category": "control",
+   "in_code": false,
+   "mass_kg": 2,
+   "energy_per_s": 0,
+   "provides": [
+    "bomb",
+    "trigger"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Explota a los 4 s; su onda activa dispositivos cercanos.",
+   "names_es": [
+    "bomba de tiempo",
+    "bomba",
+    "explosivo"
+   ],
+   "names_en": [
+    "time bomb",
+    "bomb",
+    "explosive"
+   ],
+   "substitutes": [
+    "Cannon"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "PWR_BATTERY_S",
+   "type": "Battery",
+   "category": "energia",
+   "in_code": true,
+   "mass_kg": 3,
+   "energy_per_s": 0,
+   "provides": [
+    "power"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Energía extra: se gasta antes que la del jugador.",
+   "names_es": [
+    "batería",
+    "pila",
+    "energía"
+   ],
+   "names_en": [
+    "battery",
+    "cell",
+    "power"
+   ],
+   "substitutes": [
+    "BigBattery"
+   ],
+   "priority": "mvp",
+   "infinite": false
+  },
+  {
+   "id": "PWR_BATTERY_L",
+   "type": "BigBattery",
+   "category": "energia",
+   "in_code": false,
+   "mass_kg": 6,
+   "energy_per_s": 0,
+   "provides": [
+    "power"
+   ],
+   "faces": [
+    "*"
+   ],
+   "behavior": "Batería grande.",
+   "names_es": [
+    "batería grande"
+   ],
+   "names_en": [
+    "big battery"
+   ],
+   "substitutes": [
+    "Battery"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "DEV_FLAME",
+   "type": "Flamethrower",
+   "category": "arma",
+   "in_code": true,
+   "mass_kg": 3,
+   "energy_per_s": 0.18,
+   "provides": [
+    "weapon_fire",
+    "heat"
+   ],
+   "faces": [
+    "Front",
+    "Left",
+    "Right",
+    "Top",
+    "Bottom",
+    "Back"
+   ],
+   "behavior": "Cono de fuego hacia afuera de su cara; quema lo que toca. Si su base gira, el fuego gira.",
+   "names_es": [
+    "lanzallamas",
+    "fuego",
+    "llamas",
+    "quemar",
+    "emisor de fuego"
+   ],
+   "names_en": [
+    "flamethrower",
+    "fire",
+    "flame",
+    "burn"
+   ],
+   "substitutes": [
+    "Cannon"
+   ],
+   "priority": "mvp",
+   "infinite": false
+  },
+  {
+   "id": "DEV_FROST",
+   "type": "Frost",
+   "category": "arma",
+   "in_code": false,
+   "mass_kg": 3,
+   "energy_per_s": 0.18,
+   "provides": [
+    "weapon_ice"
+   ],
+   "faces": [
+    "Front",
+    "Left",
+    "Right",
+    "Bottom"
+   ],
+   "behavior": "Cono de hielo: ralentiza/congela; sobre agua hace plataforma.",
+   "names_es": [
+    "hielo",
+    "congelador",
+    "emisor de hielo",
+    "congelar"
+   ],
+   "names_en": [
+    "frost",
+    "ice",
+    "freeze"
+   ],
+   "substitutes": [
+    "Flamethrower"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "DEV_SHOCK",
+   "type": "Shock",
+   "category": "arma",
+   "in_code": false,
+   "mass_kg": 3,
+   "energy_per_s": 0.18,
+   "provides": [
+    "weapon_shock"
+   ],
+   "faces": [
+    "Front",
+    "Top",
+    "Left",
+    "Right"
+   ],
+   "behavior": "Descarga eléctrica corta; se propaga por agua/metal.",
+   "names_es": [
+    "rayo",
+    "electricidad",
+    "choque",
+    "taser"
+   ],
+   "names_en": [
+    "shock",
+    "lightning",
+    "electric",
+    "zap"
+   ],
+   "substitutes": [
+    "Flamethrower"
+   ],
+   "priority": "alta",
+   "infinite": false
+  },
+  {
+   "id": "DEV_LASER",
+   "type": "Laser",
+   "category": "arma",
+   "in_code": false,
+   "mass_kg": 3,
+   "energy_per_s": 0.18,
+   "provides": [
+    "weapon_beam"
+   ],
+   "faces": [
+    "Front",
+    "Top"
+   ],
+   "behavior": "Haz de largo alcance (torreta).",
+   "names_es": [
+    "láser",
+    "rayo láser",
+    "haz"
+   ],
+   "names_en": [
+    "laser",
+    "beam",
+    "ray"
+   ],
+   "substitutes": [
+    "Cannon"
+   ],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "DEV_CANNON",
+   "type": "Cannon",
+   "category": "arma",
+   "in_code": true,
+   "mass_kg": 8,
+   "energy_per_s": 0.3,
+   "provides": [
+    "weapon_projectile"
+   ],
+   "faces": [
+    "Front",
+    "Top",
+    "Left",
+    "Right",
+    "Back"
+   ],
+   "behavior": "Dispara un proyectil explosivo cada 1.5 s hacia afuera de su cara.",
+   "names_es": [
+    "cañón",
+    "disparar",
+    "bala",
+    "artillería"
+   ],
+   "names_en": [
+    "cannon",
+    "gun",
+    "shoot",
+    "artillery"
+   ],
+   "substitutes": [
+    "Laser",
+    "TimeBomb"
+   ],
+   "priority": "mvp",
+   "infinite": false
+  },
+  {
+   "id": "DEV_HYDRANT",
+   "type": "Hydrant",
+   "category": "utilidad",
+   "in_code": false,
+   "mass_kg": 3,
+   "energy_per_s": 0.03,
+   "provides": [
+    "water"
+   ],
+   "faces": [
+    "Front",
+    "Top"
+   ],
+   "behavior": "Chorro de agua: apaga fuego, empuja.",
+   "names_es": [
+    "hidrante",
+    "agua",
+    "manguera"
+   ],
+   "names_en": [
+    "hydrant",
+    "water",
+    "hose"
+   ],
+   "substitutes": [],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "DEV_LIGHT",
+   "type": "Light",
+   "category": "utilidad",
+   "in_code": false,
+   "mass_kg": 2,
+   "energy_per_s": 0.03,
+   "provides": [
+    "light"
+   ],
+   "faces": [
+    "Front",
+    "Top"
+   ],
+   "behavior": "Foco de luz.",
+   "names_es": [
+    "luz",
+    "foco",
+    "lámpara"
+   ],
+   "names_en": [
+    "light",
+    "lamp",
+    "spotlight"
+   ],
+   "substitutes": [],
+   "priority": "post",
+   "infinite": false
+  },
+  {
+   "id": "DEV_MIRROR",
+   "type": "Mirror",
+   "category": "utilidad",
+   "in_code": false,
+   "mass_kg": 2,
+   "energy_per_s": 0,
+   "provides": [
+    "reflect"
+   ],
+   "faces": [
+    "Front",
+    "Top"
+   ],
+   "behavior": "Refleja luz/haz.",
+   "names_es": [
+    "espejo"
+   ],
+   "names_en": [
+    "mirror"
+   ],
+   "substitutes": [],
+   "priority": "post",
+   "infinite": false
+  }
+ ],
+ "templates": [
+  {
+   "id": "Car",
+   "es": "carro / coche / camioneta",
+   "orientation": "upright",
+   "anchored": false,
+   "slots": [
+    {
+     "role": "chassis",
+     "count": 1
+    },
+    {
+     "role": "ground_drive",
+     "count": 4,
+     "min": 2,
+     "faces": [
+      "Left_Front",
+      "Right_Front",
+      "Left_Back",
+      "Right_Back"
+     ],
+     "pairs": true
+    },
+    {
+     "role": "control",
+     "count": 1,
+     "face": "Top",
+     "optional": true
+    }
+   ]
+  },
+  {
+   "id": "Bike",
+   "es": "moto",
+   "orientation": "upright",
+   "anchored": false,
+   "slots": [
+    {
+     "role": "chassis",
+     "count": 1
+    },
+    {
+     "role": "ground_drive",
+     "count": 2,
+     "min": 2,
+     "faces": [
+      "Front",
+      "Back"
+     ]
+    },
+    {
+     "role": "control",
+     "count": 1,
+     "face": "Top"
+    },
+    {
+     "role": "stabilize",
+     "count": 1,
+     "face": "Bottom",
+     "optional": true
+    }
+   ]
+  },
+  {
+   "id": "Hoverbike",
+   "es": "moto flotante / aerodeslizador / hover",
+   "orientation": "upright",
+   "anchored": false,
+   "slots": [
+    {
+     "role": "chassis",
+     "count": 1
+    },
+    {
+     "role": "lift",
+     "count": 2,
+     "min": 1,
+     "faces": [
+      "Bottom_Front",
+      "Bottom_Back"
+     ],
+     "part_pref": [
+      "Fan"
+     ]
+    },
+    {
+     "role": "control",
+     "count": 1,
+     "face": "Top"
+    }
+   ]
+  },
+  {
+   "id": "Flyer",
+   "es": "avión / dron / helicóptero / volador",
+   "orientation": "upright",
+   "anchored": false,
+   "slots": [
+    {
+     "role": "chassis",
+     "count": 1
+    },
+    {
+     "role": "lift",
+     "count": 4,
+     "min": 2,
+     "faces": [
+      "Bottom_Front",
+      "Bottom_Back",
+      "Bottom_Left",
+      "Bottom_Right"
+     ],
+     "pairs": true
+    },
+    {
+     "role": "thrust",
+     "count": 1,
+     "face": "Back",
+     "optional": true
+    },
+    {
+     "role": "control",
+     "count": 1,
+     "face": "Top"
+    }
+   ]
+  },
+  {
+   "id": "Glider",
+   "es": "planeador / ala delta",
+   "orientation": "upright",
+   "anchored": false,
+   "slots": [
+    {
+     "role": "chassis",
+     "count": 1
+    },
+    {
+     "role": "glide",
+     "count": 2,
+     "min": 2,
+     "faces": [
+      "Left",
+      "Right"
+     ],
+     "pairs": true
+    },
+    {
+     "role": "thrust",
+     "count": 1,
+     "face": "Back",
+     "optional": true
+    },
+    {
+     "role": "control",
+     "count": 1,
+     "face": "Top"
+    }
+   ]
+  },
+  {
+   "id": "Airship",
+   "es": "globo / dirigible",
+   "orientation": "upright",
+   "anchored": false,
+   "slots": [
+    {
+     "role": "chassis",
+     "count": 1
+    },
+    {
+     "role": "lift",
+     "count": 1,
+     "face": "Top",
+     "part_pref": [
+      "Balloon"
+     ]
+    },
+    {
+     "role": "thrust",
+     "count": 1,
+     "face": "Back",
+     "optional": true
+    },
+    {
+     "role": "control",
+     "count": 1,
+     "face": "Top",
+     "optional": true
+    }
+   ]
+  },
+  {
+   "id": "Rocket",
+   "es": "cohete / misil",
+   "orientation": "upright",
+   "anchored": false,
+   "slots": [
+    {
+     "role": "chassis",
+     "count": 1,
+     "part_pref": [
+      "Cylinder"
+     ]
+    },
+    {
+     "role": "burst_thrust",
+     "count": 1,
+     "min": 1,
+     "face": "Bottom"
+    }
+   ]
+  },
+  {
+   "id": "Turret",
+   "es": "torreta / defensa",
+   "orientation": "upright",
+   "anchored": true,
+   "slots": [
+    {
+     "role": "chassis",
+     "count": 1,
+     "part_pref": [
+      "Block"
+     ]
+    },
+    {
+     "role": "anchor",
+     "count": 1,
+     "face": "Bottom",
+     "optional": true
+    },
+    {
+     "role": "aim",
+     "count": 1,
+     "face": "Top",
+     "optional": true
+    },
+    {
+     "role": "weapon",
+     "count": 1,
+     "min": 1,
+     "face": "Front",
+     "on": "aim"
+    }
+   ]
+  },
+  {
+   "id": "Spinner",
+   "es": "aspersor / trompo / rueda que gira en su lugar",
+   "orientation": "flat",
+   "anchored": false,
+   "slots": [
+    {
+     "role": "spin",
+     "count": 1,
+     "min": 1,
+     "part_pref": [
+      "Wheel",
+      "BigWheel",
+      "Turntable"
+     ],
+     "root": true
+    },
+    {
+     "role": "weapon",
+     "count": 2,
+     "min": 1,
+     "faces": [
+      "Left",
+      "Right",
+      "Front",
+      "Back"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Roller",
+   "es": "rueda que rueda sola / rueda infernal",
+   "orientation": "upright",
+   "anchored": false,
+   "slots": [
+    {
+     "role": "spin",
+     "count": 1,
+     "min": 1,
+     "part_pref": [
+      "BigWheel",
+      "Wheel"
+     ],
+     "root": true
+    },
+    {
+     "role": "weapon",
+     "count": 1,
+     "min": 1,
+     "faces": [
+      "Left",
+      "Right"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Ram",
+   "es": "ariete / barredora / tanque",
+   "orientation": "upright",
+   "anchored": false,
+   "slots": [
+    {
+     "role": "chassis",
+     "count": 1
+    },
+    {
+     "role": "ground_drive",
+     "count": 4,
+     "min": 2,
+     "faces": [
+      "Left_Front",
+      "Right_Front",
+      "Left_Back",
+      "Right_Back"
+     ],
+     "pairs": true
+    },
+    {
+     "role": "ram",
+     "count": 1,
+     "face": "Front"
+    },
+    {
+     "role": "control",
+     "count": 1,
+     "face": "Top",
+     "optional": true
+    }
+   ]
+  },
+  {
+   "id": "Catapult",
+   "es": "catapulta / lanzador",
+   "orientation": "upright",
+   "anchored": true,
+   "slots": [
+    {
+     "role": "chassis",
+     "count": 1,
+     "part_pref": [
+      "Block"
+     ]
+    },
+    {
+     "role": "launch",
+     "count": 1,
+     "min": 1,
+     "face": "Top"
+    },
+    {
+     "role": "weight",
+     "count": 1,
+     "face": "Top",
+     "on": "launch",
+     "optional": true
+    }
+   ]
+  },
+  {
+   "id": "Wall",
+   "es": "muro / escudo / barricada",
+   "orientation": "upright",
+   "anchored": true,
+   "slots": [
+    {
+     "role": "shield",
+     "count": 1,
+     "min": 1
+    },
+    {
+     "role": "anchor",
+     "count": 1,
+     "face": "Bottom",
+     "optional": true
+    }
+   ]
+  },
+  {
+   "id": "Free",
+   "es": "libre: cualquier combinación que no sea una plantilla",
+   "orientation": "any",
+   "anchored": false,
+   "slots": []
+  }
+ ]
+}

@@ -36,6 +36,7 @@ Cada doc termina en una sección "→ aplicable a GameJamm" con lo accionable.
 | [10-repo-open-source-fusion.md](10-repo-open-source-fusion.md) | ComponentFuseMechanic a fondo: bugs, licencias, qué adoptar/no | ✅ |
 | [11-diseno-ensamblado-open-source.md](11-diseno-ensamblado-open-source.md) | Más repos open source + diseño del ensamblado (grafo, joints, JSON del LLM) | ✅ |
 | [12-programacion-piezas-ue5.md](12-programacion-piezas-ue5.md) | **Cómo programarlo en UE5**: headers, DataAssets, snap, weld vs constraint, COM, fuerzas, ruedas, energía, separación, pruebas; contraste con el POC `c75b9c9` | 🟡 borrador |
+| [13-conocimiento-ia-construccion.md](13-conocimiento-ia-construccion.md) | **Conocimiento para la IA**: capacidades por pieza, reglas por cara, plantillas, preguntas Jev desde el inventario, solver (sustituir/reducir/pedir materiales), Seat infinito, energía. Datos en `Content/Game/Building/Data/BuildKnowledge.json` | 🟡 borrador |
 | [FORMATO.md](FORMATO.md) | **Convención de formato** de estos MD (frontmatter, callouts, reglas de contenido) | ✅ |
 | [FUENTES.md](FUENTES.md) | Lista maestra de todas las fuentes | ✅ |
 
