@@ -65,7 +65,7 @@ Dirección de arte, UI y audio: **[ART.md](ART.md)** (islas flotantes + campo ab
 flowchart LR
   A[Apareces con lo mínimo] --> B[Looteas piezas, materiales y energía]
   B --> C[Le pides una construcción a la IA<br/>o la armas a mano]
-  C --> D[Eliges entre sus propuestas]
+  C --> D[Se arma al instante la mejor opción]
   D --> E[Empujas: minions, jugadores, torres]
   E --> F{¿Se rompió la construcción<br/>o te quedaste sin energía?}
   F -- sí --> B
@@ -161,24 +161,22 @@ Así, **quien lootea y gana peleas tiene construcciones más fuertes y que duran
 **HUD:** barra de 15 segmentos junto a la vida. Los primeros 5 (el mínimo) van de otro tono. Mientras la construcción está
 encendida muestra el gasto actual (−2.3/s), y las baterías pegadas se ven como segmentos extra encima.
 
-## 6. Construir — Decidido: voz, texto y a mano, siempre con propuestas
+## 6. Construir — Decidido: voz, texto y a mano
 
-### 6.1 Por voz o texto: la IA propone y tú eliges
+### 6.1 Por voz o texto: sale directo la mejor — Decidido
+
+Prioridad: **que sea lo más rápido posible**. No hay menú de opciones: Jev elige la mejor y se arma al instante.
 
 1. Mantienes **V** y hablas, o presionas **B** y escribes: *"algo que ruede y queme todo"*.
-2. El Asistente responde en ~1 s con **3 propuestas**, cada una con un **holograma** frente a ti:
-
-| Propuesta | Qué es | Cómo sale (Jev) |
-|---|---|---|
-| **A — La que pediste** | La forma más probable para tu pedido, con tus piezas | 1.ª opción de Jev |
-| **B — Alternativa** | Otra forma que también encaja (si pediste carro, quizá un ariete o un hover) | 2.ª opción de Jev; Jev da la probabilidad de cada opción, así que salen sin llamadas extra |
-| **C — Segura / reducida** | La versión que sí alcanza con lo que traes y con tu energía | El solver recorta la A |
-
-3. Cada tarjeta muestra: **piezas que usa** (y cuántas te quedan), **gasto de energía por segundo** y cuánto te dura,
-   y **qué te falta**: *"faltan 2 Wheel, hay en la isla de loot cercana"*.
-4. Eliges con **1 / 2 / 3**, **R** para volver a pedir con otras palabras, o **G** para abrir la propuesta en modo manual y
-   editarla. Si una propuesta necesita piezas que no tienes, puedes **guardarla**: el Asistente avisa cuando ya las tengas.
-5. Al elegir, la construcción se arma frente a ti y queda **apagada**. La enciendes con **C**.
+2. Jev decide en ~0.3 s y **la construcción se arma frente a ti** con la opción que Jev vio mejor para tu pedido
+   **y para lo que traes en la mochila**. Queda **apagada**; la enciendes con **C**.
+3. Si te faltan piezas, sale **la versión reducida** que sí alcanza (el solver sustituye o recorta) y el Asistente lo dice en una
+   línea: *"Armé el carro con 2 ruedas; faltan 2 Wheel, hay en la isla de loot cercana"*. Nunca se queda esperando.
+4. Una tarjeta chica muestra **piezas usadas**, **gasto de energía por segundo** y cuánto te dura con tu barra actual.
+5. ¿No es lo que querías? **R** vuelve a pedir con otras palabras (desarma la anterior y devuelve sus piezas), **G** la abre en modo
+   manual para editarla, o **"ahora ponle fuego"** le pide a la IA que la edite.
+6. *(Opcional, P1)* **N**: cambia a la **2.ª opción de Jev** sin volver a llamar. Jev ya devuelve la probabilidad de cada forma,
+   así que es instantáneo.
 
 ### 6.2 A mano
 
@@ -205,7 +203,7 @@ y **clic derecho** quita la última. **R** gira la pieza 45° y **Shift+R** gira
 | Fusionar material al arma | F | Cruz arriba |
 | Cambiar arma (espada, arco) | Rueda del mouse (fuera del modo manual) | Y |
 | Asistente: texto / voz | B / mantener V | Cruz izq. / mantener cruz der. |
-| Elegir propuesta / repetir pedido (con el panel del Asistente abierto) | 1, 2, 3 / R | Cruz / Y |
+| Repetir pedido / 2.ª opción de Jev (P1) | R / N | Y / cruz der. |
 | Modo manual: elegir pieza / pegar / quitar / girar | G, luego rueda / clic izq. / clic der. / R | Cruz abajo |
 | Prender o apagar construcción | C | RB |
 | Desarmar | Mantener X | Mantener LB |
@@ -283,7 +281,7 @@ con un ariete es una combinación válida.
 - [ ] **3–4 campamentos de loot** con enemigos y cofre.
 - [ ] **Fusión**: 3 materiales × 2 armas. Ej.: Piedra (+daño/knockback), Fuego (DoT), Hielo (slow). Espada y flecha.
 - [ ] **Construcción**: las piezas de `UJamPartCatalog` con física (Chaos constraints), consumo de la mochila, desarmar y recuperar, prender y apagar con una tecla, asiento para manejar (Jugabilidad §6).
-- [ ] **Asistente IA**: pedido por texto (voz = P1) → Jev → **3 propuestas** con holograma, piezas, energía y lo que falta → eliges o vuelves a pedir (§6.1). Fallback por palabras clave.
+- [ ] **Asistente IA**: pedido por texto (voz = P1) → Jev → **se arma al instante la mejor opción** (o su versión reducida) con mensaje de lo que falta (§6.1). Fallback por palabras clave.
 - [ ] **Energía**: barra tipo maná con mínimo 50, sube con loot y eliminaciones (§5).
 - [ ] **Minions** en Asalto (§3) y **loot** por islas (§4).
 - [ ] HUD: vida, inventario de materiales/piezas, estado de torres. Menú inicio + pantalla final.
