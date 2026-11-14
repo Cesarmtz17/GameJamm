@@ -1,0 +1,137 @@
+{
+ "_doc": "Lote 3: las 10 piezas de solo datos de Jesus (aun sin entrada en RealMeshNames(); ver docs/ARTE-TRIPO.md).",
+ "parts": [
+  {
+   "type": "Deck",
+   "name": "SM_PART_DECK",
+   "size": [
+    200,
+    200,
+    10
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 1024,
+   "detail": "a large square flat wooden deck platform made of planks with dark iron edge strips and big corner bolts, very thin and perfectly square. Seen from above at a three-quarter angle"
+  },
+  {
+   "type": "Rod",
+   "name": "SM_PART_ROD",
+   "size": [
+    200,
+    8,
+    8
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 512,
+   "detail": "a very long thin wooden pole lying horizontally with dark iron caps on both ends and two small iron rings, extremely slender like a broomstick. Side three-quarter view"
+  },
+  {
+   "type": "UBlock",
+   "name": "SM_PART_UBLOCK",
+   "size": [
+    120,
+    120,
+    60
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 1024,
+   "detail": "a heavy ballast counterweight: a wide low dark iron weight block inside a sturdy wooden frame with a big iron lifting ring on top, twice as wide as tall"
+  },
+  {
+   "type": "Cart",
+   "name": "SM_DEV_CART",
+   "size": [
+    160,
+    100,
+    25
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 1024,
+   "detail": "the body of a small wooden hand cart without wheels: a low open wooden tray box with short plank sides and iron corner brackets, longer than wide and shallow. Three-quarter view from above"
+  },
+  {
+   "type": "RailSkid",
+   "name": "SM_DEV_RAILSKID",
+   "size": [
+    300,
+    15,
+    10
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 512,
+   "detail": "one very long slim metal ski runner lying flat with a curled-up front tip, a wooden strip on top and bolts, extremely long and narrow. Side three-quarter view"
+  },
+  {
+   "type": "IceBlock",
+   "name": "SM_DEV_ICEBLOCK",
+   "size": [
+    100,
+    100,
+    50
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 1024,
+   "detail": "a big slippery slab of clear pale blue ice with frosty white edges and a few cracks, square and half as tall as it is wide"
+  },
+  {
+   "type": "Spikes",
+   "name": "SM_DEV_SPIKES",
+   "size": [
+    10,
+    100,
+    100
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 1024,
+   "detail": "a square wooden board standing upright, covered with many sharp dark iron spikes pointing straight out of its front face. Front three-quarter view"
+  },
+  {
+   "type": "Launcher",
+   "name": "SM_DEV_LAUNCHER",
+   "size": [
+    100,
+    100,
+    25
+   ],
+   "sockets": "six",
+   "fx": [],
+   "tex": 1024,
+   "detail": "a launch pad: a square wooden platform resting on four big coiled steel springs over a dark iron base plate, wide and low"
+  },
+  {
+   "type": "WagonWheel",
+   "name": "SM_DEV_WHEEL_WAGON",
+   "size": [
+    70,
+    12,
+    70
+   ],
+   "sockets": "lr",
+   "fx": [],
+   "tex": 1024,
+   "detail": "a classic wooden wagon wheel with twelve thin spokes, a thin dark iron tire rim and a round wooden hub, narrow (width about one sixth of its diameter). Three-quarter view showing the face of the wheel"
+  },
+  {
+   "type": "Propeller",
+   "name": "SM_DEV_PROPELLER",
+   "size": [
+    20,
+    140,
+    140
+   ],
+   "sockets": "six",
+   "fx": [
+    "Fx_Out:Front"
+   ],
+   "tex": 1024,
+   "detail": "a large four-blade wooden propeller with long twisted wooden blades and a central dark iron hub, seen from the front, flat like a cross"
+  }
+ ]
+}

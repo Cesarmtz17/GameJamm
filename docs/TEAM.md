@@ -11,7 +11,7 @@ una carpeta sin dueño, escribe tu nombre en la tabla y haz push; si ya tiene du
 | **4 · IA** — bots (StateTree) + asistente LLM | `Content/Game/AI/` | `Source/GameJamm/AI/` | Cesar |
 | **5 · Mundo / Arte / Audio / UI** — mapa, look, SFX/música, HUD, video y devlog | `Content/Game/Art/`, `Content/Game/Audio/`, `Content/Game/UI/`, actores del mapa | — | Emilio — arte 3D (`Content/Game/Art/`, con Blender MCP) |
 | **6 · Docs / research** — research de mecánicas y su documentación | `docs/mechanics-research/` | — | Javier Fernández |
-| **7 · Arte con Tripo** — assets generados con Tripo que no cubra el script de Emilio (hoy `Beam` y otros dispositivos sin mesh) | `SourceArt/Tripo/` | — | Javier Fernández |
+| **7 · Arte con Tripo** — reemplazo del arte del juego con Tripo (las 35 piezas ya; después personajes y mundo). Acordado el 14 nov: puede reemplazar **arte** de cualquier carpeta dejando nota en [ARTE-TRIPO.md](ARTE-TRIPO.md) | `SourceArt/Tripo/`, `Content/Game/Art/Tripo/` (+ mallas reemplazadas, ver nota) | — | Javier Fernández |
 
 El número de área es solo una etiqueta: algunos docs (research 12, `ART.md`, `PROMPTS-ASSETS.md`) dicen "rol 3" para referirse a Construcción.
 
