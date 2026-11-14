@@ -52,7 +52,9 @@ Las mallas que usa el juego se cargan desde `Content/Game/Building/Parts/` (Cons
 |---|---|---|---|---|
 | `SM_DEV_WHEEL_S` | Nano Banana + concepto 01-C, "small wooden wheel… thick dark iron rim… four big iron bolts" | Modelo HD H3.1, 2K, PBR, 5k polys → 4,783 tris | 30 | 14 nov |
 | Lote 1 (10 piezas: tabla, bloque, rueda grande, ventilador, asiento, batería, cañón, lanzallamas, cohete, globo) | Nano Banana + concepto 01-C; prompts en `batch_vehicle.json` | Modelo HD H3.1, 2K, PBR, 5k polys | 300 | 14 nov |
-| Lote 2 (22 piezas de `batch_wave2.json`; trineo y bisagra pendientes) | Nano Banana + concepto 01-C; prompts en `batch_wave2.json` | Modelo HD H3.1, 2K, PBR, 5k polys | 660 | 14 nov |
+| Lote 2 (24 piezas de `batch_wave2.json`: con esto las 35 piezas de `RealMeshNames()` son de Tripo) | Nano Banana + concepto 01-C; prompts en `batch_wave2.json` | Modelo HD H3.1, 2K, PBR, 5k polys | 720 | 14 nov |
+
+Total al 14 nov 13:45: 35 modelos, 1,050 créditos (quedan ~2,150 de 3,200); 41 de 100 imágenes gratis.
 
 Exportar en serie: Chrome bloquea descargas múltiples; se captura la URL firmada de cada exportación y se descarga directo
 (ver el historial de la sesión). Las referencias de imagen son gratis hasta 100 por cuenta.
