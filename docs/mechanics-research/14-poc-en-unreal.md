@@ -52,8 +52,8 @@ status: borrador
 |---|---|
 | Catálogo de piezas, ensamblador, spawner, cliente Jev/OpenRouter/fal | **[code]** en `main` |
 | Rama `build/recipe-hardening-v2` (parser robusto, layout sin piezas encimadas, tests) | Sin integrar a `main` |
-| Solver por capacidades (inventario, sustituir, reducir, pedir materiales) | **[sin verificar]** en `build/totk-solver` |
-| Comportamientos (rueda raíz, daño de llamas/cañón/frío, energía, asiento) | **[sin verificar]** en `build/totk-devices` |
+| Solver por capacidades (inventario, sustituir, reducir, pedir materiales) | **[sin verificar]** en `build/poc-solver` |
+| Comportamientos (rueda raíz, daño de llamas/cañón/frío, energía, asiento) | **[sin verificar]** en `build/poc-devices` |
 | Comandos de consola `Jam.*` para ver todo en el editor | **[sin verificar]**, ver §5 |
 | Piezas 3D reales (FBX con sockets) | **[code]** `Content/Game/Art/` (Emilio); el PoC usa mallas básicas |
 
@@ -63,23 +63,23 @@ Las ramas se confirman en §4 cuando el Mac mini termina de subirlas.
 
 | Orden | Rama | Contiene |
 |---|---|---|
-| 1 | `build/totk-integracion` | `main` + `build/recipe-hardening-v2` (base común) |
-| 2 | `build/totk-solver` | Solver + `Jam.Build`, `Jam.Inv*`, `Jam.Clear`, `Jam.Prompts` |
-| 3 | `build/totk-devices` | Piezas con comportamiento + `Jam.Dummy`, `Jam.Energy`, `Jam.Seat`, `Jam.Debug` |
+| 1 | `build/poc-integracion` | `main` + `build/recipe-hardening-v2` (base común) |
+| 2 | `build/poc-solver` | Solver + `Jam.Build`, `Jam.Inv*`, `Jam.Clear`, `Jam.Prompts` |
+| 3 | `build/poc-devices` | Piezas con comportamiento + `Jam.Dummy`, `Jam.Energy`, `Jam.Seat`, `Jam.Debug` |
 
 Probar en ese orden: si compila la 1 pero no la 2, el problema está en la 2. Las ramas 2 y 3 se crearon sobre la 1 y editan
-archivos distintos; se integran juntas en una rama `build/totk-poc` cuando ambas compilan.
+archivos distintos; se integran juntas en una rama `build/poc-poc` cuando ambas compilan.
 
 ## 5. Runbook para la sesión MacBook
 
-1. `git fetch --all` y `git checkout build/totk-integracion`. Pull cada minuto ([CLAUDE.md §0](../../CLAUDE.md)).
+1. `git fetch --all` y `git checkout build/poc-integracion`. Pull cada minuto ([CLAUDE.md §0](../../CLAUDE.md)).
 2. Confirmar herramientas: Xcode instalado, versión del motor y la ruta de la raíz del motor (el MCP o `~/Library/Application Support/Epic` la indican).
 3. Generar proyecto y compilar el target de editor para Mac (`GameJammEditor`, `Mac`, `Development`). Si falla, copiar el **primer** error real, corregir solo en `Source/GameJamm/Building/` y repetir. Si falta un módulo, agregarlo a `GameJamm.Build.cs` y decirlo en el commit.
 4. Abrir el editor, abrir un mapa vacío o `Content/Developers/<nombre>/L_Test_<nombre>`, y comprobar el MCP (listar actores del nivel).
 5. Correr los tests automáticos filtrando por `Jam` (`Automation RunTests Jam` en la consola del editor, o la ventana Session Frontend). Anotar los que fallan.
-6. `git checkout build/totk-solver`, recompilar, Play (PIE), abrir la consola con `~` y correr la tabla de §6 sin clave de Jev (respaldo por palabras clave).
+6. `git checkout build/poc-solver`, recompilar, Play (PIE), abrir la consola con `~` y correr la tabla de §6 sin clave de Jev (respaldo por palabras clave).
 7. Poner la clave de Jev (variable de entorno, **no** en el repo), reiniciar el editor y repetir un subconjunto para comparar Jev contra el respaldo (el resumen en pantalla dice cuál usó).
-8. `git checkout build/totk-devices` (o la rama integrada), recompilar y repetir §6 con `Jam.Dummy`, `Jam.Energy`, `Jam.Seat`, `Jam.Debug 1`.
+8. `git checkout build/poc-devices` (o la rama integrada), recompilar y repetir §6 con `Jam.Dummy`, `Jam.Energy`, `Jam.Seat`, `Jam.Debug 1`.
 9. Corregir lo que falle, commits chicos `build: …`, pull/rebase y push a la rama de trabajo. **No** empujar a `main` código que no compile y no haya pasado §6.
 10. Reportar al usuario: qué compiló, qué pasó en cada fila de §6 y qué quedó fallando, con el texto del log.
 
@@ -118,17 +118,17 @@ Preparar inventario con `Jam.InvAll 10`. El estado real de cada fila se anota al
 | Tema | Hallazgo |
 |---|---|
 | Modelo de decisión | "Jev" es el modelo de decisiones de TypeSafe AI (elige entre opciones definidas; no genera texto). El cliente ya existe en `JamDecisionClient` con tres rutas: TypeSafe directo (`TYPESAFE_API_KEY`), OpenRouter y fal. Es una arquitectura distinta a los modelos predictivos de investigación: no hay que integrar nada más para el MVP |
-| Rama sin integrar | `build/recipe-hardening-v2` (parser que repara JSON del LLM, layout sin piezas encimadas, tests) no estaba en `main`; se unió sin conflictos en `build/totk-integracion` **[sin compilar]** |
+| Rama sin integrar | `build/recipe-hardening-v2` (parser que repara JSON del LLM, layout sin piezas encimadas, tests) no estaba en `main`; se unió sin conflictos en `build/poc-integracion` **[sin compilar]** |
 | Qué falta de código | Las marcas **[todo]** de [13](13-conocimiento-ia-construccion.md): rueda raíz que gira, daño real de llama/cañón/frío, Turntable, Head, Spring, Stake, energía y montarse en el asiento |
 | Qué falta de verificación | Nada de lo nuevo se ha compilado: el Mac mini no tiene Unreal. Solo hay validación en Python (datos y algoritmo) |
 | Créditos del concurso (aplican a Construcción) | Claude $25 (reclamar 12–27 nov), fal $30 (hasta 30 nov), Meshy con API (hasta 17 nov), Tripo y Hyper3D para modelos 3D (hasta 16 nov). Una cuenta por persona; las claves nunca al repo |
 | Contenido público | La convención de [FORMATO.md](FORMATO.md) prohíbe nombrar el juego de referencia; hubo una fuga en `CLAUDE.md` y se corrigió (queda en el historial de git) |
-| Agentes | Dos agentes (solver y piezas) trabajan en `build/totk-solver` y `build/totk-devices`; al escribir esto aún no habían hecho commits. Sus archivos de contexto serán `14-handoff-solver.md` y `14-handoff-dispositivos.md` |
+| Agentes | Dos agentes (solver y piezas) trabajan en `build/poc-solver` y `build/poc-devices`; al escribir esto aún no habían hecho commits. Sus archivos de contexto serán `14-handoff-solver.md` y `14-handoff-dispositivos.md` |
 
 ## → Aplicable a GameJamm
 
-1. Traer `build/totk-integracion`, compilar en Mac y confirmar que el proyecto abre.
+1. Traer `build/poc-integracion`, compilar en Mac y confirmar que el proyecto abre.
 2. Correr la tabla §6 por ramas, en orden, y corregir en `Source/GameJamm/Building/`.
-3. Integrar en `build/totk-poc` solo lo que compile y pase; avisar al usuario antes de tocar `main`.
+3. Integrar en `build/poc-poc` solo lo que compile y pase; avisar al usuario antes de tocar `main`.
 4. Mantener `BuildKnowledge.json` como fuente única de datos y el fallback siempre activo.
 5. Subir a este doc los resultados reales (cambiar `status` a `listo` cuando §6 esté probada).
