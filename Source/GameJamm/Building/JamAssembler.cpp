@@ -786,10 +786,18 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 
 void UJamAssembler::SetBuildActive(const TArray<AJamBuildPart*>& Parts, const TArray<FName>& Ids, bool bActive)
 {
+	// Con asiento, cohetes y bombas son del piloto (Espacio/Shift): prender con C no los dispara. Sin asiento no hay quien
+	// los dispare, asi que C si los enciende (un cohete solo, un ramo de bombas).
+	bool bSeat = false;
+	for (const AJamBuildPart* P : Parts) { bSeat |= P && P->Kind == EJamPartKind::Seat; }
 	for (AJamBuildPart* P : Parts)
 	{
 		if (P && Ids.Contains(P->RecipeId))
 		{
+			if (bActive && bSeat && (P->Kind == EJamPartKind::Rocket || P->Kind == EJamPartKind::Bomb))
+			{
+				continue;
+			}
 			P->SetActive(bActive);
 		}
 	}

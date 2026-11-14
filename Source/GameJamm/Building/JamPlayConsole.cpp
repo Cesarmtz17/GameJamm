@@ -1181,6 +1181,59 @@ void AJamTestCharacter::DriveMount(AJamBuildPart* Seat, float Throttle, float St
 			P->SetDrive(FMath::Clamp(SmoothThrottle - 1.5f * SmoothSteer * Side, -1.f, 1.f)); // a tope de giro, el lado interior va en reversa
 		}
 	}
+	// Auto-enderezar: un vehiculo con ruedas que queda de cabeza o de lado, casi quieto, mas de 1 s, se voltea solo
+	// (con piloto). Sin esto, un choque o un mal salto dejaban al jugador atorado sin poder hacer nada.
+	// No aplica si la raiz es una rueda (monociclo, rueda sola: su eje va de lado por naturaleza) ni en el aire (aviones).
+	if (bWheels && Root->Kind != EJamPartKind::Wheel)
+	{
+		static double GUpsideSince = -1.0;
+		const double TNow = Root->GetWorld()->GetTimeSeconds();
+		const FVector Up = Root->GetActorUpVector();
+		bool bOnGround = false;
+		if (Up.Z < 0.3f)
+		{
+			FCollisionQueryParams Q(SCENE_QUERY_STAT(JamUpright), false);
+			for (const TWeakObjectPtr<AJamBuildPart>& P : Seat->Build->Parts) { if (P.IsValid()) { Q.AddIgnoredActor(P.Get()); } }
+			Q.AddIgnoredActor(this);
+			FHitResult Hit;
+			const FVector At = Root->Mesh->GetCenterOfMass();
+			bOnGround = Root->GetWorld()->LineTraceSingleByChannel(Hit, At, At - FVector(0, 0, 300.f), ECC_Visibility, Q);
+		}
+		// Asistencia de estabilidad (en el suelo): el par de reaccion de los motores de rueda levantaba la trompa (caballito)
+		// y volteaba al carro hacia atras en cuanto se apretaba W (medido: fwdZ 0.2-0.4 y volcado en 1 s). Pasando de unos
+		// grados (desde ~6), un par lo regresa y frena el cabeceo/alabeo; no toca la guiñada ni actua en el aire.
+		if (Up.Z >= 0.3f && Up.Z < 0.995f)
+		{
+			FCollisionQueryParams Q2(SCENE_QUERY_STAT(JamUprightAssist), false);
+			for (const TWeakObjectPtr<AJamBuildPart>& P : Seat->Build->Parts) { if (P.IsValid()) { Q2.AddIgnoredActor(P.Get()); } }
+			Q2.AddIgnoredActor(this);
+			FHitResult Hit2;
+			const FVector At2 = Root->Mesh->GetCenterOfMass();
+			if (Root->GetWorld()->LineTraceSingleByChannel(Hit2, At2, At2 - FVector(0, 0, 300.f), ECC_Visibility, Q2))
+			{
+				FVector W2 = Root->Mesh->GetPhysicsAngularVelocityInRadians();
+				W2.Z = 0;
+				Root->Mesh->AddTorqueInRadians(FVector::CrossProduct(Up, FVector::UpVector) * 120.f - W2 * 15.f, NAME_None, true);
+			}
+		}
+		if (bOnGround && Root->Mesh->GetPhysicsLinearVelocity().Size() < 400.0)
+		{
+			if (GUpsideSince < 0.0 || TNow - GUpsideSince > 6.0) { GUpsideSince = TNow; }
+			if (TNow - GUpsideSince > 1.0)
+			{
+				FVector W = Root->Mesh->GetPhysicsAngularVelocityInRadians();
+				W.Z = 0;
+				const FVector Axis = FVector::CrossProduct(Up, FVector::UpVector);
+				const FVector AxisN = Axis.IsNearlyZero() ? Root->GetActorForwardVector() : Axis.GetSafeNormal();
+				Root->Mesh->AddTorqueInRadians(AxisN * 14.f - W * 3.f, NAME_None, true);
+				Root->Mesh->AddForce(FVector(0, 0, FMath::Max(Seat->Build->MassKg, 1.f) * 700.f)); // lo despega un poco para que gire
+			}
+		}
+		else
+		{
+			GUpsideSince = -1.0;
+		}
+	}
 	// Altura al mando: lo que flota (globos, helices hacia abajo) deja de subir sin control. Sin tecla mantiene la altura;
 	// Espacio sube y Ctrl baja. Es una ayuda limitada: hacia arriba da como mucho 0.3 g, asi que no hace volar lo que no vuela.
 	bool bLifts = false;

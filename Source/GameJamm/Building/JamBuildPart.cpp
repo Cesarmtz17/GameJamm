@@ -948,7 +948,9 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		break;
 	}
 	case EJamPartKind::Rocket:
-		Mesh->AddForce(WorldDir * Power);
+		// El empuje va por el centro de masa de la raiz: aplicado en la pieza (atras y arriba del centro) hacia caballito y
+		// volteaba al carro cohete. Conserva la direccion del cohete; solo quita el par que lo vuelca.
+		RootMesh->AddForceAtLocation(WorldDir * Power, RootMesh->GetCenterOfMass());
 		if (bFx) { Puff(GetActorLocation() - WorldDir * (Length * 0.5f + FMath::FRandRange(10.f, 80.f)) + FMath::VRand() * 8.f, FMath::FRandRange(15.f, 30.f), FLinearColor(1.f, 0.6f, 0.1f), 0.35f); }
 		BurnLeft -= DeltaSeconds;
 		if (BurnLeft <= 0.f)
