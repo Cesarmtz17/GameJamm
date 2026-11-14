@@ -24,6 +24,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Jam|Match")
 	EJamTeam PlayerTeam = EJamTeam::Red;
 
+	/** Minions cada 30 s y bots heroe (AI/JamWaveSpawner). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Jam|Match")
+	bool bSpawnWavesAndBots = true;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Jam|Match", meta = (ClampMin = "0"))
 	float SuddenDeathSeconds = 12.f * 60.f;
 

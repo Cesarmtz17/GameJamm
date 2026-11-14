@@ -54,6 +54,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Structure")
 	EJamTeam GetTeam() const;
 
+	/** GDD 3: quien golpea la torre sin minions aliados cerca (este radio) hace 50 % de dano. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Structure")
+	float EscortRadius = 1500.f;
+
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
 	/** false mientras algún prerequisito siga vivo. */
 	UFUNCTION(BlueprintPure, Category = "Structure")
 	bool IsVulnerable() const;

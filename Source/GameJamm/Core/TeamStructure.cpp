@@ -122,8 +122,10 @@ AActor* ATeamStructure::FindTarget() const
 		FCollisionShape::MakeSphere(AttackRange),
 		Params);
 
+	// GDD 3: primero los minions enemigos en rango; si no hay, el enemigo mas cercano.
 	AActor* Best = nullptr;
 	float BestDistSq = TNumericLimits<float>::Max();
+	bool bBestIsMinion = false;
 	for (const FOverlapResult& Overlap : Overlaps)
 	{
 		AActor* Candidate = Overlap.GetActor();
@@ -137,10 +139,12 @@ AActor* ATeamStructure::FindTarget() const
 			continue;
 		}
 		const float DistSq = FVector::DistSquared(Candidate->GetActorLocation(), GetActorLocation());
-		if (DistSq < BestDistSq)
+		const bool bMinion = Candidate->ActorHasTag(TEXT("Minion"));
+		if ((bMinion && !bBestIsMinion) || (bMinion == bBestIsMinion && DistSq < BestDistSq))
 		{
 			BestDistSq = DistSq;
 			Best = Candidate;
+			bBestIsMinion = bMinion;
 		}
 	}
 	return Best;
@@ -177,4 +181,34 @@ void ATeamStructure::HideBolt()
 	{
 		Bolt->SetHiddenInGame(true);
 	}
+}
+
+float ATeamStructure::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	// GDD 3: un jugador o construccion que golpea sin minions aliados cerca hace la mitad (hay que empujar con la oleada).
+	const AActor* Attacker = EventInstigator && EventInstigator->GetPawn() ? EventInstigator->GetPawn() : DamageCauser;
+	if (DamageAmount > 0.f && Attacker && !Attacker->ActorHasTag(TEXT("Minion")))
+	{
+		const EJamTeam AttackerTeam = UJamStatics::GetActorTeam(Attacker);
+		bool bEscorted = false;
+		TArray<FOverlapResult> Overlaps;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(JamTowerEscort), false, this);
+		GetWorld()->OverlapMultiByObjectType(Overlaps, GetActorLocation(), FQuat::Identity, FCollisionObjectQueryParams(ECC_Pawn),
+			FCollisionShape::MakeSphere(EscortRadius), Params);
+		for (const FOverlapResult& O : Overlaps)
+		{
+			const AActor* A = O.GetActor();
+			const UHealthComponent* H = A ? A->FindComponentByClass<UHealthComponent>() : nullptr;
+			if (A && A->ActorHasTag(TEXT("Minion")) && H && !H->IsDead() && H->Team == AttackerTeam)
+			{
+				bEscorted = true;
+				break;
+			}
+		}
+		if (!bEscorted)
+		{
+			DamageAmount *= 0.5f;
+		}
+	}
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }

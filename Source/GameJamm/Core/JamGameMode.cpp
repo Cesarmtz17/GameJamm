@@ -1,4 +1,5 @@
 #include "Core/JamGameMode.h"
+#include "AI/JamWaveSpawner.h"
 #include "Core/JamCharacter.h"
 #include "Core/JamGameState.h"
 #include "Core/JamHUD.h"
@@ -33,6 +34,10 @@ void AJamGameMode::StartPlay()
 			GS->bMatchRunning = true;
 		}
 		GetWorldTimerManager().SetTimer(MatchTimer, this, &AJamGameMode::MatchTick, 1.f, true);
+		if (bSpawnWavesAndBots)
+		{
+			GetWorld()->SpawnActor<AJamWaveSpawner>();
+		}
 	}
 }
 
