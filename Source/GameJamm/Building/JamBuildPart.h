@@ -7,6 +7,7 @@
 
 class UStaticMeshComponent;
 class UPhysicsConstraintComponent;
+class UJamEnergyComponent;
 
 UENUM(BlueprintType)
 enum class EJamPartKind : uint8
@@ -25,7 +26,10 @@ enum class EJamPartKind : uint8
 	Beam,
 	Bomb,
 	Spring,
-	Sail
+	Sail,
+	Turntable,
+	Head,
+	Stake
 };
 
 /** Definición de un tipo de pieza (POC: tabla en C++, después DataAsset). */
@@ -51,9 +55,13 @@ struct GAMEJAMM_API FJamPartDef
 	UPROPERTY(BlueprintReadOnly, Category = "Build")
 	float MassKg = 10.f;
 
-	/** Fuerza (kg*cm/s^2) para Fan/Rocket/Balloon, velocidad angular (rad/s) para Wheel. */
+	/** Fuerza (kg*cm/s^2) para Fan/Rocket/Balloon, velocidad angular (rad/s) para Wheel, reserva de energía para Battery. */
 	UPROPERTY(BlueprintReadOnly, Category = "Build")
 	float Power = 0.f;
+
+	/** Energía por segundo mientras está encendida (espejo de energy_cost_per_s en BuildKnowledge.json). */
+	UPROPERTY(BlueprintReadOnly, Category = "Build")
+	float EnergyPerSec = 0.f;
 
 	/** Eje del mesh nativo (que mira a +Z) que se alinea: 0 = Z, 1 = eje X del vehículo, 2 = eje Y. */
 	UPROPERTY(BlueprintReadOnly, Category = "Build")
@@ -115,11 +123,143 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
 	void SetActive(bool bNewActive);
 
+	/** Multiplicador de potencia que fija el asiento (acelerador/diferencial/sustentación). 1 = sin asiento. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	float DriveScale = 1.f;
+
+	/** PoC (Jam.Seat): mientras está montado, lee WASD/flechas/Space/Ctrl del primer PlayerController. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
+	bool bPocKeyboardInput = false;
+
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
+	void SetDriveScale(float NewScale);
+
+	// ---- Construcción conectada (se deduce de las constraints que crea UJamAssembler) ----
+
+	/** Pieza a la que está pegada; nullptr si es la raíz. */
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
+	AJamBuildPart* GetParentPart();
+
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
+	AJamBuildPart* GetBuildRoot();
+
+	/** Todas las piezas conectadas a esta (incluida ella). */
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
+	TArray<AJamBuildPart*> GetBuildParts();
+
+	/** Dueño de toda la construcción: define el equipo (UJamStatics::GetActorTeam) y de quién es la energía. */
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
+	void SetBuildOwner(AActor* NewOwner);
+
+	/** Una tecla prende o apaga toda la construcción conectada. */
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
+	void SetBuildPower(bool bOn);
+
+	/** Olvida la construcción cacheada (llamar si se agregan o quitan piezas/constraints a mano). */
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
+	void InvalidateBuild();
+
+	// ---- Asiento (research 13 §5). Pensado para la pieza Seat; funciona en cualquier pieza de la construcción. ----
+
+	/** Sube a Rider: lo vuelve dueño de la construcción, enciende todo lo conectado y deja el control en 0. */
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building|Seat")
+	bool Mount(AActor* Rider, bool bAttachRider = true);
+
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building|Seat")
+	void Dismount(bool bKeepRunning = false);
+
+	/** W/S: -1…+1. Multiplica Fan de empuje y ruedas. */
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building|Seat")
+	void SetThrottle(float Value);
+
+	/** A/D: -1 (izquierda)…+1 (derecha). Torque de yaw en la raíz + diferencial en ruedas. */
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building|Seat")
+	void SetSteer(float Value);
+
+	/** Space/Ctrl: -1…+1. Multiplica solo los Fan de sustentación (cara Bottom). */
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building|Seat")
+	void SetLift(float Value);
+
+	UFUNCTION(BlueprintPure, Category = "Jam|Building|Seat")
+	bool IsMounted() const { return bMounted; }
+
+	UFUNCTION(BlueprintPure, Category = "Jam|Building|Seat")
+	AActor* GetRider() const { return SeatRider.Get(); }
+
+	/** Asiento más cercano a Location (o, si bAnyPart, cualquier pieza) dentro de MaxDistance. */
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building|Seat", meta = (WorldContext = "WorldContextObject"))
+	static AJamBuildPart* FindNearestSeat(const UObject* WorldContextObject, FVector Location, float MaxDistance = 400.f, bool bAnyPart = false);
+
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	void ResolveBuild();
+	UPhysicsConstraintComponent* FindParentJoint(AJamBuildPart*& OutParent) const;
+	/** Orientación del marco del vehículo (X adelante, Z arriba) a partir de la pose actual de esta pieza. */
+	FQuat GetBuildQuat() const;
+	/** Eje de la cara donde va pegada (hacia afuera), en mundo; para la raíz, el "arriba" de la construcción. */
+	FVector GetFaceAxisWorld() const;
+	void GetChildParts(TArray<AJamBuildPart*>& OutChildren) const;
+	void CollectSubtree(TArray<AJamBuildPart*>& OutParts);
+	void FixWeaponDirection();
+	void UpdateDriveTarget();
+	UJamEnergyComponent* GetEnergy();
+	bool ConsumeEnergy(float DeltaSeconds);
+	void TryBindBattery();
+	void ApplyCone(const FVector& Start, const FVector& Dir, float Range, float HalfAngleDeg, float Damage, bool bFrost);
+	void FireSpring();
+	void SetupRotorJoints();
+	void DriveRotor(float TargetRate, float DeltaSeconds);
+	AActor* FindAimTarget() const;
+	void SetStaked(bool bStaked);
+	void TickSeat(float DeltaSeconds);
+	void ReleaseRider();
+
 	float Power = 0.f;
 	float BurnLeft = 3.f;
 	float FireTimer = 0.f;
 	float Length = 50.f;
+
+	float EnergyPerSec = 0.f;
+	int32 DefAxis = 0;
+	float DamageTimer = 0.f;
+	float HeatLeft = 0.f;
+	bool bRocketSpent = false;
+
+	// Construcción conectada (cache).
+	bool bBuildResolved = false;
+	bool bDirectionFixed = false;
+	TWeakObjectPtr<AJamBuildPart> ParentPart;
+	TWeakObjectPtr<AJamBuildPart> BuildRoot;
+	TArray<TWeakObjectPtr<AJamBuildPart>> BuildMembers;
+
+	// Energía.
+	TWeakObjectPtr<AActor> EnergyOwner;
+	TWeakObjectPtr<UJamEnergyComponent> EnergyComp;
+	TWeakObjectPtr<UJamEnergyComponent> BatteryComp;
+	bool bBatteryGiven = false;
+
+	// Turntable / Head.
+	bool bRotorReady = false;
+	TArray<TWeakObjectPtr<AJamBuildPart>> RotorChildren;
+	TWeakObjectPtr<AJamBuildPart> AimRefPart;
+	FVector AimRefLocalDir = FVector::ForwardVector;
+	TWeakObjectPtr<AActor> AimTarget;
+
+	// Stake.
+	UPROPERTY()
+	TObjectPtr<UPhysicsConstraintComponent> StakeJoint;
+
+	// Asiento.
+	bool bMounted = false;
+	bool bRiderAttached = false;
+	bool bSeatLevel = false;
+	bool bSeatHasLiftFans = false;
+	float SeatThrottle = 0.f;
+	float SeatSteer = 0.f;
+	float SeatLift = 0.f;
+	float BuildInertia = 0.f;
+	float BuildMass = 0.f;
+	TWeakObjectPtr<AActor> SeatRider;
 };
