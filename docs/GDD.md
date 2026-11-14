@@ -77,12 +77,12 @@ Dirección de arte, UI y audio: **[ART.md](ART.md)**.
   "name": "Rueda Infernal",
   "parts": [
     {"id": "p0", "type": "Wheel"},
-    {"id": "p1", "type": "Flamethrower", "attach_to": "p0", "socket": "Side"}
+    {"id": "p1", "type": "Flamethrower", "attach_to": "p0", "socket": "Right"}
   ],
   "activate": ["p0", "p1"]
 }
 ```
-El asistente solo puede usar piezas que el jugador tiene en el inventario; el juego valida la receta antes de construir.
+El asistente solo puede usar piezas que el jugador tiene en el inventario; el juego valida la receta antes de construir. Valores válidos de `socket` y de `type`: [CATALOGO-ELEMENTOS §0.1](assets/CATALOGO-ELEMENTOS.md).
 
 ### API key del LLM
 No va en el repo. Para la build de los jueces: key con límite de gasto bajo en config del build **o** solo fallback. Decidir el viernes.

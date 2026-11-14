@@ -39,11 +39,54 @@ status: borrador-v1
 | Escala | 1 unidad UE = 1 cm. Pieza chica ≈ 50 cm, mediana ≈ 100 cm, grande ≈ 200 cm. Pivote en el centro de masa |
 | Mesh | Low-poly estilizado (≤ 5k tris/pieza), 1 material (instancia de `M_Part_Master`), UV limpio |
 | Colisión | Colisión **simple** convexa por pieza (sin complex-as-simple). Nombrar `UCX_<id>_NN` |
-| Sockets de unión | Nombre exacto `Attach_<cara>` en el mesh: `Attach_Top`, `Attach_Bottom`, `Attach_Front`, `Attach_Back`, `Attach_Left`, `Attach_Right`. Orientados con +X saliendo de la superficie. Es el contrato con `UFFuseComponent`/grafo de ensamblado |
+| Sockets de unión | Nombre exacto `Attach_<cara>` en el mesh: `Attach_Top`, `Attach_Bottom`, `Attach_Front`, `Attach_Back`, `Attach_Left`, `Attach_Right`. Orientados con +X saliendo de la superficie. Ver **§0.1 Contrato de uniones** (cómo se relacionan con la receta JSON) |
 | Sockets de efecto | `Fx_Out` (salida de empuje/fuego/proyectil), `Fx_Hit` (punto de impacto) cuando aplique |
 | Nombres de asset | `SM_<id>`, `M_<id>`, `MI_<id>_<variante>`, `NS_<id>_<efecto>`, `SFX_<id>_<evento>` |
 | Variantes | Material por estado: normal / activo / sin energía / pre-expiración (destello) |
 | Límite de ensamblado | 21 piezas por construcción (valor de diseño, ajustable en DataAsset) |
+
+## 0.1 Contrato de uniones y tipos (receta JSON ↔ ensamblador ↔ mesh)
+
+> [!important] Un solo vocabulario
+> Antes había tres formas de nombrar las uniones: `Attach_Left` (este catálogo), `Side` (ejemplo del GDD) y `Top`/`Side`/`AxleL`/`AxleR`
+> (research 12). Desde ahora queda así:
+
+| Capa | Qué se escribe | Ejemplo |
+|---|---|---|
+| **Receta JSON** (`"socket"`, lo que escribe la IA) | La cara a secas: `Top`, `Bottom`, `Front`, `Back`, `Left`, `Right`. Opcional: una segunda cara para correrse hacia un borde, separada por `_` | `"Left"`, `"Left_Front"` (lado izquierdo, pegado al frente) |
+| **Mesh** (Socket Manager, lo que hace arte) | `Attach_` + la cara | `Attach_Left` |
+| **Ejes de rueda** | No hay nombre aparte (`AxleL`/`AxleR` ya no existen): la rueda se une por `Left`/`Right` | Rueda en `"Left_Front"` del chasis |
+| Alias heredado | `Side` = `Right` (el código lo acepta, pero no lo usen en recetas nuevas) | — |
+| Sin socket | `Top` | — |
+
+**Ejes en el marco del vehículo:** Front = +X, Right = +Y, Top = +Z (convención de UE).
+
+> [!warning] Cómo funciona HOY el ensamblador (POC `JamAssembler.cpp`)
+> El código **todavía no lee los sockets del mesh**: coloca cada pieza junto a la cara del padre calculándolo con el
+> **tamaño de caja** (`Size`) de la tabla de abajo. Por eso, **hasta que se migre a sockets, el mesh importado tiene que medir
+> lo mismo que su `Size`** (bounding box, en cm). Si no, las piezas quedan flotando o se meten unas en otras.
+> Pendiente (rol 3): que el ensamblador busque `Attach_<cara>` en el mesh y use el `Size` solo si no lo encuentra, y que
+> acepte `"Attach_Left"` en la receta como sinónimo de `"Left"` por si la IA lo escribe así.
+
+**Tipo en la receta ↔ ID del catálogo** (el `"type"` del JSON es el nombre corto; el ID es el del asset):
+
+| `"type"` en receta | ID / asset | `Size` X×Y×Z (cm) | Masa (kg) |
+|---|---|---|---|
+| `Plank` | `PART_PLANK` → `SM_PART_PLANK` | 200 × 60 × 10 | 5 |
+| `Block` | `PART_BLOCK` | 60 × 60 × 60 | 15 |
+| `Cylinder` | `PART_CYLINDER` | 150 × 50 × 50 | 10 |
+| `Wheel` | `DEV_WHEEL_S` | 50 × 20 × 50 | 4 |
+| `BigWheel` | `DEV_WHEEL_L` | 80 × 30 × 80 | 8 |
+| `Fan` | `DEV_FAN` | 15 × 50 × 50 | 3 |
+| `Rocket` | `DEV_ROCKET` | 60 × 20 × 20 | 4 |
+| `Balloon` | `DEV_BALLOON` | 90 × 90 × 90 | 1 |
+| `Cannon` | `DEV_CANNON` | 70 × 20 × 20 | 8 |
+| `Seat` | `CTRL_SEAT` | 40 × 40 × 30 | 5 |
+| `Battery` | `PWR_BATTERY_S` | 20 × 20 × 20 | 3 |
+| `Flamethrower` | `DEV_FLAME` | 40 × 20 × 20 | 3 |
+
+La fuente de verdad de `Size` y masa es la tabla de `Source/GameJamm/Building/JamBuildPart.cpp` (luego, DataAssets). Si alguno
+cambia ahí, actualicen esta tabla.
 
 Cada pieza necesita mínimo: **mesh + colisión + sockets + 1 icono** (256×256, para el menú). Los dispositivos
 añaden **VFX (Niagara)** y **SFX** de sus estados.

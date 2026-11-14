@@ -187,7 +187,7 @@ struct GAMEJAMM_API FJamAttachDef
 {
     GENERATED_BODY()
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Jam|Building")
-    FName Id; // Nombre público: Top, Side, AxleL...
+    FName Id; // Nombre público (cara): Top, Bottom, Front, Back, Left, Right — ver CATALOGO-ELEMENTOS §0.1
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Jam|Building")
     FName MeshSocket; // Si no es None, la pose viene SOLO de este socket
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Jam|Building")
@@ -638,7 +638,7 @@ los existentes se bloquean con LFS antes de editarlos, según TEAM/CLAUDE.
    caída de prueba y revisar volumen antes de afinar materiales.
    [Editor de colisión](https://dev.epicgames.com/documentation/unreal-engine/setting-up-collisions-with-static-meshes-in-unreal-engine)
 4. **Crear sockets** con `Window → Socket Manager → Create Socket`. En una tabla
-   poner `Top`, `Bottom`, `Side`, `AxleL`, `AxleR`. X del socket apunta fuera de la
+   poner `Attach_Top`, `Attach_Bottom`, `Attach_Left`, `Attach_Right`… (contrato en [CATALOGO-ELEMENTOS §0.1](../assets/CATALOGO-ELEMENTOS.md); las ruedas usan `Left`/`Right`, no `AxleL`/`AxleR`). X del socket apunta fuera de la
    superficie; Z define el roll de referencia. Colocarlos sobre o ligeramente fuera
    de la colisión, no dentro de la geometría renderizada. Guardar.
    [Socket Manager de Epic](https://dev.epicgames.com/documentation/unreal-engine/using-sockets-with-static-meshes-in-unreal-engine?lang=en-US)
