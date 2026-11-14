@@ -58,7 +58,7 @@ Core no tiene dueño: anota "Cesar" en la fila Core de `docs/TEAM.md` y haz push
 > ni derribar una torre (falta combate, tarea 2). `bUseUnity=false` en `GameJamm.Build.cs`: en un build limpio chocaban `K` de
 > `JamAssembler.cpp` y `JamBuildPart.cpp`.
 
-### [~] (PC, 01:55, después de la 3) 2. Combate y fusión (GDD §8)
+### [ ] (PC: PAUSADA 02:20, sin empezar el código) 2. Combate y fusión (GDD §8)
 **Cesar (14 nov):** si en `main` todavía no existe `Source/GameJamm/Combat/`, hazla tú sin preguntar y anota "Cesar" en la fila
 Combate de `TEAM.md`. Si ya existe código de Jesús ahí, no lo dupliques: avisa en el Registro y pasa a la tarea 3.
 1. Espada (20 de daño cada 0.6 s, 2 m) y arco (15 de daño cada 0.8 s, 40 m, flecha física) con `SM_WPN_SWORD`, `SM_WPN_BOW` y
@@ -75,7 +75,7 @@ Combate de `TEAM.md`. Si ya existe código de Jesús ahí, no lo dupliques: avis
 4. Todo el daño va por `ApplyDamage` a `UHealthComponent`, y nunca a aliados (`UJamStatics::AreEnemies`).
 5. Prueba: pegarle a un dummy con cada material.
 
-### [~] (PC, 01:55) 3. Minions y bots (GDD §3 y §11)
+### [~] (PC, 01:55 — PAUSADA 02:20, casi lista) 3. Minions y bots (GDD §3 y §11)
 IA no tiene dueño: anota "Cesar" en la fila IA de `TEAM.md`. Por tiempo, nada de StateTree: máquina de estados en C++ en
 `Source/GameJamm/AI/`.
 1. `AJamMinion`, con el maniquí en el color de su equipo pero más apagado (ART.md §6):
@@ -129,3 +129,5 @@ Todo está en `main`. Lo que hizo la sesión de la Mac y lo que quedó abierto:
 ## Registro
 | Tarea | Estado | Commit | Cómo probar |
 |---|---|---|---|
+| 3 Minions y bots | **Pausada (14 nov 02:20), casi lista.** Hecho: minions 3 melee + 1 ranged (+pesado min 8) cada 30 s, bots 2 rojo / 3 azul con retirarse/defender/empujar, el Constructor arma ("un carro con lanzallamas", 7 piezas), torres priorizan minions y 50 % sin escolta, islas con colisión de doble cara (ya no se atoran: stuck=0). **Pendiente:** (a) la 2.ª oleada reporta "0 vivos antes": revisar si la 1.ª muere/cae antes de 30 s o si el conteo falla (`Jam.Agents` a los 20 s); (b) confirmar que chocan en el centro y que los bots pelean; (c) partida de 5 min sin tocar nada. Luego marcar [x]. | b6657d6, 6c2e8f3 | `Jam.Wave`, `Jam.Agents`, `Jam.Profile`, `Jam.Goto 0 -1500 400` |
+| 2 Combate y fusión | **Sin empezar (pausada).** Revisado: no existe `Source/GameJamm/Combat/`; `SM_FUSE_*` solo están como FBX en `SourceArt/Fusion/FBX/` (hay que importarlos); `SM_WPN_SWORD/BOW/ARROW` **no están en el repo** (solo iconos de BOW/ARROW): preguntar a Emilio/Javier o usar un mesh provisional. Ojo: el clic izq. ya lo usa `JamPlayConsole.cpp:1247` (disparo de la construcción manejada); el ataque debe funcionar solo cuando no vas sentado. | — | — |
