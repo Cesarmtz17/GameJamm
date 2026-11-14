@@ -39,7 +39,8 @@ enum class EJamPartKind : uint8
 	Turntable,  // gira lo montado a velocidad constante
 	Hinge,      // union con giro libre limitado
 	Stake,      // ancla la construccion al mundo
-	Slide       // base de friccion baja (trineo)
+	Slide,      // base de friccion baja (trineo)
+	Spike       // puas: daña por contacto (embestida)
 };
 
 class AJamBuildPart;
@@ -144,6 +145,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	bool bWelded = false;
 
+	/** Pieza a la que va pegada (la asigna el ensamblador): el resorte lanza a sus hijas. */
+	TWeakObjectPtr<AJamBuildPart> ParentPart;
+
 	/** Motor del eje (solo ruedas), lo asigna el ensamblador. */
 	UPROPERTY()
 	TObjectPtr<UPhysicsConstraintComponent> DriveConstraint;
@@ -191,6 +195,11 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 private:
+	/** Daño por contacto: las puas siempre; el resto de la estructura solo al embestir rapido. */
+	UFUNCTION()
+	void OnPartHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+	float NextHitTime = 0.f;
+
 	bool IsMine(const AActor* Other) const;
 	/** Componentes fisicos/peones dentro de una esfera (sin esta pieza). */
 	void Nearby(const FVector& Center, float Radius, TArray<UPrimitiveComponent*>& Out, const FVector* SightFrom = nullptr) const;

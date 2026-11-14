@@ -345,31 +345,44 @@
    "id": "PART_ROD",
    "type": "Rod",
    "category": "estructura",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 2,
    "energy_per_s": 0,
    "provides": [
-    "link"
+    "structure",
+    "reach"
    ],
    "faces": [
     "*"
    ],
-   "behavior": "Varilla fina. Separa piezas sin peso (brazos de aspersor).",
+   "behavior": "Varilla delgada y larga: mástil, antena, lanza. Se encadena.",
    "names_es": [
     "varilla",
-    "palo",
-    "vara"
+    "barra",
+    "asta",
+    "antena",
+    "mástil"
    ],
    "names_en": [
     "rod",
-    "stick"
+    "pole",
+    "mast"
    ],
    "substitutes": [
     "Girder"
    ],
-   "priority": "post",
+   "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Front_Bottom",
+     "Top"
+    ],
+    "sym": "y",
+    "order": "front"
+   }
   },
   {
    "id": "JOINT_HINGE",
@@ -673,34 +686,44 @@
    "id": "DEV_CART",
    "type": "Cart",
    "category": "movilidad",
-   "in_code": false,
+   "in_code": true,
    "mass_kg": 6,
    "energy_per_s": 0,
    "provides": [
-    "ground_roll",
+    "slide",
     "chassis"
    ],
    "faces": [
     "Bottom"
    ],
-   "behavior": "Plataforma con ruedas libres sin motor: necesita empuje (ventilador/cohete).",
+   "behavior": "Carreta sin motor: se empuja o se remolca.",
    "names_es": [
-    "carrito",
+    "carreta",
     "vagón",
-    "plataforma con ruedas"
+    "vagoneta",
+    "remolque"
    ],
    "names_en": [
     "cart",
     "wagon",
-    "trolley"
+    "trailer"
    ],
    "substitutes": [
     "Sled",
     "Ball"
    ],
-   "priority": "post",
+   "priority": "alta",
    "infinite": false,
-   "energy_cost_per_s": 0.0
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "bottom",
+    "faces": [
+     "Bottom"
+    ],
+    "sym": "xy",
+    "order": "center",
+    "ground": "below"
+   }
   },
   {
    "id": "DEV_SLED",
@@ -1840,6 +1863,319 @@
    "priority": "post",
    "infinite": false,
    "energy_cost_per_s": 0.0
+  },
+  {
+   "id": "PART_DECK",
+   "type": "Deck",
+   "category": "estructura",
+   "in_code": true,
+   "mass_kg": 2,
+   "provides": [
+    "chassis",
+    "platform"
+   ],
+   "behavior": "Plataforma cuadrada ancha y muy ligera: base de voladores, helicópteros y balsas.",
+   "names_es": [
+    "plataforma",
+    "tarima",
+    "cubierta"
+   ],
+   "names_en": [
+    "deck",
+    "platform"
+   ],
+   "priority": "alta",
+   "infinite": false,
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "chassis",
+    "faces": [
+     "Top"
+    ],
+    "sym": "y",
+    "order": "center"
+   }
+  },
+  {
+   "id": "PART_UBLOCK",
+   "type": "UBlock",
+   "category": "estructura",
+   "in_code": true,
+   "mass_kg": 25,
+   "provides": [
+    "ballast"
+   ],
+   "behavior": "Contrapeso pesado: baja el centro de masa.",
+   "names_es": [
+    "contrapeso",
+    "lastre",
+    "horquilla",
+    "bloque en u"
+   ],
+   "names_en": [
+    "counterweight",
+    "ballast"
+   ],
+   "priority": "alta",
+   "infinite": false,
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "any",
+    "faces": [
+     "Top",
+     "Top_Back",
+     "Top_Front",
+     "Back_Bottom",
+     "Front_Bottom",
+     "Left_Center",
+     "Bottom"
+    ],
+    "sym": "y",
+    "order": "balance"
+   }
+  },
+  {
+   "id": "DEV_RAILSKID",
+   "type": "RailSkid",
+   "category": "movilidad",
+   "in_code": true,
+   "mass_kg": 3,
+   "provides": [
+    "slide"
+   ],
+   "behavior": "Patín largo de fricción casi nula; va en par debajo.",
+   "names_es": [
+    "patín",
+    "riel",
+    "barandal",
+    "deslizador"
+   ],
+   "names_en": [
+    "skid",
+    "rail"
+   ],
+   "priority": "alta",
+   "infinite": false,
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "bottom",
+    "faces": [
+     "Bottom_Left"
+    ],
+    "sym": "y",
+    "order": "center",
+    "ground": "below"
+   }
+  },
+  {
+   "id": "PART_ICEBLOCK",
+   "type": "IceBlock",
+   "category": "estructura",
+   "in_code": true,
+   "mass_kg": 12,
+   "provides": [
+    "slide",
+    "structure"
+   ],
+   "behavior": "Bloque resbaloso; se apila.",
+   "names_es": [
+    "bloque de hielo",
+    "témpano",
+    "cubo de hielo"
+   ],
+   "names_en": [
+    "ice block"
+   ],
+   "priority": "alta",
+   "infinite": false,
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "any",
+    "faces": [
+     "Top",
+     "Top_Back",
+     "Top_Front",
+     "Back_Bottom",
+     "Front_Bottom",
+     "Left_Center",
+     "Bottom"
+    ],
+    "sym": "y",
+    "order": "balance"
+   }
+  },
+  {
+   "id": "DEV_PROPELLER",
+   "type": "Propeller",
+   "category": "propulsion",
+   "in_code": true,
+   "mass_kg": 5,
+   "provides": [
+    "lift",
+    "thrust"
+   ],
+   "behavior": "Rotor grande: encima y soplando hacia abajo sustenta (helicóptero); atrás empuja.",
+   "names_es": [
+    "aspas",
+    "hélice grande",
+    "rotor de helicóptero"
+   ],
+   "names_en": [
+    "propeller",
+    "rotor"
+   ],
+   "priority": "alta",
+   "infinite": false,
+   "energy_cost_per_s": 2.5,
+   "place": {
+    "zone": "top",
+    "faces": [
+     "Back_Bottom_Back",
+     "Top_Back_Back",
+     "Left_Back_Back",
+     "Top_Center_Back"
+    ],
+    "sym": "y",
+    "order": "back",
+    "ground": "lift",
+    "modes": {
+     "lift": {
+      "faces": [
+       "Top_Center_Bottom",
+       "Top_Front_Bottom"
+      ],
+      "sym": "xy",
+      "order": "center"
+     }
+    }
+   }
+  },
+  {
+   "id": "DEV_LAUNCHER",
+   "type": "Launcher",
+   "category": "movilidad",
+   "in_code": true,
+   "mass_kg": 6,
+   "provides": [
+    "launch",
+    "jump"
+   ],
+   "behavior": "Resorte grande: plataforma de lanzamiento. Lanza a la pieza que lleva encima.",
+   "names_es": [
+    "plataforma de lanzamiento",
+    "lanzadera"
+   ],
+   "names_en": [
+    "launch pad",
+    "launcher"
+   ],
+   "priority": "alta",
+   "infinite": false,
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "top",
+    "faces": [
+     "Bottom",
+     "Bottom_Front"
+    ],
+    "sym": "xy",
+    "order": "outer",
+    "ground": "below",
+    "modes": {
+     "launch": {
+      "faces": [
+       "Top_Front",
+       "Top",
+       "Top_Back"
+      ],
+      "sym": "y",
+      "order": "front"
+     }
+    }
+   }
+  },
+  {
+   "id": "DEV_WAGONWHEEL",
+   "type": "WagonWheel",
+   "category": "movilidad",
+   "in_code": true,
+   "mass_kg": 3,
+   "provides": [
+    "roll"
+   ],
+   "behavior": "Rueda libre sin motor: rueda, no empuja.",
+   "names_es": [
+    "rueda de carreta",
+    "rueda de madera",
+    "rueda libre"
+   ],
+   "names_en": [
+    "wagon wheel",
+    "free wheel"
+   ],
+   "priority": "alta",
+   "infinite": false,
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "sides",
+    "faces": [
+     "Left_Front",
+     "Left",
+     "Left_Back"
+    ],
+    "odd": [
+     "Back",
+     "Front"
+    ],
+    "sym": "xy",
+    "order": "outer",
+    "ground": "touch",
+    "modes": {
+     "inline": {
+      "faces": [
+       "Front"
+      ],
+      "sym": "xy",
+      "order": "outer"
+     }
+    }
+   }
+  },
+  {
+   "id": "DEV_SPIKES",
+   "type": "Spikes",
+   "category": "armas",
+   "in_code": true,
+   "mass_kg": 6,
+   "provides": [
+    "contact_damage"
+   ],
+   "behavior": "Púas: dañan por contacto según la velocidad del golpe (embestida).",
+   "names_es": [
+    "púas",
+    "pinchos",
+    "picos",
+    "espinas",
+    "cuchillas",
+    "sierra"
+   ],
+   "names_en": [
+    "spikes",
+    "blades",
+    "saw"
+   ],
+   "priority": "alta",
+   "infinite": false,
+   "energy_cost_per_s": 0.0,
+   "place": {
+    "zone": "front",
+    "faces": [
+     "Front_Bottom",
+     "Left_Bottom"
+    ],
+    "sym": "y",
+    "order": "front"
+   }
   }
  ],
  "templates": [
@@ -2385,5 +2721,11 @@
   "lift_offset_max": 0.15,
   "tip_ratio_mobile": 0.75,
   "tip_ratio_static": 1.5
+ },
+ "ram": {
+  "_doc": "Daño por contacto (AJamBuildPart::OnPartHit). Púas: desde spike_min_speed, daño = Power x max(1, v/200). Estructura: embestida desde ram_min_speed, daño = v/100. Enfriamiento por pieza.",
+  "spike_min_speed": 100,
+  "ram_min_speed": 400,
+  "cooldown_s": 0.5
  }
 }

@@ -102,7 +102,7 @@ struct FJamPieceCount
 {
 	FName Type;
 	int32 Count = 1;
-	FName Mode;   // None, "lift" (helice/cohete hacia abajo: sustenta) o "launch" (resorte hacia arriba: lanza)
+	FName Mode;   // None, "lift" (helice/cohete hacia abajo: sustenta), "launch" (resorte hacia arriba: lanza), "inline" (ruedas en linea) o "root" (esta pieza es el cuerpo)
 };
 
 /**
@@ -157,6 +157,9 @@ struct GAMEJAMM_API FJamBuildChoice
 
 	/** Ruta principal: bolsa de piezas (tipo, cantidad, modo). Si no esta vacia manda sobre Archetype/Extras. */
 	TArray<FJamPieceCount> Pieces;
+
+	/** Respuestas globales del modelo: pieza raiz (Plank, Block, Cylinder, Sled, Wall; None = que decida el codigo) y forma general. */
+	FName Root, Pattern;
 };
 
 /**
@@ -185,7 +188,13 @@ public:
 	static const TArray<FJamPieceRule>& PieceTable();
 
 	/** Sin red: conceptos (bolsas con nombre: carro, catapulta...) + palabras de piezas + numerales ("25 llantas"). */
-	static void BagFromKeywords(const FString& Prompt, TArray<FJamPieceCount>& OutBag);
+	static void BagFromKeywords(const FString& Prompt, TArray<FJamPieceCount>& OutBag, bool bDefaultCar = true);
+
+	/** Negaciones ("sin ruedas", "que no tenga cañon", "no quiero armas"): devuelve el texto sin esos tramos y las piezas negadas. */
+	static FString StripNegations(const FString& Prompt, TArray<FName>& OutNegated);
+
+	/** Reglas sobre la bolsa ya decidida: cantidad implicita (triciclo = 3), quitar lo negado, alas sin empuje +1 cohete, torre de un bloque -> 3. */
+	static void RefineBag(const FString& CleanPrompt, const TArray<FName>& Negated, TArray<FJamPieceCount>& InOutBag);
 
 	/**
 	 * Numerales del texto ("25 llantas", "cuatro cañones") mandan sobre la cantidad que haya en la bolsa.

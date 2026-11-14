@@ -31,6 +31,12 @@ public:
 	/** Respuesta de Jev -> decisiones. noul > 0.5 = sí. */
 	static bool ParseResponse(const FString& ResponseJson, FJamBuildChoice& OutChoice, FString& OutNote);
 
+	/**
+	 * Planificador LLM (fal) para pedidos fuera de vocabulario ("una pizza voladora"): devuelve una BOLSA de piezas del catalogo
+	 * (tipo, cantidad, modo, raiz). No coloca nada: la bolsa pasa por el mismo compositor y validador que la de Jev.
+	 */
+	static void RequestPlan(const FString& Prompt, TFunction<void(bool bOk, const FJamBuildChoice& Choice, const FString& Note)> Done);
+
 	/** Llamada asíncrona. Done se invoca en el hilo del juego. */
 	static void RequestChoice(const FString& Prompt, TFunction<void(bool bOk, const FJamBuildChoice& Choice, const FString& Note)> Done);
 };

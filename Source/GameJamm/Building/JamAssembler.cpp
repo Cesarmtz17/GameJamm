@@ -558,7 +558,7 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 	if (Wheels.Num())
 	{
 		double Cap = 0;
-		for (const FPlaced* Wh : Wheels) { Cap += Wh->Def.Type == "BigWheel" ? 150.0 : 60.0; }
+		for (const FPlaced* Wh : Wheels) { Cap += Wh->Def.Type == "BigWheel" ? 150.0 : 60.0; } // BuildKnowledge.json: coherence.wheel_load_kg
 		if (M > Cap) { Pw = FMath::Min(Pw, 0.5); C.Minor.Add(FString::Printf(TEXT("sobrecarga: %.0f kg sobre %d ruedas"), M, Wheels.Num())); }
 	}
 	C.Sub[7] = (float)Pw;
@@ -678,6 +678,7 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 		}
 		FPlaced& Child = Placed[P.Id];
 		FPlaced& Parent = Placed[P.AttachTo];
+		Child.Actor->ParentPart = Parent.Actor;
 
 		// Pegamento: una pieza sin movimiento ni fuerza propia (estructura, asiento, bateria, trineo) pegada a otra igual
 		// se suelda en UN solo cuerpo rigido con ella. 25 ruedas sobre 5 tablas = 1 chasis + 25 ejes, no 30 cuerpos blandos.
@@ -717,7 +718,8 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 			{
 				C->SetAngularTwistLimit(ACM_Free, 0);
 			}
-			if (Kind == EJamPartKind::Wheel || Kind == EJamPartKind::Turntable)
+			// Rueda con Power 0 (rueda de carreta): eje libre, sin motor. Un motor con velocidad objetivo 0 la frenaria.
+			if ((Kind == EJamPartKind::Wheel && Child.Def.Power > 0.f) || Kind == EJamPartKind::Turntable)
 			{
 				C->SetAngularDriveMode(EAngularDriveMode::TwistAndSwing);
 				C->SetAngularVelocityDriveTwistAndSwing(true, false);
@@ -832,7 +834,9 @@ namespace
 const TArray<FJamArchetypeDef>& UJamBuildGenerator::ArchetypeTable()
 {
 	// Orden fijo: es el orden de las opciones que ve Jev y la prioridad del respaldo por palabras clave.
-	static const TArray<FJamArchetypeDef> T = {
+	static const TArray<FJamArchetypeDef> T = []()
+	{
+	TArray<FJamArchetypeDef> X = {
 		Arch(TEXT("Tank"), TEXT("An armored ground vehicle with a big gun: tank, assault vehicle, war machine."),
 			K({TEXT("tanque"), TEXT("tank")}),
 			{ Pt(TEXT("body"), TEXT("Plank")), Pt(TEXT("w0"), TEXT("BigWheel"), TEXT("body"), TEXT("Left_Front")), Pt(TEXT("w1"), TEXT("BigWheel"), TEXT("body"), TEXT("Right_Front")),
@@ -892,7 +896,39 @@ const TArray<FJamArchetypeDef>& UJamBuildGenerator::ArchetypeTable()
 			K({TEXT("puente"), TEXT("bridge"), TEXT("pasarela"), TEXT("walkway")}),
 			{ Pt(TEXT("body"), TEXT("Plank")), Pt(TEXT("p1"), TEXT("Plank"), TEXT("body"), TEXT("Front")), Pt(TEXT("p2"), TEXT("Plank"), TEXT("body"), TEXT("Back")),
 			  Pt(TEXT("p3"), TEXT("Plank"), TEXT("p1"), TEXT("Front")), Pt(TEXT("p4"), TEXT("Plank"), TEXT("p2"), TEXT("Back")) }),
+		// --- conceptos nuevos (bolsas con nombre para el respaldo sin red; van despues: la prioridad es el orden) ---
+		Arch(TEXT("Boat"), TEXT("A boat or raft: a hull of planks with a sail and a propeller."),
+			K({TEXT("barco"), TEXT("barquito"), TEXT("lancha"), TEXT("bote"), TEXT("velero"), TEXT("balsa"), TEXT("canoa"), TEXT("kayak"), TEXT("yate"), TEXT("trajinera"), TEXT("panga"), TEXT("catamaran"), TEXT("boat"), TEXT("ship"), TEXT("moto de agua")}),
+			{ Pt(TEXT("body"), TEXT("Plank")), Pt(TEXT("p1"), TEXT("Plank"), TEXT("body"), TEXT("Front")), Pt(TEXT("p2"), TEXT("Plank"), TEXT("body"), TEXT("Back")),
+			  Pt(TEXT("sail"), TEXT("Sail"), TEXT("body"), TEXT("Top_Front")), Pt(TEXT("fan"), TEXT("Fan"), TEXT("p2"), TEXT("Back")), Pt(TEXT("seat"), TEXT("Seat"), TEXT("body"), TEXT("Top_Back")) }),
+		Arch(TEXT("Submarine"), TEXT("A tube-shaped hull pushed by a propeller."), K({TEXT("submarino"), TEXT("submarine")}),
+			{ Pt(TEXT("body"), TEXT("Cylinder")), Pt(TEXT("fan"), TEXT("Fan"), TEXT("body"), TEXT("Back")), Pt(TEXT("seat"), TEXT("Seat"), TEXT("body"), TEXT("Top")) }),
+		Arch(TEXT("Tower"), TEXT("Blocks piled up: tower, ladder, shelf."), K({TEXT("torre"), TEXT("tower"), TEXT("atalaya"), TEXT("escalera"), TEXT("librero"), TEXT("ropero"), TEXT("techo"), TEXT("alto")}),
+			{ Pt(TEXT("body"), TEXT("Block")), Pt(TEXT("b1"), TEXT("Block"), TEXT("body"), TEXT("Top")), Pt(TEXT("b2"), TEXT("Block"), TEXT("b1"), TEXT("Top")), Pt(TEXT("b3"), TEXT("Block"), TEXT("b2"), TEXT("Top")) }),
+		Arch(TEXT("Chair"), TEXT("Something to sit on: chair, throne, bench."), K({TEXT("silla"), TEXT("sillon"), TEXT("trono"), TEXT("banca"), TEXT("sofa"), TEXT("caballo"), TEXT("toro"), TEXT("columpio")}),
+			{ Pt(TEXT("body"), TEXT("Block")), Pt(TEXT("seat"), TEXT("Seat"), TEXT("body"), TEXT("Top")) }),
+		Arch(TEXT("Table"), TEXT("A board on two legs: table, bed, desk."), K({TEXT("mesa"), TEXT("cama"), TEXT("escritorio")}),
+			{ Pt(TEXT("body"), TEXT("Plank")), Pt(TEXT("l0"), TEXT("Block"), TEXT("body"), TEXT("Bottom_Front")), Pt(TEXT("l1"), TEXT("Block"), TEXT("body"), TEXT("Bottom_Back")) }),
+		Arch(TEXT("Robot"), TEXT("A body of blocks with a head that looks at targets."), K({TEXT("robot"), TEXT("mecha")}),
+			{ Pt(TEXT("body"), TEXT("Block")), Pt(TEXT("torso"), TEXT("Block"), TEXT("body"), TEXT("Top")), Pt(TEXT("mount"), TEXT("Head"), TEXT("torso"), TEXT("Top")) }),
 	};
+	// Sinonimos medidos en la bateria de 300 frases.
+	auto Syn = [&X](const TCHAR* Name, TArray<FString> Add)
+	{
+		for (FJamArchetypeDef& A : X) { if (A.Name == FName(Name)) { A.Keywords.Append(Add); } }
+	};
+		Syn(TEXT("Car"), K({TEXT("troca"), TEXT("camioneta"), TEXT("vocho"), TEXT("vochito"), TEXT("carrito"), TEXT("carreta"), TEXT("carretilla"), TEXT("taxi"), TEXT("combi"), TEXT("trailer"), TEXT("metrobus"), TEXT("autobus"), TEXT("kart"), TEXT("patineta"), TEXT("ambulancia"), TEXT("tractor"), TEXT("excavadora"), TEXT("montacargas"), TEXT("podadora"), TEXT("cuatrimoto"), TEXT("truck"), TEXT("triciclo"), TEXT("automovil"), TEXT("aspiradora")}));
+		Syn(TEXT("Bike"), K({TEXT("motocicleta"), TEXT("bici"), TEXT("bicicleta")}));
+		Syn(TEXT("Flyer"), K({TEXT("cuadricoptero"), TEXT("abeja"), TEXT("luciernaga"), TEXT("helicopter"), TEXT("vuele"), TEXT("volador"), TEXT("voladora"), TEXT("elevador")}));
+		Syn(TEXT("Glider"), K({TEXT("avioneta"), TEXT("avioncito"), TEXT("pajaro"), TEXT("murcielago"), TEXT("bombardero"), TEXT("parapente")}));
+		Syn(TEXT("Airship"), K({TEXT("zepelin")}));
+		Syn(TEXT("Hover"), K({TEXT("alfombra"), TEXT("ovni"), TEXT("nave"), TEXT("flote")}));
+		Syn(TEXT("Fortress"), K({TEXT("fuerte"), TEXT("refugio"), TEXT("trinchera"), TEXT("caseta"), TEXT("cerca"), TEXT("jaula"), TEXT("domo")}));
+		Syn(TEXT("Catapult"), K({TEXT("trabuquete"), TEXT("resortera")}));
+		Syn(TEXT("Bridge"), K({TEXT("cruzar"), TEXT("barranco")}));
+	for (FJamArchetypeDef& A : X) { if (A.Name == "Spinner") { A.Keywords.Remove(TEXT("trompo")); } }
+	return X;
+	}();
 	return T;
 }
 
@@ -1257,6 +1293,27 @@ const TArray<FJamPieceRule>& UJamBuildGenerator::PieceTable()
 				K({TEXT("trineo"), TEXT("esqui"), TEXT("esquí"), TEXT("sled"), TEXT("sleigh")}));
 			R.DefaultCount = 1;
 		}
+		// --- piezas de solo datos (reusan una capacidad existente) ---
+		Rule(TEXT("Deck"), K({TEXT("Top")}), TEXT("The thing needs a wide, very light square platform (flying platforms, helicopters, rafts) or the user mentions a deck or platform."),
+			TEXT("A normal plank base is enough and no platform or deck is mentioned."), K({TEXT("plataforma"), TEXT("tarima"), TEXT("cubierta"), TEXT("deck")}));
+		Rule(TEXT("Rod"), K({TEXT("Front|Back|Top")}), TEXT("The user asks for a thin rod, pole, mast or antenna."), TEXT("No thin rod, mast or antenna is mentioned. A thick girder or a cannon does not count."),
+			K({TEXT("varilla"), TEXT("barra "), TEXT("asta"), TEXT("antena"), TEXT("mastil"), TEXT("mástil"), TEXT("rod")})).Chain = "Front";
+		Rule(TEXT("UBlock"), K({JAM_ANY}), TEXT("The user explicitly asks for a heavy counterweight or ballast."), TEXT("No counterweight or ballast is mentioned. A normal block is enough."),
+			K({TEXT("contrapeso"), TEXT("lastre"), TEXT("horquilla"), TEXT("bloque en u")}));
+		Rule(TEXT("Cart"), K({TEXT("Bottom")}), TEXT("The thing is pushed or towed and rolls without its own motor: cart, wagon, trailer, minecart."), TEXT("It drives with its own wheels, or no cart, wagon or trailer is mentioned."),
+			K({TEXT("carreta"), TEXT("vagon"), TEXT("vagón"), TEXT("vagoneta"), TEXT("remolque"), TEXT("wagon"), TEXT("trailer")}));
+		Rule(TEXT("RailSkid"), K({TEXT("Bottom_Left"), TEXT("Bottom_Right")}), TEXT("The user wants it to slide very fast on skids or rails with almost no friction."), TEXT("No skids or rails are mentioned."),
+			K({TEXT("patin "), TEXT("patín "), TEXT("riel"), TEXT("barandal"), TEXT("deslizador"), TEXT("skid")})).DefaultCount = 2;
+		Rule(TEXT("IceBlock"), K({TEXT("Top|Bottom")}), TEXT("The user mentions a block of ice or a slippery block."), TEXT("No block of ice is mentioned. Freezing enemies does not count: that is the frost emitter."),
+			K({TEXT("bloque de hielo"), TEXT("tempano"), TEXT("témpano"), TEXT("cubo de hielo"), TEXT("ice block")})).Chain = "Top";
+		Rule(TEXT("Propeller"), K({JAM_REAR}), TEXT("The user asks for a helicopter rotor or big propeller blades on top."), TEXT("No helicopter rotor or big blades are mentioned. A normal fan or a turbine is enough."),
+			K({TEXT("aspas"), TEXT("helice grande"), TEXT("hélice grande"), TEXT("helice de helicoptero"), TEXT("hélice de helicóptero"), TEXT("rotor de helic")})).LiftSlots = K({TEXT("Top_Center_Bottom")});
+		Rule(TEXT("Launcher"), K({TEXT("Top|Top_Front")}), TEXT("The user wants a big launch pad that throws something or someone far."), TEXT("No launch pad is mentioned. A small jump or a catapult spring is enough: that is the spring."),
+			K({TEXT("plataforma de lanzamiento"), TEXT("lanzadera"), TEXT("launch pad")})).LiftSlots = K({TEXT("Top_Front|Top|Top_Back")});
+		Rule(TEXT("WagonWheel"), K({TEXT("Left_Front|Left_Back"), TEXT("Right_Front|Right_Back")}), TEXT("The wheels are plain wooden or free wheels with no motor: carts, wagons, trailers."), TEXT("No free or wooden wheels are mentioned, or it must drive by itself."),
+			K({TEXT("rueda de carreta"), TEXT("ruedas de carreta"), TEXT("rueda de madera"), TEXT("ruedas de madera"), TEXT("rueda libre"), TEXT("ruedas libres")})).DefaultCount = 4;
+		Rule(TEXT("Spikes"), K({TEXT("Front_Bottom|Front")}), TEXT("The thing must hurt by touching or ramming: spikes, blades, saw, drill."), TEXT("No spikes, blades or ramming damage is mentioned. It attacks from a distance or not at all."),
+			K({TEXT("puas"), TEXT("púas"), TEXT("pinchos"), TEXT("picos"), TEXT("espinas"), TEXT("cuchillas"), TEXT("sierra"), TEXT("spikes"), TEXT("blades")}));
 		// --- ajustes por pieza: pares espejados, cantidades por defecto, modos ---
 		for (FJamPieceRule& R : X)
 		{
@@ -1291,13 +1348,15 @@ const TArray<FJamPieceRule>& UJamBuildGenerator::PieceTable()
 			const TArray<FString> Thrust = K({TEXT("Back_Bottom_Back"), TEXT("Top_Back_Back"), TEXT("Left_Back_Back"), TEXT("Top_Center_Back")});
 			const TArray<FString> Weapon = K({TEXT("Top_Front_Front"), TEXT("Front_Bottom_Front"), TEXT("Top_Center_Front"), TEXT("Left_Front_Front"), TEXT("Left_Center_Front"), TEXT("Top_Back_Front")});
 			const TArray<FString> Balance = K({TEXT("Top"), TEXT("Top_Back"), TEXT("Top_Front"), TEXT("Back_Bottom"), TEXT("Front_Bottom"), TEXT("Left_Center"), TEXT("Bottom")});
-			Place({TEXT("Wheel"), TEXT("BigWheel")}, K({TEXT("Left_Front"), TEXT("Left"), TEXT("Left_Back")}), TEXT("xy"), TEXT("outer"), 0.f, TEXT("touch"));
+			Place({TEXT("Wheel"), TEXT("BigWheel"), TEXT("WagonWheel")}, K({TEXT("Left_Front"), TEXT("Left"), TEXT("Left_Back")}), TEXT("xy"), TEXT("outer"), 0.f, TEXT("touch"));
 			Place({TEXT("HoverStone")}, K({TEXT("Bottom_Front"), TEXT("Bottom")}), TEXT("xy"), TEXT("outer"), 0.f, TEXT("below"));
+			Place({TEXT("RailSkid")}, K({TEXT("Bottom_Left")}), TEXT("y"), TEXT("center"), 0.f, TEXT("below"));
 			Place({TEXT("Balloon")}, K({TEXT("Top"), TEXT("Top_Front")}), TEXT("xy"), TEXT("center"));
 			Place({TEXT("Fan"), TEXT("Jet"), TEXT("Turbine")}, Thrust, TEXT("y"), TEXT("back"), 80.f, TEXT("lift"));
 			Place({TEXT("Rocket")}, Thrust, TEXT("y"), TEXT("back"), 120.f, TEXT("lift"));
-			Place({TEXT("Spring")}, K({TEXT("Bottom"), TEXT("Bottom_Front")}), TEXT("xy"), TEXT("outer"), 0.f, TEXT("below"));
-			Place({TEXT("Sled")}, K({TEXT("Bottom")}), TEXT("xy"), TEXT("center"), 0.f, TEXT("below"));
+			Place({TEXT("Propeller")}, Thrust, TEXT("y"), TEXT("back"), 0.f, TEXT("lift")); // rotor: las aspas sobresalen del cuerpo, no se le exige chorro libre
+			Place({TEXT("Spring"), TEXT("Launcher")}, K({TEXT("Bottom"), TEXT("Bottom_Front")}), TEXT("xy"), TEXT("outer"), 0.f, TEXT("below"));
+			Place({TEXT("Sled"), TEXT("Cart")}, K({TEXT("Bottom")}), TEXT("xy"), TEXT("center"), 0.f, TEXT("below"));
 			Place({TEXT("Seat")}, K({TEXT("Top"), TEXT("Top_Back"), TEXT("Top_Front")}), TEXT("y"), TEXT("center"));
 			Place({TEXT("Head")}, K({TEXT("Top_Front"), TEXT("Top"), TEXT("Top_Back")}), TEXT("y"), TEXT("front"));
 			Place({TEXT("Turntable")}, K({TEXT("Top_Front"), TEXT("Top"), TEXT("Top_Back")}), TEXT("y"), TEXT("center"));
@@ -1310,20 +1369,23 @@ const TArray<FJamPieceRule>& UJamBuildGenerator::PieceTable()
 			Place({TEXT("Wing")}, K({TEXT("Left"), TEXT("Left_Front"), TEXT("Left_Back"), TEXT("Top")}), TEXT("xy"), TEXT("center"));
 			Place({TEXT("Sail")}, K({TEXT("Top_Front"), TEXT("Top"), TEXT("Top_Back")}), TEXT("y"), TEXT("center"));
 			Place({TEXT("Panel")}, K({TEXT("Front_Bottom"), TEXT("Left_Bottom"), TEXT("Back_Bottom")}), TEXT("y"), TEXT("front")); // despues de las armas: no les tapa el tiro
+			Place({TEXT("Spikes")}, K({TEXT("Front_Bottom"), TEXT("Left_Bottom")}), TEXT("y"), TEXT("front")); // despues de las armas, como el escudo
 			Place({TEXT("Ball")}, K({TEXT("Front_Bottom"), TEXT("Top_Front"), TEXT("Back_Bottom")}), TEXT("y"), TEXT("front"));
-			Place({TEXT("Girder")}, K({TEXT("Front_Bottom"), TEXT("Top")}), TEXT("y"), TEXT("front"));
+			Place({TEXT("Girder"), TEXT("Rod")}, K({TEXT("Front_Bottom"), TEXT("Top")}), TEXT("y"), TEXT("front"));
 			Place({TEXT("Hinge")}, K({TEXT("Top_Back"), TEXT("Top_Front"), TEXT("Top")}), TEXT("y"), TEXT("back"));
-			Place({TEXT("Plank")}, K({TEXT("Top")}), TEXT("y"), TEXT("center"));
-			Place({TEXT("Block")}, Balance, TEXT("y"), TEXT("balance"));
+			Place({TEXT("Plank"), TEXT("Deck")}, K({TEXT("Top")}), TEXT("y"), TEXT("center"));
+			Place({TEXT("Block"), TEXT("IceBlock")}, Balance, TEXT("y"), TEXT("balance"));
 			Place({TEXT("Wall")}, K({TEXT("Left_Center_Front"), TEXT("Front"), TEXT("Back")}), TEXT("y"), TEXT("front"));
 			Place({TEXT("Cylinder")}, K({TEXT("Top"), TEXT("Front_Bottom")}), TEXT("y"), TEXT("center"));
-			Place({TEXT("Battery"), TEXT("BigBattery"), TEXT("Stabilizer"), TEXT("Bomb")}, Balance, TEXT("y"), TEXT("balance")); // pesos moviles: equilibran el centro de masa
+			Place({TEXT("Battery"), TEXT("BigBattery"), TEXT("Stabilizer"), TEXT("Bomb"), TEXT("UBlock")}, Balance, TEXT("y"), TEXT("balance")); // pesos moviles: equilibran el centro de masa
 			Place({TEXT("Stake")}, K({TEXT("Left_Bottom"), TEXT("Back_Bottom"), TEXT("Front_Bottom")}), TEXT("xy"), TEXT("outer"), 0.f, TEXT("below"));
-			Mode({TEXT("Wheel"), TEXT("BigWheel")}, TEXT("inline"), K({TEXT("Front")}), TEXT("xy"), TEXT("outer")); // moto
+			Mode({TEXT("Propeller")}, TEXT("lift"), K({TEXT("Top_Center_Bottom"), TEXT("Top_Front_Bottom")}), TEXT("xy"), TEXT("center")); // encima, soplando hacia abajo
+			Mode({TEXT("Launcher")}, TEXT("launch"), K({TEXT("Top_Front"), TEXT("Top"), TEXT("Top_Back")}), TEXT("y"), TEXT("front"));
+			Mode({TEXT("Wheel"), TEXT("BigWheel"), TEXT("WagonWheel")}, TEXT("inline"), K({TEXT("Front")}), TEXT("xy"), TEXT("outer")); // moto
 			Mode({TEXT("Fan"), TEXT("Jet"), TEXT("Turbine")}, TEXT("lift"), K({TEXT("Left_Front_Bottom"), TEXT("Bottom_Front"), TEXT("Bottom")}), TEXT("xy"), TEXT("outer")); // 4 = cuadricoptero
 			Mode({TEXT("Rocket")}, TEXT("lift"), K({TEXT("Left_Center_Bottom"), TEXT("Bottom")}), TEXT("xy"), TEXT("center"));
 			Mode({TEXT("Spring")}, TEXT("launch"), K({TEXT("Top_Front"), TEXT("Top"), TEXT("Top_Back")}), TEXT("y"), TEXT("front"));
-			Find(TEXT("Wheel")).Odd = Find(TEXT("BigWheel")).Odd = K({TEXT("Back"), TEXT("Front")}); // la llanta 25 va en la linea central
+			Find(TEXT("Wheel")).Odd = Find(TEXT("BigWheel")).Odd = Find(TEXT("WagonWheel")).Odd = K({TEXT("Back"), TEXT("Front")}); // la llanta 25 va en la linea central
 			Find(TEXT("Seat")).UpCm = 100.f;     // nada encima del piloto
 			Find(TEXT("Balloon")).UpCm = 200.f;
 			Find(TEXT("Bomb")).Avoid = N({TEXT("Flame"), TEXT("Rocket"), TEXT("Fan")});
@@ -1360,6 +1422,88 @@ const TArray<FJamPieceRule>& UJamBuildGenerator::PieceTable()
 			TEXT("No cylinder, tube, barrel, rocket ship or missile is asked for. Cannons, wheels and tanks do not count."));
 		Ask(TEXT("Block"), TEXT("The user mentions blocks, cubes or crates, or asks for a tower, turret, pillar or catapult (its base or counterweight)."),
 			TEXT("No block, cube, crate, tower, turret or catapult is asked for."));
+		// Textos v2 (medidos contra 300 frases reales): cada uno dice para que CLASE de cosas hace falta la pieza y que cosas no cuentan,
+		// con ejemplos de animales, muebles y barcos, no solo vehiculos.
+		Ask(TEXT("Seat"), TEXT("The thing is something a person sits on or rides (chair, armchair, throne, bench, saddle, horse, mechanical bull, swing) or the user mentions a seat or cockpit."),
+			TEXT("Nobody sits on it and no seat is mentioned."));
+		Ask(TEXT("Wheel"), TEXT("The thing rolls on the ground on wheels (car, truck, bus, taxi, tractor, cart, wheelbarrow, skateboard, bike, tank, toy car, any land vehicle or land animal that must walk or run) or the user mentions wheels or tires."),
+			TEXT("It does not roll on the ground and no wheels are mentioned: boats, ships, aircraft, drones, hoverboards, flying or floating things, furniture, towers, walls, traps, weapons standing in place. Also false if the user says 'without wheels'."));
+		Ask(TEXT("Head"), TEXT("The thing must aim, watch or track by itself: auto-aim, sentry, sentinel, guard robot, any robot or creature with a head that looks at targets."),
+			TEXT("Nothing is asked to aim or track targets by itself and it is not a robot or sentry."));
+		Ask(TEXT("Turntable"), TEXT("The thing keeps spinning around in place: turntable, rotor, carousel, spinning top, pinwheel, blender, sprinkler, rotating trap, ferris wheel, weapons that spin in circles."),
+			TEXT("Nothing spins in circles in place. Wheels, fans, propellers, turbines, turrets, aiming and tracking do not count."));
+		Ask(TEXT("Fan"), TEXT("The thing flies or moves by propellers: drone, helicopter, quadcopter, flying insect, motorboat, speedboat, jet ski, airboat, fan-driven sled, windmill, or the user mentions a fan or propeller."),
+			TEXT("No fan or propeller is mentioned and the thing does not fly or move with propellers. Turbines, jets, rockets, sails, wings and balloons do not count."));
+		Ask(TEXT("Balloon"), TEXT("The thing floats up in the air by being lighter than air: balloon, hot air balloon, airship, blimp, zeppelin, a house lifted by balloons."),
+			TEXT("No balloon or airship is asked for. Balls, drones, planes and hovercraft do not count."));
+		Ask(TEXT("Wing"), TEXT("The thing flies with wings: airplane, glider, paraglider, bomber, fighter jet, bird, bat, bee, dragon, kite, paper plane, or the user mentions wings."),
+			TEXT("It has no wings: helicopters, drones, balloons, rockets, hovercraft, ground and water things. Also false if the user says 'without wings'."));
+		Ask(TEXT("Sail"), TEXT("The thing is pushed by the wind: sailboat, sailing ship, pirate ship, boat or raft without a motor, catamaran, kite, land yacht, or the user mentions a sail."),
+			TEXT("No sail is needed: motor vehicles, aircraft, static things. Also false if the user says 'without a sail'."));
+		Ask(TEXT("HoverStone"), TEXT("The thing floats a little above the ground without wings or propellers: hovercraft, hoverboard, flying carpet, flying skateboard, UFO, flying saucer, levitating platform, anti-gravity, something that 'floats' in the air."),
+			TEXT("No levitation is asked for. Boats on water, balloons, wings, drones and helicopters do not count."));
+		Ask(TEXT("Panel"), TEXT("The thing needs a flat protective plate: shield, armor plating, armored vehicle, barrier, fence, door leaf, cage side, battering ram front."),
+			TEXT("No shield, armor, plate or barrier is asked for."));
+		Ask(TEXT("Shock"), TEXT("The user wants a weapon or trap that electrocutes: electric shock, lightning, taser, tesla coil, electric trap, electric fence, electric animal."),
+			TEXT("No electric attack is asked for. Lamps, lights, batteries, generators, power plants, robots and lasers do not count."));
+		Ask(TEXT("Bomb"), TEXT("The thing must explode: bomb, mine, minefield, dynamite, TNT, grenade, explosive, a bomber that drops bombs."),
+			TEXT("Nothing is asked to explode. Firefighters, cannons, rockets and balls do not count."));
+		Ask(TEXT("Spring"), TEXT("The thing jumps, bounces or throws by spring force: spring, trampoline, pogo, catapult, trebuchet, slingshot, launcher, frog, kangaroo, grasshopper, seesaw, something that sends things flying upward."),
+			TEXT("No spring, jumping, bouncing, catapult or launcher is asked for."));
+		Ask(TEXT("Stake"), TEXT("The user explicitly says it must be anchored, nailed, staked or fixed to the ground, or asks for spikes."),
+			TEXT("The user does not mention anchoring, nailing, stakes or spikes. Towers, walls, forts, traps and other static things do NOT count by themselves."));
+		Ask(TEXT("Light"), TEXT("The thing gives light: lamp, headlight, spotlight, lighthouse, flashlight, firefly, siren lights, something to see at night."),
+			TEXT("No light is asked for. Lasers, fire and electricity do not count as a light."));
+		Ask(TEXT("Hydrant"), TEXT("The thing sprays water or puts out fire: hose, hydrant, water cannon, fire truck, firefighter, sprinkler of water, an animal that sprays water."),
+			TEXT("No water spraying or fire extinguishing is asked for. Boats and things that float on water do not count."));
+		Ask(TEXT("Hinge"), TEXT("The thing swings on a hinge: door, gate, hatch, flap, trapdoor, seesaw, swing, drawbridge."),
+			TEXT("Nothing swings on a hinge. Heads, turrets, aiming and anchors do not count."));
+		Ask(TEXT("Ball"), TEXT("The thing is or uses a heavy ball: ball, football, boulder, wrecking ball, rolling stone, catapult or slingshot ammunition."),
+			TEXT("No ball or boulder is asked for. Balloons, bombs and wheels do not count."));
+		Ask(TEXT("Girder"), TEXT("The thing needs a long beam or pole: crane arm, mast, lance, battering ram, spikes, ladder rail, swing frame, catapult arm, antenna."),
+			TEXT("No long beam or pole is needed. Guns, cannons and tanks do not count."));
+		Ask(TEXT("Cannon"), TEXT("The thing shoots projectiles: cannon, gun, machine gun, shotgun, pistol, bazooka, mortar, turret, tank, warship, pirate ship cannons, sniper, anything that 'shoots' or must do damage from far."),
+			TEXT("Nothing shoots projectiles. Rockets, lasers, fire, ice, water and catapults do not count. Also false if the user says 'without cannon' or 'no weapons'."));
+		Ask(TEXT("Flamethrower"), TEXT("The user wants to throw fire or burn enemies: flamethrower, fire trap, fire breath, dragon, something that spits fire."),
+			TEXT("Nothing is asked to throw fire. Putting OUT a fire, firefighters, fire trucks, rockets, jets and engines do not count. Also false if the user says 'without fire'."));
+		Ask(TEXT("Plank"), TEXT("The thing needs a flat board as its floor, deck, top or base: every vehicle, boat, ship, raft, canoe, surfboard, bridge, platform, table, bed, bench, shelf, ladder, slide, seesaw, aircraft body."),
+			TEXT("No flat board is needed: a tower of blocks, a wall, a lone wheel, a lone weapon, a ball."));
+		Ask(TEXT("Block"), TEXT("The thing is built from solid blocks or needs a heavy body or base: tower, watchtower, pillar, turret base, castle, robot body, animal body, wardrobe, stairs, catapult counterweight, or the user mentions blocks, cubes or crates."),
+			TEXT("No solid block is needed: vehicles, boats and aircraft do not count."));
+		Ask(TEXT("Wall"), TEXT("The thing encloses or protects with walls: wall, fort, fortress, castle, bunker, barricade, trench, shelter, hut, guard post, cage, fence, dome, house."),
+			TEXT("No wall is needed: vehicles, aircraft, boats and single weapons do not count."));
+		Ask(TEXT("Cylinder"), TEXT("The thing has a round tube body: rocket ship, missile, submarine, torpedo, bazooka, cylinder, tube, barrel, log, pipe."),
+			TEXT("No tube-shaped body is needed. Cannons, wheels and tanks do not count."));
+		// Sinonimos medidos en la bateria de 300 frases; se quitan las palabras que disparaban la pieza equivocada.
+		auto Words = [&X](const TCHAR* Type, TArray<FString> Add, TArray<FString> Del)
+		{
+			for (FJamPieceRule& R : X)
+			{
+				if (R.Type != FName(Type)) { continue; }
+				R.Words.RemoveAll([&Del](const FString& W) { return Del.Contains(W); });
+				R.Words.Append(Add);
+			}
+		};
+		Words(TEXT("Cannon"), K({TEXT("ametralladora"), TEXT("metralleta"), TEXT("escopeta"), TEXT("mortero"), TEXT("bazuca"), TEXT("pistola"), TEXT("de guerra"), TEXT("torretas"), TEXT("turret"), TEXT("dano"), TEXT("balas")}), {});
+		Words(TEXT("Hydrant"), K({TEXT("bombero"), TEXT("incendio"), TEXT("de agua"), TEXT("eche agua"), TEXT("echa agua"), TEXT("apague"), TEXT("apagar el fuego"), TEXT("apagar incendios")}), {});
+		Words(TEXT("Spring"), K({TEXT("resortera"), TEXT("trampolin"), TEXT("rana"), TEXT("canguro"), TEXT("sube y baja")}), {});
+		Words(TEXT("Light"), K({TEXT("luciernaga"), TEXT("de noche")}), {});
+		Words(TEXT("Turntable"), K({TEXT("carrusel"), TEXT("trompo"), TEXT("rehilete"), TEXT("licuadora")}), {});
+		Words(TEXT("Girder"), K({TEXT("grua"), TEXT("columpio"), TEXT("picos")}), {});
+		Words(TEXT("Hinge"), K({TEXT("porton")}), {});
+		Words(TEXT("Sail"), K({TEXT("papalote")}), {});
+		Words(TEXT("Bomb"), K({TEXT("mina"), TEXT("minado"), TEXT("granada")}), {});
+		Words(TEXT("BigBattery"), K({TEXT("planta de luz")}), {});
+		Words(TEXT("Wall"), K({TEXT("defienda"), TEXT("proteger"), TEXT("protegerme")}), {});
+		Words(TEXT("Wheel"), K({TEXT("yanta")}), {});
+		Words(TEXT("Fan"), K({TEXT("molino")}), {});
+		Words(TEXT("Sled"), K({TEXT("nieve")}), {});
+		Words(TEXT("Frost"), K({TEXT("freeze")}), {});
+		Words(TEXT("Ball"), K({TEXT("balon")}), {});
+		Words(TEXT("Flamethrower"), K({TEXT("escupa fuego"), TEXT("eche fuego"), TEXT("echa fuego"), TEXT("de fuego"), TEXT("con fuego")}), {});
+		Words(TEXT("Hydrant"), {}, K({TEXT("agua")}));
+		Words(TEXT("Flamethrower"), {}, K({TEXT("fuego"), TEXT("fire")}));
+		Words(TEXT("Panel"), {}, K({TEXT("pared"), TEXT("muro"), TEXT("wall")})); // muro / pared es Wall, no Panel
 		return X;
 	}();
 	return T;
@@ -1384,15 +1528,95 @@ namespace
 		return Bag.Add_GetRef(N);
 	}
 
+	/**
+	 * Normaliza por SONIDO para comparar lo que se oyo con las palabras clave: minusculas, sin acentos, ñ -> ni, b = v, ll = y,
+	 * c/k/qu, s/z/c suave, h muda. "yantas" = "llantas", "abion" = "avion", "elicoptero" = "helicoptero".
+	 */
+	FString Phon(const FString& In)
+	{
+		FString S = In.ToLower();
+		static const TCHAR* Acc[][2] = { {TEXT("á"), TEXT("a")}, {TEXT("é"), TEXT("e")}, {TEXT("í"), TEXT("i")}, {TEXT("ó"), TEXT("o")}, {TEXT("ú"), TEXT("u")}, {TEXT("ü"), TEXT("u")}, {TEXT("ñ"), TEXT("ni")} };
+		for (const auto& A : Acc) { S.ReplaceInline(A[0], A[1]); }
+		FString O;
+		auto Soft = [&S](int32 i) { return i < S.Len() && (S[i] == TEXT('e') || S[i] == TEXT('i')); };
+		for (int32 i = 0; i < S.Len(); ++i)
+		{
+			const TCHAR C = S[i];
+			const TCHAR Nx = i + 1 < S.Len() ? S[i + 1] : TEXT('\0');
+			if (C == TEXT('q') && Nx == TEXT('u') && Soft(i + 2)) { O += TEXT('s'); ++i; }          // que -> se (igual que "ce")
+			else if (C == TEXT('g') && Nx == TEXT('u') && Soft(i + 2)) { O += TEXT('g'); ++i; }
+			else if (C == TEXT('k') || C == TEXT('c')) { O += (Nx == TEXT('h') && C == TEXT('c')) ? TEXT('c') : Soft(i + 1) ? TEXT('s') : TEXT('c'); }
+			else if (C == TEXT('h')) { if (i > 0 && S[i - 1] == TEXT('c')) { O += C; } }
+			else if (C == TEXT('l') && Nx == TEXT('l')) { O += TEXT('y'); ++i; }
+			else if (C == TEXT('v')) { O += TEXT('b'); }
+			else if (C == TEXT('z')) { O += TEXT('s'); }
+			else { O += C; }
+		}
+		return O;
+	}
+
+	/** Texto del jugador normalizado y partido en palabras (mas las palabras pegadas de dos en dos: "cata pulta"). */
+	struct FJamText
+	{
+		TArray<FString> Toks, Joined;
+		FString Line; // " tok tok tok "
+		explicit FJamText(const FString& Text)
+		{
+			FString Cur;
+			for (const TCHAR C : Phon(Text) + TEXT(" "))
+			{
+				if (FChar::IsAlnum(C)) { Cur += C; }
+				else if (!Cur.IsEmpty()) { Toks.Add(Cur); Cur.Reset(); }
+			}
+			Joined = Toks;
+			for (int32 i = 0; i + 1 < Toks.Num(); ++i) { Joined.Add(Toks[i] + Toks[i + 1]); }
+			Line = TEXT(" ") + FString::Join(Toks, TEXT(" ")) + TEXT(" ");
+		}
+	};
+
+	/**
+	 * ¿Alguna palabra clave aparece? Por PALABRA, no por subcadena ("troca" no es "roca", "barranco" no es "barra"):
+	 * frases de varias palabras al inicio de palabra; claves cortas (4 letras o menos, o terminadas en espacio) = palabra exacta
+	 * (o su plural); el resto = inicio de palabra.
+	 */
+	bool HitWords(const FJamText& T, const TArray<FString>& Words)
+	{
+		for (const FString& W : Words)
+		{
+			const FString Raw = W.TrimStartAndEnd();
+			const FString S = Phon(Raw);
+			if (S.IsEmpty()) { continue; }
+			if (S.Contains(TEXT(" ")))
+			{
+				if (T.Line.Contains(TEXT(" ") + S)) { return true; }
+			}
+			else if (W.EndsWith(TEXT(" ")) || Raw.Len() <= 4)
+			{
+				if (T.Toks.Contains(S) || T.Toks.Contains(S + TEXT("s")) || T.Toks.Contains(S + TEXT("es"))) { return true; }
+			}
+			else if ((S.Len() >= 6 ? T.Joined : T.Toks).ContainsByPredicate([&S](const FString& Tok) { return Tok.StartsWith(S); }))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	int32 NumberOf(const FString& Tok)
 	{
 		if (Tok.IsNumeric()) { return FCString::Atoi(*Tok); }
-		static const TMap<FString, int32> Words = {
+		static const TMap<FString, int32> Words = []()
+		{
+			const TMap<FString, int32> Raw = {
 			{TEXT("dos"), 2}, {TEXT("tres"), 3}, {TEXT("cuatro"), 4}, {TEXT("cinco"), 5}, {TEXT("seis"), 6}, {TEXT("siete"), 7}, {TEXT("ocho"), 8}, {TEXT("nueve"), 9},
 			{TEXT("diez"), 10}, {TEXT("once"), 11}, {TEXT("doce"), 12}, {TEXT("trece"), 13}, {TEXT("catorce"), 14}, {TEXT("quince"), 15}, {TEXT("dieciseis"), 16}, {TEXT("dieciséis"), 16},
 			{TEXT("veinte"), 20}, {TEXT("veinticinco"), 25}, {TEXT("treinta"), 30}, {TEXT("cuarenta"), 40}, {TEXT("cincuenta"), 50},
 			{TEXT("two"), 2}, {TEXT("three"), 3}, {TEXT("four"), 4}, {TEXT("five"), 5}, {TEXT("six"), 6}, {TEXT("eight"), 8}, {TEXT("ten"), 10}, {TEXT("twelve"), 12}, {TEXT("twenty"), 20},
 			{TEXT("par"), 2}, {TEXT("docena"), 12} };
+			TMap<FString, int32> Out;
+			for (const auto& KV : Raw) { Out.Add(Phon(KV.Key), KV.Value); }
+			return Out;
+		}();
 		const int32* N = Words.Find(Tok);
 		return N ? *N : 0;
 	}
@@ -1406,7 +1630,7 @@ namespace
 		{
 			for (const FString& W : R.Words)
 			{
-				const FString Stem = W.TrimStartAndEnd();
+				const FString Stem = Phon(W.TrimStartAndEnd());
 				if (!Stem.Contains(TEXT(" ")) && Stem.Len() >= 3 && Stem.Len() > BestLen && Word.StartsWith(Stem))
 				{
 					Best = R.Type;
@@ -1423,8 +1647,7 @@ namespace
 void UJamBuildGenerator::ApplyNumerals(const FString& Prompt, TArray<FJamPieceCount>& Bag, bool bResetCounts)
 {
 	// "25 llantas", "cuatro cañones", "un par de alas": numero y, en las 3 palabras siguientes, una pieza.
-	TArray<FString> Tok;
-	Prompt.ToLower().Replace(TEXT(","), TEXT(" ")).Replace(TEXT("."), TEXT(" ")).ParseIntoArray(Tok, TEXT(" "));
+	const TArray<FString> Tok = FJamText(Prompt).Toks; // normalizado por sonido: "beinticinco yantas" = 25 llantas
 	if (bResetCounts && Tok.ContainsByPredicate([](const FString& T) { return NumberOf(T) > 0; }))
 	{
 		for (FJamPieceCount& I : Bag)
@@ -1450,15 +1673,98 @@ void UJamBuildGenerator::ApplyNumerals(const FString& Prompt, TArray<FJamPieceCo
 	}
 }
 
-void UJamBuildGenerator::BagFromKeywords(const FString& Prompt, TArray<FJamPieceCount>& Bag)
+FString UJamBuildGenerator::StripNegations(const FString& Prompt, TArray<FName>& OutNegated)
+{
+	// "sin ruedas", "que no tenga cañon", "no quiero armas", "no un carro": esas piezas se quitan y el tramo negado no cuenta como pedido.
+	static const TSet<FString> Verbs = { TEXT("quiero"), TEXT("tenga"), TEXT("tiene"), TEXT("use"), TEXT("usa"), TEXT("uses"), TEXT("eche"), TEXT("echa"), TEXT("lleve"), TEXT("lleva"), TEXT("traiga"), TEXT("trae"), TEXT("pongas"), TEXT("ponga") };
+	static const TSet<FString> Stop = { TEXT(","), TEXT("pero"), TEXT("y"), TEXT("para"), TEXT("pa"), TEXT("que"), TEXT("con"), TEXT("quiero"), TEXT("nomas") };
+	static const TSet<FString> Articles = { TEXT("un"), TEXT("una"), TEXT("unos"), TEXT("unas") };
+	TArray<FString> Toks, Keep;
+	Prompt.ToLower().Replace(TEXT(","), TEXT(" , ")).ParseIntoArray(Toks, TEXT(" "));
+	for (int32 i = 0; i < Toks.Num();)
+	{
+		int32 Span = INDEX_NONE;
+		if (Toks[i] == TEXT("sin")) { Span = i + 1; }
+		else if (Toks[i] == TEXT("no") && i + 1 < Toks.Num() && Verbs.Contains(Toks[i + 1])) { Span = i + 2; }
+		else if (Toks[i] == TEXT("no") && i + 1 < Toks.Num() && Articles.Contains(Toks[i + 1])) { Span = i + 1; }
+		if (Span == INDEX_NONE) { Keep.Add(Toks[i]); ++i; continue; }
+		int32 j = Span;
+		while (j < Toks.Num() && j < Span + 3 && !Stop.Contains(Toks[j])) { ++j; }
+		for (int32 k = Span; k < j; ++k)
+		{
+			const FString& W = Toks[k];
+			if (W.StartsWith(TEXT("arma"))) { for (const FJamPieceRule& R : PieceTable()) { if (R.bWeapon) { OutNegated.AddUnique(R.Type); } } }
+			if (W.StartsWith(TEXT("motor"))) { for (const TCHAR* T : { TEXT("Fan"), TEXT("Jet"), TEXT("Turbine"), TEXT("Rocket") }) { OutNegated.AddUnique(T); } }
+			if (W == TEXT("fuego")) { OutNegated.AddUnique("Flamethrower"); }
+			const FJamText One(W);
+			for (const FJamPieceRule& R : PieceTable()) { if (HitWords(One, R.Words)) { OutNegated.AddUnique(R.Type); } }
+		}
+		if (OutNegated.Contains("Wheel")) { OutNegated.AddUnique("BigWheel"); }
+		i = j;
+	}
+	return FString::Join(Keep, TEXT(" ")).Replace(TEXT(" ,"), TEXT(","));
+}
+
+void UJamBuildGenerator::RefineBag(const FString& Prompt, const TArray<FName>& Negated, TArray<FJamPieceCount>& Bag)
+{
+	auto KindOf = [](FName T) { FJamPartDef D; UJamPartCatalog::Find(T, D); return D.Kind; };
+	const FJamText Text(Prompt);
+	const bool bDigits = Text.Toks.ContainsByPredicate([](const FString& T) { return NumberOf(T) > 0; }); // el jugador dijo algun numero
+	// Cantidad implicita en el nombre: triciclo = 3 ruedas, cuadricoptero = 4 helices, moto / bici = 2.
+	struct FImplied { const TCHAR* Stem; EJamPartKind Kind; int32 Count; };
+	static const FImplied Implied[] = { { TEXT("triciclo"), EJamPartKind::Wheel, 3 }, { TEXT("cuatrimoto"), EJamPartKind::Wheel, 4 }, { TEXT("cuadric"), EJamPartKind::Fan, 4 },
+		{ TEXT("bici"), EJamPartKind::Wheel, 2 }, { TEXT("moto"), EJamPartKind::Wheel, 2 }, { TEXT("motocicleta"), EJamPartKind::Wheel, 2 }, { TEXT("scooter"), EJamPartKind::Wheel, 2 } };
+	for (const FString& Tok : Text.Toks)
+	{
+		for (const FImplied& I : Implied)
+		{
+			const FString Stem = Phon(I.Stem);
+			if (bDigits || !(Tok == Stem || (FCString::Strlen(I.Stem) > 5 && Tok.StartsWith(Stem)))) { continue; }
+			bool bFirstWheel = true;
+			for (int32 k = 0; k < Bag.Num(); ++k)
+			{
+				if (KindOf(Bag[k].Type) != I.Kind) { continue; }
+				Bag[k].Count = I.Count;
+				if (I.Kind == EJamPartKind::Wheel && !bFirstWheel) { Bag.RemoveAt(k--); } // un solo tipo de rueda
+				bFirstWheel = false;
+			}
+		}
+	}
+	Bag.RemoveAll([&Negated](const FJamPieceCount& I) { return Negated.Contains(I.Type); });
+	auto Has = [&Bag](std::initializer_list<const TCHAR*> Types) { for (const TCHAR* T : Types) { if (Bag.ContainsByPredicate([T](const FJamPieceCount& I) { return I.Type == FName(T) && I.Count > 0; })) { return true; } } return false; };
+	// Alas sin empuje no vuelan: +1 cohete para despegar (misma idea que la sustentacion automatica).
+	if (Has({TEXT("Wing")}) && !Has({TEXT("Fan"), TEXT("Jet"), TEXT("Turbine"), TEXT("Rocket"), TEXT("Balloon"), TEXT("Propeller")}) && !Negated.Contains("Rocket"))
+	{
+		FJamPieceCount R;
+		R.Type = "Rocket";
+		Bag.Add(R);
+	}
+	// Una torre o un muro no es UN bloque: cosa estatica cuya unica estructura es un Block o un Wall sin numero -> 3.
+	const bool bMoves = Bag.ContainsByPredicate([&KindOf](const FJamPieceCount& I)
+	{
+		const EJamPartKind Kd = KindOf(I.Type);
+		return Kd == EJamPartKind::Wheel || Kd == EJamPartKind::Fan || Kd == EJamPartKind::Rocket || Kd == EJamPartKind::Balloon || Kd == EJamPartKind::Hover || Kd == EJamPartKind::Sail;
+	});
+	if (!bDigits && !bMoves)
+	{
+		FJamPieceCount* Only = nullptr;
+		int32 Structs = 0;
+		for (FJamPieceCount& I : Bag)
+		{
+			if (KindOf(I.Type) == EJamPartKind::Structural || KindOf(I.Type) == EJamPartKind::Slide) { ++Structs; Only = &I; }
+		}
+		if (Structs == 1 && (Only->Type == "Block" || Only->Type == "Wall") && Only->Count == 1) { Only->Count = 3; }
+	}
+}
+
+void UJamBuildGenerator::BagFromKeywords(const FString& Prompt, TArray<FJamPieceCount>& Bag, bool bDefaultCar)
 {
 	Bag.Reset();
-	const FString L = TEXT(" ") + Prompt.ToLower() + TEXT(" ");
+	const FJamText Text(Prompt);
 	// 1) Concepto con nombre (carro, catapulta, dron...): su receta base, leida como bolsa de piezas con su modo.
 	for (const FJamArchetypeDef& A : ArchetypeTable())
 	{
-		const bool bHit = A.Keywords.ContainsByPredicate([&L](const FString& W) { return L.Contains(W); });
-		if (!bHit) { continue; }
+		if (!HitWords(Text, A.Keywords)) { continue; }
 		for (const FBuildRecipePart& P : A.Parts)
 		{
 			FJamPieceCount& I = BagItem(Bag, P.Type);
@@ -1474,19 +1780,18 @@ void UJamBuildGenerator::BagFromKeywords(const FString& Prompt, TArray<FJamPiece
 	// 2) Piezas nombradas en la frase.
 	for (const FJamPieceRule& R : PieceTable())
 	{
-		const bool bHit = R.Words.ContainsByPredicate([&L](const FString& W) { return L.Contains(W); });
-		if (bHit && BagItem(Bag, R.Type).Count == 0) { BagItem(Bag, R.Type).Count = R.DefaultCount; }
+		if (HitWords(Text, R.Words) && BagItem(Bag, R.Type).Count == 0) { BagItem(Bag, R.Type).Count = R.DefaultCount; }
 	}
 	Bag.RemoveAll([](const FJamPieceCount& I) { return I.Count <= 0; });
-	if (Bag.ContainsByPredicate([](const FJamPieceCount& I) { return I.Type == "BigWheel"; }) && L.Contains(TEXT("grande")))
+	if (Bag.ContainsByPredicate([](const FJamPieceCount& I) { return I.Type == "BigWheel"; }) && Text.Toks.ContainsByPredicate([](const FString& T) { return T.StartsWith(TEXT("grande")); }))
 	{
 		Bag.RemoveAll([](const FJamPieceCount& I) { return I.Type == "Wheel"; });
 	}
 	// 3) Numerales.
 	ApplyNumerals(Prompt, Bag);
-	if (Bag.Num() == 0)
+	if (Bag.Num() == 0 && bDefaultCar)
 	{
-		BagItem(Bag, "Plank").Count = 1; // nada reconocible: un carro basico
+		BagItem(Bag, "Plank").Count = 1; // nada reconocible y nadie mas decidio: un carro basico
 		BagItem(Bag, "Wheel").Count = 4;
 	}
 }
@@ -1654,6 +1959,7 @@ namespace
 		for (const FJamPieceRule& Rl : UJamBuildGenerator::PieceTable()) { Rules.Add(&Rl); }
 		Rules.StableSort([](const FJamPieceRule& A, const FJamPieceRule& B) { return A.PlaceOrder < B.PlaceOrder; });
 		FString MountSockets;
+		FName LaunchSpring;   // resorte en modo lanzar con la cara de arriba libre: la bola o la bomba van encima (las lanza)
 		static const TArray<FString> RootWheelFaces = { TEXT("Left") };
 		for (const FJamPieceRule* RulePtr : Rules)
 		{
@@ -1670,7 +1976,12 @@ namespace
 			{
 				TArray<FName> Done;
 				if (!Rule.MountSockets.IsEmpty() && !MountSockets.IsEmpty()) { break; } // un solo mount
-				if (!Rule.Chain.IsNone() && !LastId.IsNone()) // estructura repetida: fila / pila
+				if (!LaunchSpring.IsNone() && (Rule.Type == "Ball" || Rule.Type == "Bomb"))
+				{
+					Done = Put(Rule, { FSpot(LaunchSpring, TEXT("Top")) });
+					if (Done.Num()) { LaunchSpring = NAME_None; }
+				}
+				if (Done.Num() == 0 && !Rule.Chain.IsNone() && !LastId.IsNone()) // estructura repetida: fila / pila
 				{
 					Done = Put(Rule, { FSpot(LastId, Rule.Chain.ToString()) });
 				}
@@ -1725,6 +2036,7 @@ namespace
 				Left -= Done.Num();
 				LastId = Done.Last();
 				if (!Rule.MountSockets.IsEmpty()) { MountSockets = Rule.MountSockets; }
+				if (Item->Mode == "launch" && KindOfType(Rule.Type) == EJamPartKind::Spring) { LaunchSpring = Done[0]; }
 				if (!Rule.ChildType.IsNone() && R.Parts.Num() < Max)
 				{
 					const FName ChildId(*(Done[0].ToString() + TEXT("c")));
@@ -1815,13 +2127,28 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 	}
 	else
 	{
-		for (const TCHAR* T : { TEXT("Sled"), TEXT("Plank"), TEXT("Cylinder"), TEXT("Block"), TEXT("Wall"), TEXT("Girder") })
+		for (const TCHAR* T : { TEXT("Sled"), TEXT("Cart"), TEXT("Plank"), TEXT("Deck"), TEXT("Cylinder"), TEXT("Block"), TEXT("IceBlock"), TEXT("UBlock"), TEXT("Wall"), TEXT("Girder") })
 		{
 			if (CountOf(T) > 0) { RootType = T; break; }
+		}
+		// El modelo (pregunta "root") o el planificador pueden señalar la pieza raiz: manda si es una pieza de estructura de la bolsa.
+		for (FJamPieceCount& I : Bag)
+		{
+			if (I.Mode == "root")
+			{
+				I.Mode = NAME_None;
+				if (KindOfType(I.Type) == EJamPartKind::Structural || KindOfType(I.Type) == EJamPartKind::Slide) { RootType = I.Type; }
+			}
 		}
 	}
 	if (CountOf(RootType) > 0) { BagItem(Bag, RootType).Count -= 1; }
 	const int32 AskedPlanks = CountOf("Plank");
+	// Piezas que solo tienen sentido en un modo: el rotor sustenta, la plataforma de lanzamiento lanza.
+	for (FJamPieceCount& I : Bag)
+	{
+		if (I.Type == "Propeller" && I.Mode.IsNone()) { I.Mode = "lift"; }
+		if (I.Type == "Launcher" && I.Mode.IsNone()) { I.Mode = "launch"; }
+	}
 
 	// Asiento gratis en todo lo que se mueve (GDD: el asiento es infinito), para poder montarse y dirigir.
 	const bool bMoves = Bag.ContainsByPredicate([](const FJamPieceCount& I)
@@ -1838,6 +2165,8 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 
 	// 2) Componer con sentido. Reparacion global: volador que no despega -> el codigo agrega sustentacion (hasta 4) y avisa.
 	TArray<FString> Warn;
+	int32 LiftAdded = 0;
+	FName LiftType;
 	FComposeOut Best;
 	for (int32 Round = 0; Round < 5; ++Round)
 	{
@@ -1851,8 +2180,10 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 		});
 		if (!LiftItem) { break; }
 		++LiftItem->Count;
-		Warn.Add(FString::Printf(TEXT("+1 %s para despegar"), *LiftItem->Type.ToString()));
+		++LiftAdded;
+		LiftType = LiftItem->Type;
 	}
+	if (LiftAdded > 0) { Warn.Add(FString::Printf(TEXT("agregue %d %s para que despegue"), LiftAdded, *LiftType.ToString())); }
 	R = Best.R;
 	R.Name = TEXT("Construccion");
 
@@ -1880,10 +2211,13 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 	if (Warn.Num() > 0) { Note += FString::Printf(TEXT(" aviso=[%s]"), *FString::Join(Warn, TEXT("; "))); }
 	Note += TEXT(" ") + Best.Coh.ToText();
 
+	// Con asiento, cohetes y bombas NO se encienden con C: los dispara el jugador con Espacio (un cohete gastado al encender no sirve de turbo).
+	const bool bSeat = Got.Contains("Seat");
 	for (const FBuildRecipePart& P : R.Parts)
 	{
 		const EJamPartKind Kd = KindOfType(P.Type);
-		if (Kd != EJamPartKind::Structural && Kd != EJamPartKind::Slide && Kd != EJamPartKind::Seat && Kd != EJamPartKind::Battery && Kd != EJamPartKind::Hinge)
+		if (Kd != EJamPartKind::Structural && Kd != EJamPartKind::Slide && Kd != EJamPartKind::Seat && Kd != EJamPartKind::Battery && Kd != EJamPartKind::Hinge
+			&& !(bSeat && (Kd == EJamPartKind::Rocket || Kd == EJamPartKind::Bomb)))
 		{
 			R.Activate.Add(P.Id);
 		}
@@ -1899,8 +2233,11 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 
 bool UJamBuildGenerator::GenerateRecipe(const FString& Prompt, FBuildRecipe& OutRecipe, FString& OutNote)
 {
-	// Respaldo sin red: conceptos + palabras + numerales, compuesto por piezas.
+	// Respaldo sin red: negaciones + conceptos + palabras + numerales, compuesto por piezas.
+	TArray<FName> Negated;
+	const FString Clean = StripNegations(Prompt, Negated);
 	TArray<FJamPieceCount> Bag;
-	BagFromKeywords(Prompt, Bag);
+	BagFromKeywords(Clean, Bag);
+	RefineBag(Clean, Negated, Bag);
 	return ComposeFromBag(Bag, OutRecipe, OutNote);
 }

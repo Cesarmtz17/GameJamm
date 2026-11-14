@@ -113,7 +113,8 @@ void AJamBuildSpawner::BuildNow()
 		Announce(FString::Printf(TEXT("Jam: \"%s\" -> preguntando al modelo de decision (Jev)..."), *Prompt), true);
 		const FString PromptCopy = Prompt;
 		TWeakObjectPtr<AJamBuildSpawner> Weak(this);
-		FJamDecisionClient::RequestChoice(PromptCopy, [Weak, PromptCopy](bool bOk, const FJamBuildChoice& C, const FString& N)
+		// Composicion comun a Jev y al planificador: bolsa -> numerales del texto -> raiz señalada -> compositor con sentido -> Realize.
+		auto Finish = [Weak, PromptCopy](bool bOk, const FJamBuildChoice& C, const FString& N)
 		{
 			AJamBuildSpawner* Self = Weak.Get();
 			if (!Self)
@@ -127,26 +128,41 @@ void AJamBuildSpawner::BuildNow()
 			{
 				// Ruta principal: el modelo decidio piezas y cantidades. Los numerales del texto ("25 llantas") mandan sobre
 				// la cantidad, y una decision muy pobre (menos de 3 tipos de pieza) se completa con el concepto del respaldo.
+				TArray<FName> Negated;
+				const FString Clean = UJamBuildGenerator::StripNegations(PromptCopy, Negated);
 				TArray<FJamPieceCount> Bag = C.Pieces;
 				if (Bag.Num() < 3)
 				{
+					// Se completa SOLO con lo que el respaldo reconocio (nunca con el "carro basico": "una silla" no lleva llantas),
+					// y sin duplicar una capacidad que el modelo ya eligio (Wheel vs BigWheel, Fan vs Turbine).
+					auto KindOf = [](FName T) { FJamPartDef D; UJamPartCatalog::Find(T, D); return D.Kind; };
 					TArray<FJamPieceCount> Seed;
-					UJamBuildGenerator::BagFromKeywords(PromptCopy, Seed);
+					UJamBuildGenerator::BagFromKeywords(Clean, Seed, false);
 					for (const FJamPieceCount& S : Seed)
 					{
-						if (!Bag.ContainsByPredicate([&S](const FJamPieceCount& X) { return X.Type == S.Type; })) { Bag.Add(S); }
+						const EJamPartKind Kd = KindOf(S.Type);
+						const bool bSameKind = (Kd == EJamPartKind::Wheel || Kd == EJamPartKind::Fan) && Bag.ContainsByPredicate([&](const FJamPieceCount& X) { return KindOf(X.Type) == Kd; });
+						if (!bSameKind && !Bag.ContainsByPredicate([&S](const FJamPieceCount& X) { return X.Type == S.Type; })) { Bag.Add(S); }
 					}
 				}
-				UJamBuildGenerator::ApplyNumerals(PromptCopy, Bag, true);
+				UJamBuildGenerator::ApplyNumerals(Clean, Bag, true);
+				UJamBuildGenerator::RefineBag(Clean, Negated, Bag);
+				if (!C.Root.IsNone())
+				{
+					// Pieza raiz señalada por el modelo (pregunta "root" / planificador): si no venia en la bolsa, se agrega una.
+					FJamPieceCount* RootItem = Bag.FindByPredicate([&C](const FJamPieceCount& X) { return X.Type == C.Root; });
+					if (!RootItem) { RootItem = &Bag.AddDefaulted_GetRef(); RootItem->Type = C.Root; RootItem->Count = 1; }
+					RootItem->Mode = "root";
+				}
 				bComposed = UJamBuildGenerator::ComposeFromBag(Bag, R, Note2);
 			}
 			else if (bOk)
 			{
-				bComposed = UJamBuildGenerator::ComposeRecipe(C, R, Note2); // formato viejo (plantilla + extras): respuestas simuladas, fal
+				bComposed = UJamBuildGenerator::ComposeRecipe(C, R, Note2); // formato viejo (plantilla + extras): respuestas simuladas
 			}
 			if (bComposed)
 			{
-				// N = "jev ... conf=..." (o "fal-llm ..."): se conserva el backend delante de la nota de la receta.
+				// N = "jev ... conf=..." (o "fal-plan ..."): se conserva el backend delante de la nota de la receta.
 				FString Backend = N, Rest;
 				N.Split(TEXT(" "), &Backend, &Rest);
 				Self->Realize(R, Backend + TEXT(" ") + Note2);
@@ -158,6 +174,21 @@ void AJamBuildSpawner::BuildNow()
 			FString Note3;
 			UJamBuildGenerator::GenerateRecipe(PromptCopy, R, Note3);
 			Self->Realize(R, TEXT("fallback-keywords ") + Note3);
+		};
+		FJamDecisionClient::RequestChoice(PromptCopy, [Finish, PromptCopy](bool bOk, const FJamBuildChoice& C, const FString& N)
+		{
+			// Fuera de vocabulario: Jev no reconocio casi nada (menos de 2 piezas) -> planificador LLM, si hay clave.
+			// Su bolsa pasa por la misma validacion; si falla o tampoco trae piezas, se sigue con lo de Jev y el respaldo.
+			if ((!bOk || C.Pieces.Num() < 2) && !N.StartsWith(TEXT("fal")) && !FJamDecisionClient::GetFalKey().IsEmpty())
+			{
+				FJamDecisionClient::RequestPlan(PromptCopy, [Finish, bOk, C, N](bool bPlanOk, const FJamBuildChoice& Plan, const FString& PlanNote)
+				{
+					if (bPlanOk && Plan.Pieces.Num() >= 2) { Finish(true, Plan, PlanNote); }
+					else { Finish(bOk, C, N); }
+				});
+				return;
+			}
+			Finish(bOk, C, N);
 		});
 		return;
 	}

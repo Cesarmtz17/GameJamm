@@ -81,6 +81,14 @@ namespace
 			Make("Girder", K::Structural, CubeMesh, FVector(300, 20, 20), 6.f, 0.f, 0, FLinearColor(0.4f, 0.3f, 0.25f)),
 			Make("Ball", K::Structural, SphereMesh, FVector(60, 60, 60), 10.f, 0.f, 0, FLinearColor(0.35f, 0.35f, 0.35f)),
 			Make("Sled", K::Slide, CubeMesh, FVector(160, 70, 15), 4.f, 0.f, 0, FLinearColor(0.3f, 0.5f, 0.8f)),
+			// --- piezas de solo datos: reusan una capacidad existente (valores de partida, sin afinar) ---
+			Make("Deck", K::Structural, CubeMesh, FVector(200, 200, 10), 2.f, 0.f, 0, FLinearColor(0.75f, 0.6f, 0.4f)),      // plataforma cuadrada ligera
+			Make("Rod", K::Structural, CubeMesh, FVector(200, 8, 8), 2.f, 0.f, 0, FLinearColor(0.5f, 0.45f, 0.4f)),            // varilla, mastil, antena
+			Make("UBlock", K::Structural, CubeMesh, FVector(120, 120, 60), 25.f, 0.f, 0, FLinearColor(0.35f, 0.35f, 0.4f)),   // contrapeso / lastre
+			Make("Cart", K::Slide, CubeMesh, FVector(160, 100, 25), 6.f, 0.f, 0, FLinearColor(0.5f, 0.35f, 0.2f)),            // carreta empujada o remolcada
+			Make("RailSkid", K::Slide, CubeMesh, FVector(300, 15, 10), 3.f, 0.f, 0, FLinearColor(0.6f, 0.6f, 0.7f)),          // patin largo
+			Make("IceBlock", K::Slide, CubeMesh, FVector(100, 100, 50), 12.f, 0.f, 0, FLinearColor(0.7f, 0.9f, 1.f)),         // bloque resbaloso
+			Make("Spikes", K::Spike, ConeMesh, FVector(10, 100, 100), 6.f, 25.f, 0, FLinearColor(0.8f, 0.8f, 0.85f), 0.f, true), // Power = daño por golpe
 			// --- uniones y anclas ---
 			Make("Hinge", K::Hinge, CylMesh, FVector(20, 60, 20), 2.f, 60.f, 2, FLinearColor(0.8f, 0.6f, 0.2f)),
 			Make("Turntable", K::Turntable, CylMesh, FVector(40, 40, 30), 4.f, 4.f, 0, FLinearColor(0.8f, 0.3f, 0.6f), 0.3f),
@@ -89,10 +97,13 @@ namespace
 			Make("Wheel", K::Wheel, CylMesh, FVector(50, 20, 50), 4.f, 10.f, 2, FLinearColor(0.1f, 0.1f, 0.1f), 0.2f),
 			Make("BigWheel", K::Wheel, CylMesh, FVector(80, 30, 80), 8.f, 8.f, 2, FLinearColor(0.05f, 0.05f, 0.05f), 0.2f),
 			Make("Spring", K::Spring, CylMesh, FVector(30, 30, 18), 3.f, 450.f, 0, FLinearColor(0.2f, 0.9f, 0.2f)),
+			Make("Launcher", K::Spring, CylMesh, FVector(100, 100, 25), 6.f, 900.f, 0, FLinearColor(0.1f, 0.7f, 0.3f)),      // resorte grande: plataforma de lanzamiento
+			Make("WagonWheel", K::Wheel, CylMesh, FVector(70, 12, 70), 3.f, 0.f, 2, FLinearColor(0.45f, 0.3f, 0.15f)),        // rueda libre (Power 0 = sin motor)
 			// --- propulsion y vuelo ---
 			Make("Fan", K::Fan, CylMesh, FVector(15, 50, 50), 3.f, 25000.f, 1, FLinearColor(0.2f, 0.6f, 0.9f), 1.5f),
 			Make("Jet", K::Fan, CylMesh, FVector(60, 40, 40), 6.f, 90000.f, 1, FLinearColor(0.9f, 0.5f, 0.15f), 2.5f),
 			Make("Turbine", K::Fan, CylMesh, FVector(25, 90, 90), 6.f, 60000.f, 1, FLinearColor(0.3f, 0.8f, 0.7f), 2.5f),
+			Make("Propeller", K::Fan, CylMesh, FVector(20, 140, 140), 5.f, 70000.f, 1, FLinearColor(0.85f, 0.85f, 0.3f), 2.5f), // rotor de helicoptero
 			Make("Rocket", K::Rocket, ConeMesh, FVector(60, 20, 20), 4.f, 80000.f, 1, FLinearColor(0.9f, 0.2f, 0.1f)),
 			Make("Balloon", K::Balloon, SphereMesh, FVector(90, 90, 90), 1.f, 14000.f, 0, FLinearColor(0.9f, 0.8f, 0.2f)),
 			Make("HoverStone", K::Hover, SphereMesh, FVector(45, 45, 45), 4.f, 60000.f, 0, FLinearColor(0.6f, 0.4f, 0.9f), 0.5f),
@@ -438,10 +449,32 @@ void AJamBuildPart::InitFromDef(const FJamPartDef& Def, const FVector& BoxSize, 
 		}
 	}
 
+	if (Kind == EJamPartKind::Spike || Kind == EJamPartKind::Structural || Kind == EJamPartKind::Slide)
+	{
+		// Daño por contacto. Solo estructura y puas (no ruedas ni dispositivos): menos eventos de choque por cuadro.
+		Mesh->SetNotifyRigidBodyCollision(true);
+		Mesh->OnComponentHit.AddUniqueDynamic(this, &AJamBuildPart::OnPartHit);
+	}
 	Mesh->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore); // que la camara en tercera persona no salte cuando una pieza pasa por detras
 	Mesh->SetMassOverrideInKg(NAME_None, Def.MassKg, true);
 	Mesh->SetSimulatePhysics(true);
 	Mesh->SetEnableGravity(true);
+}
+
+void AJamBuildPart::OnPartHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	// Embestida: daña a peones y cuerpos ajenos segun la velocidad relativa. Las puas pegan desde 100 cm/s; el resto desde 400.
+	// ponytail: umbrales y daño a ojo (BuildKnowledge.json: ram); afinar jugando.
+	UWorld* W = GetWorld();
+	if (!W || !Other || !OtherComp || W->GetTimeSeconds() < NextHitTime || IsMine(Other) || Other->ActorHasTag(ProjectileTag)) { return; }
+	if (!Other->IsA<APawn>() && !OtherComp->IsSimulatingPhysics()) { return; } // el suelo y lo estatico no cuentan
+	const bool bSpike = Kind == EJamPartKind::Spike;
+	const float Speed = (Mesh->GetPhysicsLinearVelocity() - OtherComp->GetComponentVelocity()).Size();
+	if (Speed < (bSpike ? 100.f : 400.f)) { return; }
+	NextHitTime = W->GetTimeSeconds() + 0.5f;
+	++EffectHits;
+	UGameplayStatics::ApplyDamage(Other, bSpike ? Power * FMath::Max(1.f, Speed / 200.f) : Speed / 100.f, nullptr, this, nullptr);
+	if (bSpike) { Puff(Hit.ImpactPoint, 25.f, FLinearColor(1.f, 0.9f, 0.6f), 0.15f); }
 }
 
 bool AJamBuildPart::IsMine(const AActor* Other) const
@@ -1022,6 +1055,25 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 				TArray<UPrimitiveComponent*> Hits;
 				Nearby(Nozzle + WorldDir * 30.f, 45.f, Hits);
 				bool bThrew = false;
+				// 1) Lo que lleva pegado encima (sus piezas hijas): las suelta y las lanza. Una bomba sale con la mecha encendida.
+				if (Build.IsValid())
+				{
+					const TArray<TWeakObjectPtr<AJamBuildPart>> Mine = Build->Parts;
+					for (const TWeakObjectPtr<AJamBuildPart>& P : Mine)
+					{
+						if (!P.IsValid() || P->ParentPart.Get() != this) { continue; }
+						TArray<UPhysicsConstraintComponent*> Joints;
+						P->GetComponents<UPhysicsConstraintComponent>(Joints);
+						for (UPhysicsConstraintComponent* J : Joints) { J->BreakConstraint(); }
+						P->ParentPart = nullptr;
+						Build->MassKg = FMath::Max(1.f, Build->MassKg - P->Mesh->GetMass());
+						P->Mesh->AddImpulse(Throw, NAME_None, true);
+						if (P->Kind == EJamPartKind::Bomb) { P->SetActive(true); }
+						bThrew = true;
+						++EffectHits;
+					}
+				}
+				// 2) Cuerpos ajenos que tenga encima.
 				for (UPrimitiveComponent* H : Hits)
 				{
 					if (H->IsSimulatingPhysics() && !IsMine(H->GetOwner()))

@@ -1,0 +1,576 @@
+{
+ "_doc": "Bateria de Jam.Test: 40 construcciones conocidas del genero, dichas en lenguaje natural. must = piezas que deben estar (A/B = cualquiera), counts = cantidades exactas, capability = canal que debe responder a la entrada simulada. Correr en PIE: Jam.Test 12 <ruta a este archivo>.",
+ "phrases": [
+  {
+   "frase": "un carro de carretera con cuatro ruedas",
+   "must": [
+    "Plank",
+    "Wheel"
+   ],
+   "forbid": [],
+   "counts": {
+    "Wheel": 4
+   },
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "un triciclo con tres ruedas grandes y una luz",
+   "must": [
+    "BigWheel",
+    "Light"
+   ],
+   "forbid": [],
+   "counts": {
+    "BigWheel": 3
+   },
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "un monociclo con estabilizador y dos luces",
+   "must": [
+    "Wheel/BigWheel",
+    "Stabilizer",
+    "Light"
+   ],
+   "forbid": [],
+   "counts": {
+    "Light": 2
+   },
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "una rueda sola con estabilizador para ir rapido",
+   "must": [
+    "Wheel/BigWheel",
+    "Stabilizer"
+   ],
+   "forbid": [],
+   "counts": {},
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "un camion explorador de tres tablas con cuatro ruedas grandes y una luz",
+   "must": [
+    "Light"
+   ],
+   "forbid": [],
+   "counts": {
+    "Plank": 3,
+    "BigWheel": 4
+   },
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "un explorador de cuevas con cuatro ruedas grandes y un faro",
+   "must": [
+    "Light"
+   ],
+   "forbid": [],
+   "counts": {
+    "BigWheel": 4
+   },
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "un tanque con cabeza que apunta, un cañon y dos baterias",
+   "must": [
+    "Head",
+    "Cannon",
+    "Wheel/BigWheel"
+   ],
+   "forbid": [],
+   "counts": {
+    "Battery": 2
+   },
+   "capability": [
+    "mueve",
+    "dispara"
+   ]
+  },
+  {
+   "frase": "un portacargas con dos vigas, una rueda chica adelante y dos ruedas grandes",
+   "must": [
+    "Girder",
+    "Wheel/BigWheel"
+   ],
+   "forbid": [],
+   "counts": {
+    "Girder": 2
+   },
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "una excavadora de tres ruedas grandes con puas al frente y estabilizador",
+   "must": [
+    "Spikes",
+    "Stabilizer"
+   ],
+   "forbid": [],
+   "counts": {
+    "BigWheel": 3
+   },
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "una moto con dos vigas a los lados y un laser al frente",
+   "must": [
+    "Girder",
+    "Beam",
+    "Wheel/BigWheel"
+   ],
+   "forbid": [],
+   "counts": {
+    "Girder": 2
+   },
+   "capability": [
+    "mueve",
+    "dispara"
+   ]
+  },
+  {
+   "frase": "una carreta con ruedas y un ventilador atras",
+   "must": [
+    "Fan",
+    "Wheel/BigWheel/WagonWheel"
+   ],
+   "forbid": [],
+   "counts": {},
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "un rover con cuatro ruedas grandes, ventilador, contrapeso, estabilizador y una cabeza con laser",
+   "must": [
+    "Fan",
+    "UBlock/Block",
+    "Stabilizer",
+    "Head",
+    "Beam"
+   ],
+   "forbid": [],
+   "counts": {
+    "BigWheel": 4
+   },
+   "capability": [
+    "mueve",
+    "dispara"
+   ]
+  },
+  {
+   "frase": "una vagoneta con ventilador",
+   "must": [
+    "Cart",
+    "Fan"
+   ],
+   "forbid": [],
+   "counts": {},
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "una moto flotante con dos ventiladores hacia abajo",
+   "must": [
+    "Fan"
+   ],
+   "forbid": [
+    "Wheel",
+    "BigWheel"
+   ],
+   "counts": {
+    "Fan": 2
+   },
+   "capability": [
+    "vuela"
+   ]
+  },
+  {
+   "frase": "una moto voladora con tres ventiladores y dos baterias",
+   "must": [
+    "Fan"
+   ],
+   "forbid": [],
+   "counts": {
+    "Fan": 3,
+    "Battery": 2
+   },
+   "capability": [
+    "vuela"
+   ]
+  },
+  {
+   "frase": "un avion con dos alas y dos ventiladores",
+   "must": [
+    "Wing",
+    "Fan"
+   ],
+   "forbid": [],
+   "counts": {
+    "Wing": 2,
+    "Fan": 2
+   },
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "un jet con alas, motor jet y tres baterias",
+   "must": [
+    "Wing",
+    "Jet"
+   ],
+   "forbid": [],
+   "counts": {
+    "Battery": 3
+   },
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "una plataforma voladora con cuatro ventiladores",
+   "must": [
+    "Deck/Plank/Panel",
+    "Fan"
+   ],
+   "forbid": [],
+   "counts": {
+    "Fan": 4
+   },
+   "capability": [
+    "vuela"
+   ]
+  },
+  {
+   "frase": "una balsa voladora con cuatro ventiladores hacia abajo y una vela",
+   "must": [
+    "Fan",
+    "Sail"
+   ],
+   "forbid": [],
+   "counts": {
+    "Fan": 4
+   },
+   "capability": [
+    "vuela"
+   ]
+  },
+  {
+   "frase": "un globo aerostatico con lanzallamas",
+   "must": [
+    "Balloon",
+    "Flamethrower"
+   ],
+   "forbid": [],
+   "counts": {},
+   "capability": [
+    "vuela"
+   ]
+  },
+  {
+   "frase": "un planeador con dos alas y un cohete para despegar",
+   "must": [
+    "Wing",
+    "Rocket"
+   ],
+   "forbid": [],
+   "counts": {
+    "Wing": 2
+   },
+   "capability": [
+    "turbo"
+   ]
+  },
+  {
+   "frase": "un volador con dos piedras flotantes, dos ventiladores y dos cohetes",
+   "must": [
+    "HoverStone",
+    "Fan",
+    "Rocket"
+   ],
+   "forbid": [],
+   "counts": {
+    "HoverStone": 2,
+    "Fan": 2,
+    "Rocket": 2
+   },
+   "capability": [
+    "levita"
+   ]
+  },
+  {
+   "frase": "un helicoptero con un rotor grande arriba",
+   "must": [
+    "Propeller/Fan/Turbine"
+   ],
+   "forbid": [],
+   "counts": {},
+   "capability": [
+    "vuela"
+   ]
+  },
+  {
+   "frase": "un bombardero con alas, dos ventiladores, una cabeza y dos cañones",
+   "must": [
+    "Wing",
+    "Fan",
+    "Head",
+    "Cannon"
+   ],
+   "forbid": [],
+   "counts": {
+    "Cannon": 2
+   },
+   "capability": [
+    "dispara"
+   ]
+  },
+  {
+   "frase": "un elevador con dos ventiladores hacia abajo",
+   "must": [
+    "Fan"
+   ],
+   "forbid": [],
+   "counts": {
+    "Fan": 2
+   },
+   "capability": [
+    "vuela"
+   ]
+  },
+  {
+   "frase": "una lancha de tres troncos con dos ventiladores",
+   "must": [
+    "Cylinder",
+    "Fan"
+   ],
+   "forbid": [],
+   "counts": {
+    "Cylinder": 3,
+    "Fan": 2
+   },
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "un bote de vela con tres troncos",
+   "must": [
+    "Cylinder",
+    "Sail"
+   ],
+   "forbid": [],
+   "counts": {
+    "Cylinder": 3
+   },
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "una balsa con dos tablas, seis troncos y una vela",
+   "must": [
+    "Plank",
+    "Cylinder",
+    "Sail"
+   ],
+   "forbid": [],
+   "counts": {
+    "Plank": 2,
+    "Cylinder": 6
+   },
+   "capability": [
+    "mueve"
+   ]
+  },
+  {
+   "frase": "una lancha electrica con ventilador y rayo electrico",
+   "must": [
+    "Fan",
+    "Shock"
+   ],
+   "forbid": [],
+   "counts": {},
+   "capability": [
+    "mueve",
+    "electrocuta"
+   ]
+  },
+  {
+   "frase": "una torreta de laser con cabeza que apunta sola, anclada con una estaca",
+   "must": [
+    "Head",
+    "Beam",
+    "Stake"
+   ],
+   "forbid": [
+    "Wheel",
+    "BigWheel"
+   ],
+   "counts": {},
+   "capability": [
+    "dispara"
+   ]
+  },
+  {
+   "frase": "un dron de suelo que persiga a los enemigos y los congele",
+   "must": [
+    "Frost"
+   ],
+   "forbid": [],
+   "counts": {},
+   "capability": [
+    "congela"
+   ]
+  },
+  {
+   "frase": "un tanque de combate con cuatro ruedas grandes, cabeza, cañon y lanzallamas",
+   "must": [
+    "Head",
+    "Cannon",
+    "Flamethrower"
+   ],
+   "forbid": [],
+   "counts": {
+    "BigWheel": 4
+   },
+   "capability": [
+    "mueve",
+    "dispara"
+   ]
+  },
+  {
+   "frase": "una torreta de triple cañon con cabeza que apunta",
+   "must": [
+    "Head",
+    "Cannon"
+   ],
+   "forbid": [
+    "Wheel",
+    "BigWheel"
+   ],
+   "counts": {
+    "Cannon": 3
+   },
+   "capability": [
+    "dispara"
+   ]
+  },
+  {
+   "frase": "un molino golpeador anclado con plato giratorio, dos vigas y puas",
+   "must": [
+    "Turntable",
+    "Girder",
+    "Stake"
+   ],
+   "forbid": [],
+   "counts": {
+    "Girder": 2
+   },
+   "capability": [
+    "gira"
+   ]
+  },
+  {
+   "frase": "un girador de laser con plato giratorio y cuatro lasers",
+   "must": [
+    "Turntable",
+    "Beam"
+   ],
+   "forbid": [],
+   "counts": {
+    "Beam": 4
+   },
+   "capability": [
+    "laser"
+   ]
+  },
+  {
+   "frase": "un ramo de cuatro bombas con un cohete",
+   "must": [
+    "Bomb",
+    "Rocket"
+   ],
+   "forbid": [],
+   "counts": {
+    "Bomb": 4
+   },
+   "capability": [
+    "explota"
+   ]
+  },
+  {
+   "frase": "un robot con cabeza que apunta con lanzallamas, hielo y laser",
+   "must": [
+    "Head",
+    "Flamethrower",
+    "Frost",
+    "Beam"
+   ],
+   "forbid": [],
+   "counts": {},
+   "capability": [
+    "dispara"
+   ]
+  },
+  {
+   "frase": "una plataforma de lanzamiento con resorte sobre un muro",
+   "must": [
+    "Spring/Launcher",
+    "Wall"
+   ],
+   "forbid": [],
+   "counts": {},
+   "capability": [
+    "lanza"
+   ]
+  },
+  {
+   "frase": "una torre de dos resortes sobre un bloque",
+   "must": [
+    "Spring",
+    "Block"
+   ],
+   "forbid": [],
+   "counts": {
+    "Spring": 2
+   },
+   "capability": [
+    "lanza"
+   ]
+  },
+  {
+   "frase": "un puente de cuatro tablas",
+   "must": [
+    "Plank"
+   ],
+   "forbid": [
+    "Wheel",
+    "BigWheel"
+   ],
+   "counts": {
+    "Plank": 4
+   },
+   "capability": [
+    "estructura"
+   ]
+  }
+ ]
+}

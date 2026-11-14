@@ -217,6 +217,32 @@ bool FJamBuildTableTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// 3d) Reglas de decision sin red (medidas en la bateria de 300 frases): palabra completa, sonido, negaciones, sin carro de relleno.
+	{
+		auto Bag = [](const TCHAR* Prompt, bool bDefaultCar = true)
+		{
+			TArray<FName> Neg;
+			const FString Clean = UJamBuildGenerator::StripNegations(Prompt, Neg);
+			TArray<FJamPieceCount> B;
+			UJamBuildGenerator::BagFromKeywords(Clean, B, bDefaultCar);
+			UJamBuildGenerator::RefineBag(Clean, Neg, B);
+			TMap<FName, int32> M;
+			for (const FJamPieceCount& I : B) { M.Add(I.Type, I.Count); }
+			return M;
+		};
+		TestFalse(TEXT("reglas: 'troca' no es 'roca' (Ball)"), Bag(TEXT("quiero una troca bien perrona")).Contains("Ball"));
+		TestTrue(TEXT("reglas: 'troca' es un carro"), Bag(TEXT("quiero una troca bien perrona")).Contains("Wheel"));
+		TestFalse(TEXT("reglas: 'un barranco' no es 'barra' (Rod)"), Bag(TEXT("algo para cruzar un barranco")).Contains("Rod"));
+		TestEqual(TEXT("reglas: sonido 'beinticinco yantas'"), Bag(TEXT("un caro con beinticinco yantas")).FindRef("Wheel"), 25);
+		TestFalse(TEXT("reglas: 'un carro sin ruedas' no lleva ruedas"), Bag(TEXT("un carro sin ruedas")).Contains("Wheel"));
+		TestFalse(TEXT("reglas: 'un tanque que no tenga cañon'"), Bag(TEXT("un tanque que no tenga cañon")).Contains("Cannon"));
+		TestEqual(TEXT("reglas: nada reconocido y sin relleno = bolsa vacia"), Bag(TEXT("xyzzy"), false).Num(), 0);
+		TestFalse(TEXT("reglas: 'una silla' no lleva llantas"), Bag(TEXT("una silla")).Contains("Wheel"));
+		TestEqual(TEXT("reglas: triciclo = 3 ruedas"), Bag(TEXT("un triciclo")).FindRef("Wheel"), 3);
+		TestTrue(TEXT("reglas: 'un muro' es Wall, no Panel"), Bag(TEXT("un muro")).Contains("Wall") && !Bag(TEXT("un muro")).Contains("Panel"));
+		TestEqual(TEXT("reglas: un muro solo = 3"), Bag(TEXT("un muro")).FindRef("Wall"), 3);
+	}
+
 	// 4) Respaldo por palabras clave: frases de referencia.
 	{
 		FJamBuildChoice C;

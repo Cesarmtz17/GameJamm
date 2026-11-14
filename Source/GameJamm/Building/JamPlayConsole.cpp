@@ -270,11 +270,11 @@ namespace
 	{
 		const FString C = Cap.ToLower();
 		auto Any = [&C](std::initializer_list<const TCHAR*> Ws) { for (const TCHAR* W : Ws) { if (C.Contains(W)) { return true; } } return false; };
-		if (Any({TEXT("driv"), TEXT("mov"), TEXT("conduc"), TEXT("manej"), TEXT("rod"), TEXT("steer")})) { return TEXT("MOVER"); }
-		if (Any({TEXT("fire"), TEXT("dispar"), TEXT("shoot"), TEXT("fuego"), TEXT("arma"), TEXT("weapon"), TEXT("attack")})) { return TEXT("FUEGO"); }
-		if (Any({TEXT("fly"), TEXT("vol"), TEXT("lift"), TEXT("altura"), TEXT("subir"), TEXT("flot"), TEXT("hover")})) { return TEXT("ALTURA"); }
-		if (Any({TEXT("boost"), TEXT("turbo"), TEXT("cohete"), TEXT("rocket"), TEXT("lanzar"), TEXT("launch")})) { return TEXT("TURBO"); }
-		if (Any({TEXT("power"), TEXT("encend"), TEXT("activ")})) { return TEXT("ENCENDER"); }
+		if (Any({TEXT("driv"), TEXT("muev"), TEXT("mov"), TEXT("conduc"), TEXT("manej"), TEXT("rueda"), TEXT("steer")})) { return TEXT("MOVER"); }
+		if (Any({TEXT("fire"), TEXT("dispar"), TEXT("shoot"), TEXT("fuego"), TEXT("quem"), TEXT("laser"), TEXT("congel"), TEXT("electro"), TEXT("moj"), TEXT("weapon"), TEXT("attack")})) { return TEXT("FUEGO"); }
+		if (Any({TEXT("fly"), TEXT("vuel"), TEXT("vol"), TEXT("levit"), TEXT("lift"), TEXT("altura"), TEXT("subir"), TEXT("hover")})) { return TEXT("ALTURA"); }
+		if (Any({TEXT("boost"), TEXT("turbo"), TEXT("cohete"), TEXT("rocket"), TEXT("explot")})) { return TEXT("TURBO"); }
+		if (Any({TEXT("power"), TEXT("encend"), TEXT("activ"), TEXT("ilumin"), TEXT("lanza"), TEXT("gira")})) { return TEXT("ENCENDER"); }
 		return FString();
 	}
 
@@ -391,7 +391,14 @@ namespace
 		// 1) Decision: piezas que deben estar, las que no, y cantidades exactas.
 		TArray<FString> Dec;
 		bool bDecision = bBuilt;
-		auto HasType = [&T](const FString& Type) { for (const FName& X : T.Types) { if (X.ToString().Equals(Type, ESearchCase::IgnoreCase)) { return true; } } return false; };
+		// "Wheel/BigWheel" = cualquiera de las dos.
+		auto HasType = [&T](const FString& Type)
+		{
+			TArray<FString> Alts;
+			Type.ParseIntoArray(Alts, TEXT("/"));
+			for (const FString& A : Alts) { for (const FName& X : T.Types) { if (X.ToString().Equals(A.TrimStartAndEnd(), ESearchCase::IgnoreCase)) { return true; } } }
+			return false;
+		};
 		for (const FString& M : Case.Must) { if (!HasType(M)) { bDecision = false; Dec.Add(TEXT("falta ") + M); } }
 		for (const FString& F : Case.Forbid) { if (HasType(F)) { bDecision = false; Dec.Add(TEXT("sobra ") + F); } }
 		FString CountWhy;
@@ -987,6 +994,7 @@ namespace
 		case EJamPartKind::Turntable: return TEXT("Plato giratorio");
 		case EJamPartKind::Hinge: return TEXT("Bisagra");
 		case EJamPartKind::Stake: return TEXT("Estaca (ancla)");
+		case EJamPartKind::Spike: return TEXT("Puas (dañan al chocar)");
 		default: return nullptr; // estructura, asiento, trineo: sin estado
 		}
 	}
@@ -1149,7 +1157,7 @@ void AJamTestCharacter::DriveMount(AJamBuildPart* Seat, float Throttle, float St
 		// Torque proporcional a la masa de toda la construccion (la raiz sola es muy ligera): ~4 rad/s2, con freno al soltar.
 		const double Wz = Root->Mesh->GetPhysicsAngularVelocityInRadians().Z;
 		const double Mass = FMath::Max(Seat->Build->MassKg, 1.f);
-		Root->Mesh->AddTorqueInRadians(FVector(0, 0, Mass * 6400.0 * (4.0 * SmoothSteer - 1.5 * Wz * (bWheels ? 0.3 : 1.0))));
+		Root->Mesh->AddTorqueInRadians(FVector(0, 0, Mass * 6400.0 * ((bWheels ? 6.0 : 4.0) * SmoothSteer - 1.5 * Wz * (bWheels ? 0.3 : 1.0))));
 	}
 }
 
