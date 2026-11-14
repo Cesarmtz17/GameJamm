@@ -35,7 +35,8 @@
     "Girder"
    ],
    "priority": "mvp",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "PART_PANEL",
@@ -67,7 +68,8 @@
     "Wall"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "PART_WALL",
@@ -99,7 +101,8 @@
     "Block"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "PART_BEAM",
@@ -131,7 +134,8 @@
     "Plank"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "PART_BLOCK",
@@ -164,7 +168,8 @@
     "Ball"
    ],
    "priority": "mvp",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "PART_CYLINDER",
@@ -198,7 +203,8 @@
     "Rod"
    ],
    "priority": "mvp",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "PART_BALL",
@@ -230,7 +236,8 @@
     "Wheel"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "PART_RAMP",
@@ -261,7 +268,8 @@
     "Plank"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "PART_ROD",
@@ -290,7 +298,8 @@
     "Girder"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "JOINT_HINGE",
@@ -314,7 +323,8 @@
    ],
    "substitutes": [],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "JOINT_TURNTABLE",
@@ -346,7 +356,8 @@
     "Wheel"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.3
   },
   {
    "id": "JOINT_BALL",
@@ -374,7 +385,8 @@
     "Hinge"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "ANCHOR_STAKE",
@@ -404,7 +416,8 @@
     "Wall"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "ANCHOR_ROPE",
@@ -431,7 +444,8 @@
    ],
    "substitutes": [],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "DEV_WHEEL_S",
@@ -466,7 +480,8 @@
     "Sled"
    ],
    "priority": "mvp",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.2
   },
   {
    "id": "DEV_WHEEL_L",
@@ -502,7 +517,8 @@
     "Sled"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.2
   },
   {
    "id": "DEV_CART",
@@ -534,7 +550,8 @@
     "Ball"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "DEV_SLED",
@@ -566,7 +583,8 @@
     "Plank"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "DEV_SPRING",
@@ -599,7 +617,8 @@
     "Rocket"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "DEV_FAN",
@@ -639,7 +658,8 @@
     "Balloon"
    ],
    "priority": "mvp",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 1.5
   },
   {
    "id": "DEV_ROCKET",
@@ -672,7 +692,8 @@
     "Fan"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "DEV_JET",
@@ -705,7 +726,8 @@
     "Rocket"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 2.5
   },
   {
    "id": "DEV_TURBINE",
@@ -736,7 +758,8 @@
     "Jet"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 2.5
   },
   {
    "id": "DEV_WING",
@@ -769,7 +792,8 @@
     "Panel"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "DEV_SAIL",
@@ -799,7 +823,8 @@
     "Fan"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "DEV_BALLOON",
@@ -828,7 +853,8 @@
     "HoverStone"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "DEV_HOVER",
@@ -861,7 +887,8 @@
     "Fan"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.5
   },
   {
    "id": "DEV_STABILIZER",
@@ -890,7 +917,8 @@
     "Seat"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.3
   },
   {
    "id": "CTRL_SEAT",
@@ -924,7 +952,8 @@
    ],
    "substitutes": [],
    "priority": "mvp",
-   "infinite": true
+   "infinite": true,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "CTRL_HEAD",
@@ -955,7 +984,8 @@
    ],
    "substitutes": [],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.3
   },
   {
    "id": "CTRL_TIMEBOMB",
@@ -986,7 +1016,8 @@
     "Cannon"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   },
   {
    "id": "PWR_BATTERY_S",
@@ -1016,7 +1047,9 @@
     "BigBattery"
    ],
    "priority": "mvp",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0,
+   "energy_capacity": 30
   },
   {
    "id": "PWR_BATTERY_L",
@@ -1042,7 +1075,9 @@
     "Battery"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0,
+   "energy_capacity": 80
   },
   {
    "id": "DEV_FLAME",
@@ -1081,7 +1116,8 @@
     "Cannon"
    ],
    "priority": "mvp",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 2.0
   },
   {
    "id": "DEV_FROST",
@@ -1115,7 +1151,8 @@
     "Flamethrower"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 2.0
   },
   {
    "id": "DEV_SHOCK",
@@ -1150,7 +1187,8 @@
     "Flamethrower"
    ],
    "priority": "alta",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 2.0
   },
   {
    "id": "DEV_LASER",
@@ -1181,7 +1219,8 @@
     "Cannon"
    ],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 2.0
   },
   {
    "id": "DEV_CANNON",
@@ -1218,7 +1257,8 @@
     "Bomb"
    ],
    "priority": "mvp",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 3.0
   },
   {
    "id": "DEV_HYDRANT",
@@ -1247,7 +1287,8 @@
    ],
    "substitutes": [],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.3
   },
   {
    "id": "DEV_LIGHT",
@@ -1276,7 +1317,8 @@
    ],
    "substitutes": [],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.2
   },
   {
    "id": "DEV_MIRROR",
@@ -1301,7 +1343,8 @@
    ],
    "substitutes": [],
    "priority": "post",
-   "infinite": false
+   "infinite": false,
+   "energy_cost_per_s": 0.0
   }
  ],
  "templates": [
@@ -1798,5 +1841,20 @@
    "slots": [],
    "code_archetype": null
   }
- ]
+ ],
+ "energy": {
+  "_doc": "Barra de energía del jugador (tipo maná). Ver research 13 §6. Valores iniciales, tunables.",
+  "max": 100,
+  "start": 60,
+  "regen_per_s": 2.0,
+  "regen_delay_s": 3.0,
+  "regen_only_when_idle": true,
+  "pickups": {
+   "Energy.Small": 15,
+   "Energy.Large": 40
+  },
+  "seat_free": true,
+  "rocket_single_use": true,
+  "on_empty": "apaga todos los dispositivos de la construcción; el Seat sigue funcionando (dirige pero sin empuje)"
+ }
 }

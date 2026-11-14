@@ -141,16 +141,43 @@ y el Seat **no consume energía**.
 
 Sin Seat, la construcción funciona sola (encendida va derecho), como en la referencia.
 
-## 6. Energía
+## 6. Energía: barra tipo maná
 
-En la referencia todo dispositivo gasta energía de una batería global; esta solo se recarga en reposo, y las baterías pegadas a la
-construcción se gastan primero *([03](03-mecanicas-vehiculos-dispositivos.md) §2)*. Los consumos de la tabla `energy_per_s` del
-JSON son los de referencia (pozos/seg): Fan 0.156, emisores 0.18, cañón 0.3 y ruedas 0.015.
+**Decisión del equipo:** la energía funciona como **maná**. Es una **barra visible en el HUD** que los dispositivos gastan mientras están
+encendidos y que se rellena **looteando energía**. Viene de la batería global de la referencia *([03](03-mecanicas-vehiculos-dispositivos.md) §2)*,
+pero con valores para partidas cortas. Los valores están en `BuildKnowledge.json → energy` y `energy_cost_per_s`.
 
-> [!warning] Decisión pendiente
-> `use_energy` en el JSON está en `true`, pero falta decidir si entra en el MVP. Propuesta: **barra de energía por construcción**
-> que se llena con las Battery que lleve; al vaciarse, la construcción se apaga. El Seat queda fuera (infinito). Si no hay tiempo,
-> `use_energy: false` y el límite son las piezas del inventario.
+| Regla | Valor inicial |
+|---|---|
+| Barra máxima / al aparecer | 100 / 60 |
+| Recarga sola | +2/s, **solo con la construcción apagada** y tras 3 s sin gastar (como la referencia: recarga en reposo) |
+| Loot de energía | Cristal chico `Energy.Small` = +15, grande `Energy.Large` = +40 (en cofres y al matar enemigos de campamento) |
+| Battery / BigBattery pegada | Reserva extra de 30 / 80 que **se gasta antes** que la barra; al vaciarse la pieza se apaga y se puede tirar |
+| Seat | **Gratis siempre** (decisión del equipo) |
+| Rocket | Sin gasto: es de un solo uso |
+| Al vaciarse | Se apagan los dispositivos; el Seat sigue dirigiendo pero sin empuje. La barra parpadea |
+
+**Gasto por segundo** (`energy_cost_per_s`; se suma todo lo encendido):
+
+| Pieza | /s | Pieza | /s |
+|---|---|---|---|
+| Wheel / BigWheel | 0.2 | Flamethrower / Frost / Shock / Beam | 2.0 |
+| Fan | 1.5 | Cannon | 3.0 |
+| Turbine / Jet | 2.5 | HoverStone | 0.5 |
+| Head / Turntable / Stabilizer | 0.3 | Seat, Wing, Sail, Balloon, Rocket, estructurales | 0 |
+
+Ejemplo: un carro con 4 ruedas y 1 ventilador gasta 2.3/s y dura unos 43 s con la barra llena. La Rueda Infernal (rueda + lanzallamas)
+gasta 2.2/s. Eso da pausas naturales para lootear, y el loot de energía se vuelve tan importante como el de piezas.
+
+**El asistente lo toma en cuenta:** si la construcción pedida gasta más de lo que tienes para unos 15 s, lo avisa
+(*"con tu energía dura 10 s; ¿le quito el cañón?"*) y lo incluye en "pedir materiales" (§3.3 paso 7).
+
+**HUD:** barra segmentada (10 segmentos) junto a la vida, con el gasto actual (−2.3/s) mientras la construcción está encendida.
+Las baterías pegadas se muestran como segmentos de otro color encima de la barra.
+
+**Implementación [todo]:** `UJamEnergyComponent` en el personaje (float `Current`/`Max`, `Spend(dt)`, `Add(amount)`, evento `OnEnergyChanged`
+para el HUD). `AJamBuildPart::Tick` pide energía antes de empujar o disparar. Los pickups son items de inventario `Energy.*` que se convierten
+en energía al recogerlos.
 
 ## 7. Interacciones entre elementos (emergencia fingida con una tabla)
 
@@ -197,6 +224,8 @@ La referencia tiene un motor químico donde las interacciones salen solas *([04]
 
 **P1:** Turntable, Head (torreta autónoma), Spring, Stake, Wing, chequeo físico de empuje contra peso, voz con Whisper, construcción a mano.
 
-**P2:** energía por construcción (§6), interacciones de la tabla §7 más allá del daño, Frost/Shock/Laser, editar la última toma.
+**P1 también:** barra de energía tipo maná + loot de energía (§6).
+
+**P2:** interacciones de la tabla §7 más allá del daño, Frost/Shock/Laser, editar la última toma.
 
 **Para empaquetar:** agregar `Content/Game/Building/Data` a *Additional Non-Asset Directories to Package*; si no, el JSON no viaja en la build.
