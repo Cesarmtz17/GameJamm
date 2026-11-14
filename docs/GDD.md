@@ -331,3 +331,17 @@ El asistente solo puede usar piezas que el jugador tiene en el inventario; el ju
 
 ### API key del LLM
 No va en el repo. Para la build de los jueces: key con límite de gasto bajo en config del build **o** solo fallback. Decidir el 14 nov.
+
+---
+
+## Pendientes para otras áreas (lo que el GDD pide y falta en su parte)
+
+> Para personas y agentes: si eres dueño del área, toma tu fila, hazlo y márcala `[x]` (o di aquí por qué no). Los cambios al
+> diseño se piden en este mismo GDD.
+
+| ✓ | Área (dueño) | Qué falta | Sección del GDD |
+|---|---|---|---|
+| [ ] | Construcción (Jesús Daniel) | `BuildKnowledge.json → energy`: mínimo 50, máximo 150, recarga +3/s solo hasta 50 con la construcción apagada; orbe al morir con 50 % de lo que pasa del mínimo (hoy dice máximo 100, inicio 60, sin mínimo) | Jugabilidad §5 |
+| [ ] | Construcción (Jesús Daniel) | Asistente: armar **al instante la mejor opción de Jev** (o su versión reducida) con una línea de lo que falta; R = volver a pedir; N = 2.ª opción (P1) | Jugabilidad §6.1 |
+| [ ] | Construcción (Jesús Daniel) | Mochila: tope por tipo (8 común, 4 dispositivo, 2 rara; campo nuevo tipo `stack_max` en `BuildKnowledge.json`), 40 en total, 1 construcción activa, máximo 4 armas y 6 propulsores por construcción; que el solver lo respete | Jugabilidad §4 |
+| [ ] | Core / Combate (sin dueño) | Items de inventario `Mat.Spike`, `Mat.Shock`, `Mat.Bomb` (hoy solo existen `Mat.Fire`, `Mat.Rock`, `Mat.Ice`) | Jugabilidad §8 |
