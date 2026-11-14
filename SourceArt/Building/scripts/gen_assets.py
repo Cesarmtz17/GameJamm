@@ -257,6 +257,174 @@ ASSETS = [
 ]
 
 
+# ---------------------------------------------------------------- lote 3: dispositivos, personaje, proyectiles, pickups, mundo
+def dev_frost(p):
+    p.cyl((-6, 0, 0), 8, 26, "x", "cyan", 10)
+    p.cyl((14, 0, 0), 4, 14, "x", "iron", 8, radius2=6)
+    p.cyl((20, 0, 0), 6.5, 2, "x", "white", 8)
+    for x in (-12, 0):
+        p.cyl((x, 0, 0), 8.4, 2, "x", "iron", 10)
+
+
+def dev_shock(p):
+    p.box((-8, 0, 0), (22, 18, 18), "wood_dark", bevel=1)
+    for i in range(3):
+        p.cyl((6 + i * 4, 0, 0), 6 - i * 1.2, 2.5, "x", "copper", 10)
+    p.sphere((18, 0, 0), 3, "spark", subdiv=1)
+
+
+def ctrl_head(p):
+    p.cyl((0, 0, -10), 14, 10, "z", "iron", 10)                      # base giratoria
+    p.cyl((0, 0, -2), 4, 8, "z", "iron", 8)                          # cuello
+    p.box((0, 0, 8), (24, 22, 14), "wood", bevel=1.5)                  # cabeza
+    p.cyl((12.5, 0, 9), 5, 3, "x", "cyan", 10)                         # lente (+X)
+
+
+def battery_l(p):
+    p.box((0, 0, -3), (40, 30, 30), "iron", bevel=1.5)
+    p.box((0, 0, -3), (41, 22, 10), "yellow")
+    for y in (-8, 8):
+        p.cyl((0, y, 14), 3, 6, "z", "black" if y < 0 else "red", 8)
+    p.box((0, 0, 14), (30, 3, 4), "leather")                           # asa
+
+
+def timebomb(p):
+    p.sphere((0, 0, -3), 15, "black", subdiv=2)
+    p.cyl((0, -14.5, 0), 7, 2, "y", "white", 12)                       # reloj
+    p.box((0, -15.8, 2), (1, 0.8, 5), "black")
+    p.cyl((0, 0, 13), 3, 5, "z", "iron", 8)
+
+
+def beanie(p):
+    p.sphere((0, 0, 2), 11, "red", subdiv=2)
+    p.cyl((0, 0, -6), 11.5, 5, "z", "cloth", 14)                       # doblez
+    p.sphere((0, 0, 13), 3, "cloth", subdiv=1)                          # pompón
+
+
+def goggle_helmet(p):
+    p.sphere((0, 0, 0), 12, "leather", subdiv=2)
+    p.cyl((0, 0, -4), 12.6, 3, "z", "iron", 14)
+    for y in (-5, 5):
+        p.cyl((11, y, 1), 3.5, 3, "x", "cyan", 10)
+
+
+def junk_helmet(p):
+    p.cyl((0, 0, 0), 12, 14, "z", "iron", 8, radius2=10)
+    p.box((10, 0, 2), (4, 16, 3), "black")                             # visera
+    p.box((0, 0, 8), (6, 2, 6), "yellow")                              # aleta de chatarra
+
+
+def cannonball(p):
+    p.sphere((0, 0, 0), 10, "black", subdiv=2)
+
+
+def pickup_part(p):
+    p.box((0, 0, 0), (40, 40, 40), "wood", bevel=2)
+    p.box((0, 0, 0), (42, 10, 42), "yellow")
+    p.box((0, 0, 0), (10, 42, 42), "yellow")
+
+
+def pickup_material(p):
+    p.sphere((0, 0, -2), 14, "leather", subdiv=2)                      # bolsa
+    p.cyl((0, 0, 11), 6, 6, "z", "cloth", 8, radius2=3)
+    p.sphere((0, 0, 17), 4, "spark", subdiv=1)
+
+
+def island_medium(p):
+    p.cyl((0, 0, 900), 1500, 100, "z", "grass", 16)
+    p.cyl((0, 0, 500), 1480, 700, "z", "leather", 16, radius2=900)
+    p.cyl((0, 0, -350), 900, 1000, "z", "leather", 12, radius2=80)
+
+
+def fence(p):
+    for x in (-90, 0, 90):
+        p.box((x, 0, 0), (12, 12, 120), "wood_dark")
+    for z in (-20, 30):
+        p.box((0, 0, z), (200, 6, 14), "wood")
+
+
+def barrel(p):
+    p.cyl((0, 0, 0), 38, 100, "z", "wood", 12)
+    p.cyl((0, 0, -15), 38, 100 * 0.7, "z", "wood", 12, radius2=42)
+    for z in (-35, 35):
+        p.cyl((0, 0, z), 40, 6, "z", "iron", 12)
+
+
+def crate(p):
+    p.box((0, 0, 0), (100, 100, 100), "wood", bevel=3)
+    for sx in (-1, 1):
+        p.box((sx * 50, 0, 0), (4, 104, 14), "wood_dark")
+        p.box((sx * 50, 0, 0), (4, 14, 104), "wood_dark")
+
+
+def scrap_pile(p):
+    p.box((0, 0, -20), (160, 120, 40), "leather", bevel=4)
+    p.cyl((-30, 10, 20), 30, 15, "y", "iron", 10)                      # rueda vieja
+    p.box((30, -10, 10), (80, 20, 8), "wood")
+    rot_last(p, 8, (30, -10, 10), "Y", 25)
+    p.box((10, 25, 15), (40, 40, 30), "wood_dark", bevel=2)
+    p.cyl((50, 30, 5), 8, 60, "x", "iron", 8)
+
+
+def bush(p):
+    p.sphere((0, 0, 0), 70, "grass", subdiv=1)
+    p.sphere((50, 30, -15), 45, "grass", subdiv=1)
+    p.sphere((-45, -20, -20), 40, "grass", subdiv=1)
+
+
+def flag_pole(p):
+    p.cyl((0, 0, 0), 6, 500, "z", "wood_dark", 8)
+    p.box((60, 0, 180), (120, 4, 80), "red")                            # bandera (MI cambia color de equipo)
+    p.cyl((0, 0, -240), 30, 20, "z", "stone", 8)
+
+
+def ramp(p):
+    p.box((0, 0, 0), (400, 300, 100), "grass")
+    verts = list(p.bm.verts)[-8:]
+    for v in verts:                                                    # cuña: baja la cara trasera (-X)
+        if v.co.x < 0:
+            v.co.z = -0.5
+    p.box((0, 0, -60), (400, 300, 20), "leather")
+
+
+def brazier(p):
+    p.cyl((0, 0, -40), 8, 100, "z", "iron", 8)
+    p.cyl((0, 0, 20), 35, 30, "z", "iron", 10, radius2=20)
+    p.cyl((0, 0, 45), 18, 30, "z", "orange", 6, radius2=2)
+    p.cyl((0, 0, -88), 30, 6, "z", "stone", 8)
+
+
+def lane_sign(p):
+    p.box((0, 0, -60), (10, 10, 160), "wood_dark")
+    p.box((10, 0, 30), (120, 6, 40), "wood", bevel=1)
+    p.cyl((75, 0, 30), 24, 6, "y", "wood", 3)                          # punta de flecha (+X)
+
+
+LOT3 = [
+    ("Building", "SM_DEV_FROST", (40, 20, 20), dev_frost, "box", "center", SIX + [("Fx_Out", "Front")]),
+    ("Building", "SM_DEV_SHOCK", (40, 20, 20), dev_shock, "box", "center", SIX + [("Fx_Out", "Front")]),
+    ("Building", "SM_CTRL_HEAD", (40, 30, 40), ctrl_head, "box", "center", SIX + [("Fx_Out", "Front")]),
+    ("Building", "SM_PWR_BATTERY_L", (40, 30, 40), battery_l, "box", "center", SIX),
+    ("Building", "SM_CTRL_TIMEBOMB", (30, 30, 36), timebomb, "box", "center", SIX),
+    ("Characters", "SM_ACC_BEANIE", (24, 24, 20), beanie, "none", "bottom", [("Head", "Bottom")]),
+    ("Characters", "SM_ACC_GOGGLE_HELMET", (26, 26, 24), goggle_helmet, "none", "bottom", [("Head", "Bottom")]),
+    ("Characters", "SM_ACC_JUNK_HELMET", (26, 26, 20), junk_helmet, "none", "bottom", [("Head", "Bottom")]),
+    ("Pickups", "SM_PROJ_CANNONBALL", (20, 20, 20), cannonball, "box", "center", []),
+    ("Pickups", "SM_PICKUP_PART", (44, 44, 44), pickup_part, "box", "bottom", []),
+    ("Pickups", "SM_PICKUP_MATERIAL", (30, 30, 40), pickup_material, "box", "bottom", []),
+    ("World/Props", "SM_ISLAND_MEDIUM", (3000, 3000, 2000), island_medium, "none", "top", []),
+    ("World/Props", "SM_PROP_FENCE", (200, 12, 120), fence, "box", "bottom", []),
+    ("World/Props", "SM_PROP_BARREL", (84, 84, 100), barrel, "box", "bottom", []),
+    ("World/Props", "SM_PROP_CRATE", (104, 104, 104), crate, "box", "bottom", []),
+    ("World/Props", "SM_PROP_SCRAP_PILE", (180, 140, 80), scrap_pile, "box", "bottom", []),
+    ("World/Props", "SM_PROP_BUSH", (210, 160, 120), bush, "none", "bottom", []),
+    ("World/Props", "SM_PROP_FLAG", (180, 60, 520), flag_pole, "trunk", "bottom", []),
+    ("World/Props", "SM_PROP_RAMP", (400, 300, 120), ramp, "none", "bottom", []),
+    ("World/Props", "SM_PROP_BRAZIER", (70, 70, 180), brazier, "box", "bottom", []),
+    ("World/Props", "SM_PROP_LANE_SIGN", (160, 50, 180), lane_sign, "trunk", "bottom", []),
+]
+
+
 def apply_pivot(obj, size, pivot):
     """fit_to_box deja el centro en el origen; mueve la malla para poner el pivote donde corresponde."""
     dz = {"center": 0.0, "bottom": size[2] / 2, "top": -size[2] / 2, "top_deck": -size[2] / 2 + 0.1}[pivot] / 100.0
@@ -284,13 +452,15 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     root = os.path.abspath(argv[0] if argv else os.path.join(os.path.dirname(__file__), "..", ".."))
     preview_dir = os.path.abspath(argv[1]) if len(argv) > 1 else root
+    lot = argv[2] if len(argv) > 2 else "lot2"
+    assets = LOT3 if lot == "lot3" else ASSETS
     os.makedirs(preview_dir, exist_ok=True)
 
     gp.clear_scene()
     mat = gp.make_palette_material(os.path.join(root, "Building"))
 
     report, objs = [], []
-    for group, sm, size, builder, coll, pivot, sockets in ASSETS:
+    for group, sm, size, builder, coll, pivot, sockets in assets:
         fbx_dir = os.path.join(root, group, "FBX")
         blend_dir = os.path.join(root, group, "Blend")
         os.makedirs(fbx_dir, exist_ok=True)
@@ -328,7 +498,7 @@ def main():
         objs.append(obj)
 
     groups = {}
-    for (group, *_), o in zip(ASSETS, objs):
+    for (group, *_), o in zip(assets, objs):
         groups.setdefault(group, []).append(o)
     for group, gobjs in groups.items():
         for o in objs:
@@ -341,7 +511,7 @@ def main():
             bpy.data.objects.remove(c, do_unlink=True)
         gp.render_previews(gobjs, preview_dir)
         os.replace(os.path.join(preview_dir, "parts_preview.png"),
-                   os.path.join(preview_dir, f"assets_{group.replace('/', '_')}.png"))
+                   os.path.join(preview_dir, f"{lot}_{group.replace('/', '_')}.png"))
     print("ASSETS_REPORT_BEGIN")
     print("\n".join(report))
     print("ASSETS_REPORT_END")

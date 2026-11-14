@@ -58,6 +58,18 @@ El mismo script genera también (cada carpeta con `FBX/`, `Blend/` y `preview.pn
   `SM_PROP_RUIN_ARCH`, `SM_PROP_WINDMILL`, `SM_PROP_BRIDGE` (pivote en la tabla), `SM_PROP_TREE` (colisión solo en el
   tronco), `SM_PROP_ROCK`.
 
+### Lote 3 (`gen_assets.py ... lot3`)
+
+- **`Building/`** (propuesta, aún fuera de `JamBuildPart.cpp`): `SM_DEV_FROST` y `SM_DEV_SHOCK` (40×20×20, `Fx_Out` en +X),
+  `SM_CTRL_HEAD` (sensor; lente y `Fx_Out` en +X), `SM_PWR_BATTERY_L` (40×30×40), `SM_CTRL_TIMEBOMB` (30×30×36).
+- **`SourceArt/Characters/`** (accesorios del maniquí, socket `Head` en la base): `SM_ACC_BEANIE` (jugador),
+  `SM_ACC_GOGGLE_HELMET` (bots héroe), `SM_ACC_JUNK_HELMET` (enemigos de campamento). Sin colisión.
+- **`SourceArt/Pickups/`**: `SM_PROJ_CANNONBALL` (20 cm, el proyectil que hoy es una esfera en `JamBuildPart.cpp`),
+  `SM_PICKUP_PART` (caja de pieza), `SM_PICKUP_MATERIAL` (bolsa de material).
+- **`SourceArt/World/Props/`**: `SM_ISLAND_MEDIUM` (30 m, pivote en la superficie, sin UCX), `SM_PROP_FENCE` (tileable 2 m),
+  `SM_PROP_BARREL`, `SM_PROP_CRATE`, `SM_PROP_SCRAP_PILE`, `SM_PROP_BUSH` (sin colisión), `SM_PROP_FLAG` (bandera de equipo),
+  `SM_PROP_RAMP` (rampa de salto 4 m, sin UCX: *complex as simple*), `SM_PROP_BRAZIER`, `SM_PROP_LANE_SIGN` (flecha a +X).
+
 La paleta tiene 16 colores (los 8 originales + piedra, naranja, chispa, blanco, azul, pasto, cobre y lona). Si se
 regenera un lote, regenerar también el otro para que todos usen la misma `T_Part_Palette.png`.
 
