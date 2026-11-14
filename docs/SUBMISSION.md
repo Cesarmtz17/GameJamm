@@ -16,7 +16,7 @@ Deadline: **15 nov 2026, 8:59 PM EST (7:59 PM CDMX)**. Tarde = descalificado.
 - [ ] Herramientas usadas (motores, modelos IA, generadores de assets — Rodin/Meshy/Tripo/etc. si se usan, aplica a premios de partners)
 - [ ] Assets de terceros con su licencia (Fab, sonidos, etc.)
 - [ ] Declarar cualquier cosa hecha antes del 12 nov (si aplica)
-- [ ] Link al devlog **público** (obligatorio para Glass Box; el repo es privado, así que `docs/DEVLOG.md` no sirve como link — ver [DEVLOG.md](DEVLOG.md))
+- [ ] Link al devlog **público** (obligatorio para Glass Box). El repo está público hoy, así que `docs/DEVLOG.md` sirve de respaldo, pero el link principal debe ser un devlog legible (itch.io); ver [DEVLOG.md](DEVLOG.md)
 - [ ] Marcar en el formulario los Modifiers que perseguimos (ver "Metas de premios")
 - [ ] Controles explicados en la página
 
@@ -40,7 +40,7 @@ Los **Modifiers** son categorías bonus con premio propio, juzgadas aparte de la
 | Solo Driver, Pocket Powerhouse, Walkie-Talkie | — | No aplica | Desarrollador solo / juego móvil / UEFN |
 
 Premios de partners (Hyper3D Rodin, Tripo, Meshy): aplican a todas las categorías; si usamos Rodin, listarlo en "Herramientas usadas".
-Aparte, la categoría principal Best Overall — Unreal Engine tiene un OpenAI Award ($5,000 en créditos) con el mismo criterio de uso de OpenAI.
+Aparte, la categoría principal Best Overall — Unreal Engine tiene un OpenAI Award ($5,000 en créditos); su criterio exacto está por confirmar en la página.
 
 ### Pendientes por Modifier
 - [ ] Confirmar en las reglas/FAQ si se puede ganar más de un Modifier por entrega y si el formulario deja marcar varios.
