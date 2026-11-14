@@ -1,4 +1,4 @@
-# GDD — (nombre del juego TBD)
+# GDD — Backlot Brawl (título de trabajo)
 
 ## Pitch
 PvP de dos equipos tipo *tower push*: avanza por el mapa destruyendo torres hasta llegar a la base enemiga y destruirla. Apareces **sin loot**; el mapa tiene **estructuras/campamentos** donde peleas y looteas materiales y piezas. Con ellos:
@@ -6,11 +6,38 @@ PvP de dos equipos tipo *tower push*: avanza por el mapa destruyendo torres hast
 - **Construyes artefactos** con piezas (llantas, tablas, lanzallamas…) — p. ej. una llanta con lanzallamas que rueda por el mapa quemando todo.
 - Un **asistente de IA** te ayuda a diseñar creaciones con las piezas que tienes.
 
-## Tema: DIRECTOR'S CUT — (por definir, es criterio de evaluación)
-Ideas para discutir:
-- Tú eres el *director* de tus creaciones; la IA es tu "crew de producción" a la que le das instrucciones.
-- Las creaciones/armas son "escenas cortadas" que desbloqueas y re-editas.
-- Presentación cinematográfica: claqueta al construir, "¡Acción!" al activar, cámara de repetición de la mejor jugada.
+## Tema: DIRECTOR'S CUT — cerrado
+**Título de trabajo: _Backlot Brawl_** (cambiable hasta el viernes; afecta solo a la UI y a la página de itch).
+
+**Ficción:** dos estudios de cine de bajo presupuesto filman en el mismo *backlot* y solo una película puede terminarse. Tú eres
+**el Director**. Todo en el mundo es utilería: armas, piezas y sets. Gana quien destruya la **Cámara A** del otro estudio:
+"¡CORTE!", y su película se queda en la sala de edición.
+
+**Cómo el tema toca las mecánicas** (no es solo un reskin):
+1. **Construir = rodar una toma.** Cada creación es una *toma* con su claqueta (`ESCENA n · TOMA m · nombre`). Activarla = **"¡Acción!"**.
+2. **"¡Corte!" (re-toma):** si tu creación se atora o se rompe, gritas "¡Corte!" y **la desarmas y recuperas sus piezas** en el inventario
+   para volver a intentarlo. Fomenta experimentar y es barato de implementar (destruir el build + devolver los items).
+3. **El Asistente de Dirección (la IA).** Tú das la dirección en lenguaje natural ("algo que ruede y queme todo") y la IA elige qué escena
+   montar con la utilería que tienes. **El *Director's Cut*:** puedes pedirle que re-edite tu última toma ("más rápida", "ahora con
+   fuego"), y la IA recibe la receta anterior junto con tu instrucción. *(P1: solo si el MVP del asistente ya funciona.)*
+4. **Fusión = efectos prácticos de cine:** pirotecnia (fuego), hielo seco (hielo), chispero (rayo).
+5. **Final = créditos de tu película**, con tus stats y tu mejor toma.
+
+**Glosario (solo afecta textos de UI; las clases C++ y los contratos NO se renombran):**
+
+| Sistema / código | En pantalla |
+|---|---|
+| Torre (`ATeamStructure`) | Torre de reflector |
+| Base | Cámara A |
+| Minions | Extras |
+| Bots héroe | Dobles de riesgo |
+| Campamento de loot / cofre | Bodega de utilería / baúl de utilería |
+| Enemigos de campamento | Utileros |
+| Receta / construcción | Toma |
+| Asistente IA | Asistente de Dirección |
+| Equipos `Red` / `Blue` | Estudio Rojo (set western) / Estudio Azul (set sci-fi) |
+
+Dirección de arte, UI y audio: **[ART.md](ART.md)**.
 
 ## Decisiones clave de alcance
 1. **Modo principal: jugador vs bots** (aliados y enemigos IA). Los jueces juegan solos. Multijugador online = stretch goal.
