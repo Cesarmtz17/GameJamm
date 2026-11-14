@@ -26,7 +26,7 @@ def items():
     for recipe, sm, size, *_ in gp.PARTS:
         yield sm, size, (lambda r=recipe: gp.build(r))
     seen = {sm for _, sm, *_ in gp.PARTS}
-    for lst in (ga.ASSETS, ga.LOT3, ga.LOT4, ga.LOT5):
+    for lst in (ga.ASSETS, ga.LOT3, ga.LOT4, ga.LOT5, ga.LOT7):
         for group, sm, size, builder, *_ in lst:
             if group not in ICON_GROUPS or sm in seen:
                 continue
@@ -44,7 +44,7 @@ def items():
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     out = os.path.abspath(argv[0] if argv else "Icons")
-    os.makedirs(out, exist_ok=True)
+    os.makedirs(os.path.join(out, "UI"), exist_ok=True)
     gp.clear_scene()
     mat = gp.make_palette_material(tempfile.mkdtemp())
 
@@ -81,6 +81,46 @@ def main():
         bpy.ops.render.render(write_still=True)
         bpy.data.objects.remove(obj, do_unlink=True)
         n += 1
+    # ---- iconos de HUD (GDD: torres/base que se apagan, energía, vida, mochila, encendido, cofre raro)
+    def recolor(obj, src, dst):
+        u_src, u_dst = gp.swatch_uv(src)[0], gp.swatch_uv(dst)[0]
+        for loop in obj.data.uv_layers.active.data:
+            if abs(loop.uv[0] - u_src) < 1e-4:
+                loop.uv[0] = u_dst
+
+    def ui(name, builder, size, swaps=()):
+        nonlocal n
+        p = gp.Part()
+        builder(p)
+        obj = p.to_object(name, size)
+        obj.data.materials.append(mat)
+        for src, dst in swaps:
+            recolor(obj, src, dst)
+        r = obj.dimensions.length * 0.5
+        cd.ortho_scale = r * 2.1
+        cam.location = d * (r * 6 + 2)
+        cam.rotation_euler = (-d).to_track_quat("-Z", "Y").to_euler()
+        cd.clip_end = r * 20 + 10
+        scene.render.filepath = os.path.join(out, "UI", f"T_UI_{name}.png")
+        bpy.ops.render.render(write_still=True)
+        bpy.data.objects.remove(obj, do_unlink=True)
+        n += 1
+
+    off = [(c, "stone") for c in ("red", "blue", "cyan", "wood", "wood_dark", "yellow")]
+    ui("Tower_Red", ga.watchtower, (300, 300, 800))
+    ui("Tower_Blue", ga.watchtower, (300, 300, 800), [("red", "blue")])
+    ui("Tower_Off", ga.watchtower, (300, 300, 800), off)
+    ui("Base_Red", ga.keep, (530, 530, 800))
+    ui("Base_Blue", ga.keep, (530, 530, 800), [("red", "blue")])
+    ui("Base_Off", ga.keep, (530, 530, 800), off)
+    ui("Energy", ga.UI_ONLY["bolt"][0], ga.UI_ONLY["bolt"][1])
+    ui("Power_On", ga.UI_ONLY["bolt"][0], ga.UI_ONLY["bolt"][1])
+    ui("Power_Off", ga.UI_ONLY["bolt"][0], ga.UI_ONLY["bolt"][1], [("spark", "stone")])
+    ui("Health", ga.UI_ONLY["heart"][0], ga.UI_ONLY["heart"][1])
+    ui("Backpack", ga.UI_ONLY["backpack"][0], ga.UI_ONLY["backpack"][1])
+    ui("ChestRare", ga.chest_rare_base, (122, 72, 50))
+    ui("Chest", ga.chest, (122, 72, 72))
+    ui("EnergyOrb", ga.energy_orb, (32, 32, 32))
     print("ICONS_OK", n)
 
 

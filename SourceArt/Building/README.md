@@ -97,6 +97,12 @@ El mismo script genera también (cada carpeta con `FBX/`, `Blend/` y `preview.pn
 
 Lo que no trae UCX (`none`) se usa con *Use Complex Collision As Simple* si debe pisarse (rampas, escaleras, plataformas, islas).
 
+### Lote 7 (`gen_assets.py ... lot7`): pendientes del GDD
+
+- `Fusion/SM_FUSE_SPIKE` (púa/colmillo, 6.º material), `Pickups/SM_PICKUP_ENERGY_ORB` (orbe que suelta el jugador al morir),
+  `World/Props/SM_PROP_CHEST_RARE_BASE` + `SM_PROP_CHEST_RARE_LID` (cofre raro dorado, misma bisagra que el cofre normal).
+- Iconos: `T_Icon_FUSE_SPIKE`, `T_Icon_PICKUP_ENERGY_ORB` y 14 iconos de HUD en `SourceArt/Icons/UI/`.
+
 La paleta tiene 16 colores (los 8 originales + piedra, naranja, chispa, blanco, azul, pasto, cobre y lona). Si se
 regenera un lote, regenerar también el otro para que todos usen la misma `T_Part_Palette.png`.
 

@@ -878,6 +878,72 @@ LOT6 = [
 ]
 
 
+# ---------------------------------------------------------------- lote 7: pendientes del GDD (púa, orbe, cofre raro, UI)
+def fuse_spike(p):    # púa/colmillo, caja 25 cm, pivote abajo
+    p.cyl((0, 0, -9), 9, 6, "z", "leather", 8)                         # amarre
+    p.cyl((0, 0, 3), 6, 18, "z", "cloth", 6, radius2=0.8)              # colmillo grande
+    p.cyl((5, 3, -1), 3, 12, "z", "white", 5, radius2=0.5)
+    rot_last(p, 12, (5, 3, -6), "Y", 25)
+    p.cyl((-5, -3, -2), 2.6, 10, "z", "white", 5, radius2=0.5)
+    rot_last(p, 12, (-5, -3, -6), "Y", -25)
+
+
+def energy_orb(p):    # orbe de energía que suelta el jugador al morir
+    p.sphere((0, 0, 0), 14, "cyan", subdiv=1)
+    p.sphere((0, 0, 0), 9, "spark", subdiv=1)
+    p.cyl((0, 0, 0), 15, 2, "z", "white", 10)                          # anillo
+
+
+def chest_rare_base(p):
+    p.box((0, 0, 0), (120, 70, 50), "wood_dark", bevel=2)
+    for x in (-45, 0, 45):
+        p.box((x, 0, 0), (8, 72, 50), "yellow")
+    p.box((0, 0, 8), (122, 72, 8), "yellow")
+    p.box((0, -36, 16), (14, 3, 12), "cyan")                           # gema
+
+
+def chest_rare_lid(p):
+    p.cyl((0, 0, 0), 35, 120, "x", "wood_dark", 8)
+    for x in (-45, 0, 45):
+        p.cyl((x, 0, 0), 36, 8, "x", "yellow", 8)
+    p.box((0, 0, -17), (122, 72, 4), "yellow")
+
+
+def backpack(p):
+    p.box((0, 0, 0), (30, 40, 50), "leather", bevel=3)
+    p.box((10, 0, -8), (12, 32, 20), "cloth", bevel=2)                  # bolsillo
+    p.cyl((0, 0, 27), 6, 30, "y", "leather", 8)                         # rollo
+    for y in (-12, 12):
+        p.box((-15, y, 0), (3, 5, 46), "wood_dark")                      # correas
+
+
+def heart(p):
+    p.sphere((0, -9, 5), 11, "red", subdiv=2)
+    p.sphere((0, 9, 5), 11, "red", subdiv=2)
+    p.cyl((0, 0, -6), 16, 22, "z", "red", 4, radius2=0.5)
+    rot_last(p, 8, (0, 0, -6), "Z", 45)
+    verts = list(p.bm.verts)[-8:]
+    import bmesh as _bm
+    _bm.ops.rotate(p.bm, cent=ue((0, 0, -6)), matrix=Matrix.Rotation(math.radians(180), 3, "X"), verts=verts)
+
+
+def bolt(p):          # rayo de energía
+    for (x, z, ang) in ((-4, 12, -25), (3, 0, 25), (-3, -12, -25)):
+        p.box((0, x, z), (6, 7, 16), "spark")
+        rot_last(p, 8, (0, x, z), "X", ang)
+
+
+LOT7 = [
+    ("Fusion", "SM_FUSE_SPIKE", (25, 25, 25), fuse_spike, "box", "bottom", [("Attach_Bottom", "Bottom")]),
+    ("Pickups", "SM_PICKUP_ENERGY_ORB", (32, 32, 32), energy_orb, "box", "center", []),
+    ("World/Props", "SM_PROP_CHEST_RARE_BASE", (122, 72, 50), chest_rare_base, "box", "bottom", [("Lid_Hinge", (0, 36, 25))]),
+    ("World/Props", "SM_PROP_CHEST_RARE_LID", (122, 72, 36), chest_rare_lid, "box", "hinge_back", []),
+]
+
+# solo para iconos de HUD (no se exportan como asset)
+UI_ONLY = {"backpack": (backpack, (30, 40, 56)), "heart": (heart, (20, 40, 34)), "bolt": (bolt, (8, 16, 40))}
+
+
 def apply_pivot(obj, size, pivot):
     """fit_to_box deja el centro en el origen; mueve la malla para poner el pivote donde corresponde."""
     dz = {"center": 0.0, "bottom": size[2] / 2, "top": -size[2] / 2, "top_deck": -size[2] / 2 + 0.1,
@@ -910,7 +976,7 @@ def main():
     root = os.path.abspath(argv[0] if argv else os.path.join(os.path.dirname(__file__), "..", ".."))
     preview_dir = os.path.abspath(argv[1]) if len(argv) > 1 else root
     lot = argv[2] if len(argv) > 2 else "lot2"
-    assets = {"lot3": LOT3, "lot4": LOT4, "lot5": LOT5, "lot6": LOT6}.get(lot, ASSETS)
+    assets = {"lot3": LOT3, "lot4": LOT4, "lot5": LOT5, "lot6": LOT6, "lot7": LOT7}.get(lot, ASSETS)
     if lot in ("lot2", "lot3"):  # las piezas de Building de los lotes 2 y 3 quedaron reemplazadas por LOT4 (medidas del código)
         assets = [a for a in assets if a[0] != "Building"]
     os.makedirs(preview_dir, exist_ok=True)

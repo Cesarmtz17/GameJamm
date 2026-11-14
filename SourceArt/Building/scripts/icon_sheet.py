@@ -1,7 +1,7 @@
 """Junta todos los T_Icon_*.png en una sola lámina (cuadrícula) para revisarlos de un vistazo.
 
 Uso:
-    blender --background --factory-startup --python icon_sheet.py -- <carpeta_iconos> <salida.png>
+    blender --background --factory-startup --python icon_sheet.py -- <carpeta_iconos> <salida.png> [patron]
 """
 import glob
 import math
@@ -12,7 +12,8 @@ import bpy
 import numpy as np
 
 argv = sys.argv[sys.argv.index("--") + 1:]
-icons = sorted(glob.glob(os.path.join(argv[0], "T_Icon_*.png")))
+pattern = argv[2] if len(argv) > 2 else "T_Icon_*.png"
+icons = sorted(glob.glob(os.path.join(argv[0], pattern)))
 cols = 8
 rows = math.ceil(len(icons) / cols)
 S = 256

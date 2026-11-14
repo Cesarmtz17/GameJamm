@@ -17,8 +17,8 @@ status: listo
 > receta↔pieza en §0.1.
 
 > [!note] Reparto de generación (actualizado el 13 nov; confirmar con Emilio)
-> - **Emilio (script en Blender, `SourceArt/`):** ya entregó piezas de construcción, dispositivos (`Cannon`, `Flamethrower`, `Rocket`, `Frost`, `Shock`, `Spring`, `Wing`…), armas del jugador, los 5 materiales de fusión, accesorios, pickups y props de mundo (lotes 1 a 3). Ver `SourceArt/Building/README.md`.
-> - **Javier (solo arte, con Tripo, en `SourceArt/Tripo/`):** lo que siga sin mesh; hoy `Beam` y los dispositivos del final del §3. El **código** de Combate lo hace Jesús, no Javier. Los créditos de Tripo de la jam vencen el **16 nov**.
+> - **Emilio (script en Blender, `SourceArt/`):** ya entregó piezas de construcción, dispositivos (`Cannon`, `Flamethrower`, `Rocket`, `Frost`, `Shock`, `Spring`, `Wing`…), armas del jugador, los 6 materiales de fusión (con Púa), accesorios, pickups, props de mundo, mapa vestido, 62 iconos y hoja de estilo (lotes 1 a 7). **Las 35 recetas de `JamBuildPart.cpp` ya tienen mesh, incluido `Beam` (`SM_DEV_BEAM`)**. Ver `SourceArt/Building/README.md`.
+> - **Javier (solo arte, con Tripo, en `SourceArt/Tripo/`):** lo que siga sin mesh (hoy ninguna receta: revisar `SourceArt/Building/README.md` antes de generar). El **código** de Combate lo hace Jesús, no Javier. Los créditos de Tripo de la jam vencen el **16 nov**.
 > - No regenerar con Tripo lo que Emilio ya entregó, salvo que se decida cambiar de estilo (su paleta compartida es `T_Part_Palette.png`).
 
 ## 1. Cómo funcionan las piezas en el juego (lee esto antes de generar)

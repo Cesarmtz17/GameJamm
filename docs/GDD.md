@@ -505,4 +505,4 @@ No va en el repo (`Config/DefaultSecrets.ini` o variables de entorno). **Propues
 | [ ] | Construcción (Jesús Daniel) | Asistente: armar **al instante la mejor opción de Jev** (o su versión reducida) con una línea de lo que falta; R = volver a pedir; N = 2.ª opción (P1) | Jugabilidad §6.1 |
 | [ ] | Construcción (Jesús Daniel) | Mochila: tope por tipo (8 común, 4 dispositivo, 2 rara; campo nuevo tipo `stack_max` en `BuildKnowledge.json`), 40 en total, 1 construcción activa, máximo 4 armas y 6 propulsores por construcción; que el solver lo respete | Jugabilidad §4 |
 | [ ] | Combate (Jesús Daniel, por confirmar) | Items de inventario `Mat.Shock` y `Mat.Bomb` para el MVP (hoy solo existen `Mat.Fire`, `Mat.Rock`, `Mat.Ice`); `Mat.Spike` es Stretch | Jugabilidad §8 |
-| [ ] | Arte (Emilio) | Material de fusión **Púa/colmillo** (`SM_FUSE_SPIKE`), solo si da tiempo: los otros 5 ya están | Jugabilidad §8 |
+| [x] | Arte (Emilio) | Material de fusión **Púa/colmillo** (`SM_FUSE_SPIKE`): hecho en `SourceArt/Fusion/` con su icono `T_Icon_FUSE_SPIKE` | Jugabilidad §8 |
