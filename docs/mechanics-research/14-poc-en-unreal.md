@@ -53,7 +53,7 @@ status: borrador
 | Catálogo de piezas, ensamblador, spawner, cliente Jev/OpenRouter/fal | **[code]** en `main` |
 | Rama `build/recipe-hardening-v2` (parser robusto, layout sin piezas encimadas, tests) | Sin integrar a `main` |
 | Solver por capacidades (inventario, sustituir, reducir, pedir materiales) | **[sin verificar]** en `build/poc-solver` |
-| Comportamientos (rueda raíz, daño de llamas/cañón/frío, energía, asiento) | **[sin verificar]** en `build/poc-devices` |
+| Comportamientos (rueda raíz, daño de llamas/cañón/frío, energía, asiento, Turntable/Head/Stake/Spring) | **[sin verificar]** en `build/poc-devices` (subida; lógica pura probada en Python: 75 casos, 0 fallas; no compilada) |
 | Comandos de consola `Jam.*` para ver todo en el editor | **[sin verificar]**, ver §5 |
 | Piezas 3D reales (FBX con sockets) | **[code]** `Content/Game/Art/` (Emilio); el PoC usa mallas básicas |
 
@@ -124,6 +124,19 @@ Preparar inventario con `Jam.InvAll 10`. El estado real de cada fila se anota al
 | Créditos del concurso (aplican a Construcción) | Claude $25 (reclamar 12–27 nov), fal $30 (hasta 30 nov), Meshy con API (hasta 17 nov), Tripo y Hyper3D para modelos 3D (hasta 16 nov). Una cuenta por persona; las claves nunca al repo |
 | Contenido público | La convención de [FORMATO.md](FORMATO.md) prohíbe nombrar el juego de referencia; hubo una fuga en `CLAUDE.md` y se corrigió (queda en el historial de git) |
 | Agentes | Dos agentes (solver y piezas) trabajan en `build/poc-solver` y `build/poc-devices`; al escribir esto aún no habían hecho commits. Sus archivos de contexto serán `14-handoff-solver.md` y `14-handoff-dispositivos.md` |
+
+## 9. Rama `build/poc-devices` (subida)
+
+Detalle completo, contratos y riesgos en [14-handoff-dispositivos.md](14-handoff-dispositivos.md) (viene dentro de la rama).
+
+| Tema | Resumen |
+|---|---|
+| Qué trae | Rueda raíz que gira, daño de llama/cañón/hielo/rayo, energía tipo maná, asiento (montar y dirigir), Turntable, Head, Stake, Spring y fuego→globo ×2 |
+| Comandos extra | `Jam.Device <preset>`, `Jam.DeviceClear`, `Jam.Power`, `Jam.Dummy`, `Jam.Energy`, `Jam.Seat`, `Jam.Debug` (ver tabla del handoff, sirven sin `Jam.Build`) |
+| Header change | `JamBuildPart.h` (valores nuevos en `EJamPartKind`, campo `EnergyPerSec`, API nueva): **recompilar todos** |
+| Riesgos de compilación | `OverrideComponent1` debe ser público; `OverlapMultiByObjectType` con `AllObjects`; `SetConstrainedComponents` para anclar al mundo; reconfigurar constraints ya creadas; ambigüedades `float`/`double` |
+| Pendiente de integración | Llamar `SetBuildOwner(Jugador)` tras `UJamAssembler::Assemble`; poner `UJamEnergyComponent` en el personaje y conectar HUD e input real; la plantilla `Spinner` debe poner los lanzallamas en `Front`/`Back` |
+| No hecho | Daño por impacto a más de 8 m/s, hielo sobre agua, Hydrant, BigBattery, elevación de Head, tipo Shock |
 
 ## → Aplicable a GameJamm
 
