@@ -29,6 +29,14 @@ PALETTE = [
     ("leather", "#6B4A35"),
     ("black", "#2B2B2B"),
     ("cyan", "#8FE3FF"),
+    ("stone", "#9C968C"),
+    ("orange", "#FF7A1A"),
+    ("spark", "#F5F06A"),
+    ("white", "#F6F4ED"),
+    ("blue", "#355DC6"),
+    ("grass", "#A8CC4A"),
+    ("copper", "#B87333"),
+    ("cloth", "#E9DFC8"),
 ]
 SWATCH = 16
 COLOR_INDEX = {name: i for i, (name, _) in enumerate(PALETTE)}
@@ -446,4 +454,5 @@ def main():
     print("PARTS_REPORT_END")
 
 
-main()
+if __name__ == "__main__":
+    main()

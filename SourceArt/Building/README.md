@@ -34,6 +34,33 @@ y de [docs/assets/PROMPTS-ASSETS.md](../../docs/assets/PROMPTS-ASSETS.md); estil
 | `Rocket` | `SM_DEV_ROCKET` | 60 × 20 × 20 | 208 |
 | `Balloon` | `SM_DEV_BALLOON` | 90 × 90 × 90 | 232 |
 
+### Lote 2 (`scripts/gen_assets.py`)
+
+Piezas extra de vehículo en `FBX/` (propuesta de medidas: **aún no están en la tabla de `JamBuildPart.cpp`**):
+
+| Asset | Size (cm) | Tris |
+|---|---|---|
+| `SM_PART_PANEL` | 100 × 100 × 10 | 116 |
+| `SM_PART_WALL` | 200 × 22 × 150 | 68 |
+| `SM_PART_BALL` | 60 × 60 × 60 | 168 |
+| `SM_DEV_WING` | 62 × 200 × 8 (envergadura en Y) | 116 |
+| `SM_JOINT_HINGE` | 30 × 30 × 30 | 204 |
+| `SM_ANCHOR_STAKE` | 18 × 18 × 80 | 84 |
+| `SM_DEV_SPRING` | 40 × 40 × 40 | 304 |
+
+El mismo script genera también (cada carpeta con `FBX/`, `Blend/` y `preview.png`):
+
+- **`SourceArt/Weapons/`**: `SM_WPN_SWORD` (100 cm, X = punta; sockets `Grip`, `Fuse_Slot`), `SM_WPN_BOW` (120 cm de alto;
+  `Grip`, `Arrow_Nock`), `SM_WPN_ARROW` (80 cm; `Fuse_Slot` en la punta).
+- **`SourceArt/Fusion/`**: `SM_FUSE_FIRE/ICE/ROCK/SHOCK/BOMB`, caja de 25 cm con **pivote abajo** y `SOCKET_Attach_Bottom`.
+- **`SourceArt/World/Props/`** (pivote al centro de la base): `SM_PROP_CHEST`, `SM_TOWER_WATCH` (socket `Shoot` en el
+  cristal), `SM_BASE_KEEP`, `SM_ISLAND_SMALL` (pivote en la superficie; sin UCX: usar *complex as simple*),
+  `SM_PROP_RUIN_ARCH`, `SM_PROP_WINDMILL`, `SM_PROP_BRIDGE` (pivote en la tabla), `SM_PROP_TREE` (colisión solo en el
+  tronco), `SM_PROP_ROCK`.
+
+La paleta tiene 16 colores (los 8 originales + piedra, naranja, chispa, blanco, azul, pasto, cobre y lona). Si se
+regenera un lote, regenerar también el otro para que todos usen la misma `T_Part_Palette.png`.
+
 ## Importar en Unreal
 
 FBX import con la configuración por defecto (Convert Scene activado): Blender trabaja en metros y UE los convierte a cm.
