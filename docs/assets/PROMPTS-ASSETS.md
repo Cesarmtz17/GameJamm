@@ -48,7 +48,7 @@ Además, **todo lo que se mueve o brilla es código o VFX, no el mesh**: los ven
 
 ## 2. Flujo de generación (para que todo se vea del mismo juego)
 
-1. **Primero una hoja de estilo** (imagen 2D): genera **una sola imagen** con 4–6 props juntos usando el prefijo de estilo. Elige la
+1. **Hoja de estilo:** ya existe en [docs/concepts/hoja-de-estilo.png](../concepts/hoja-de-estilo.png) (assets reales del juego); úsala como imagen de referencia. Si se necesita una 2D generada: genera **una sola imagen** con 4–6 props juntos usando el prefijo de estilo. Elige la
    mejor y úsala como **imagen de referencia** para todo lo demás (image-to-3D o "style reference" en Meshy/Tripo/Rodin).
 2. **Image-to-3D mejor que text-to-3D:** genera la imagen del asset con el prompt de abajo y la referencia de estilo, y luego
    pásala a 3D. Así sale más consistente.

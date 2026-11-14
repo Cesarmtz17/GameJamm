@@ -5,7 +5,7 @@
 > (escala, colisión `UCX_`, sockets `Attach_*`, nombres `SM_/MI_/NS_`) están en
 > [assets/CATALOGO-ELEMENTOS.md](assets/CATALOGO-ELEMENTOS.md). Esta guía no las repite: define **cómo se ve**.
 >
-> Referencias visuales: [concepts/](concepts/) (conceptos 01-A, 01-B y 01-C).
+> Referencias visuales: **[hoja de estilo](concepts/hoja-de-estilo.png)** (assets reales + paleta + reglas) y [concepts/](concepts/) (conceptos 01-A, 01-B y 01-C).
 
 ## 1. El look en una frase
 

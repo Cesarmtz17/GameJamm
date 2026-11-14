@@ -4,6 +4,7 @@ Referencias visuales de la dirección de arte ([ART.md](../ART.md)). Generados c
 
 | Archivo | Qué toma la guía de arte |
 |---|---|
+| `hoja-de-estilo.png` | **Hoja de estilo oficial**: artefacto armado con piezas reales, paleta de 16 colores con hex y las 5 reglas de modelado. Se regenera con `SourceArt/Building/scripts/gen_style_sheet.py` |
 | `concept-01A-sky-islands.png` | Cadena de islas conectadas por puentes; bases en los extremos |
 | `concept-01B-open-range.png` | Campo abierto: praderas, río, caminos y colinas para manejar |
 | `concept-01C-drifting-isles.png` | Islas con cascadas, molinos, ruinas y chatarra para lootear |
