@@ -80,6 +80,11 @@ namespace
 		{ TEXT("CTRL_SEAT"), TEXT("Seat") }, { TEXT("Chair"), TEXT("Seat") }, { TEXT("Asiento"), TEXT("Seat") },
 		{ TEXT("PWR_BATTERY_S"), TEXT("Battery") }, { TEXT("Bateria"), TEXT("Battery") },
 		{ TEXT("DEV_FLAME"), TEXT("Flamethrower") }, { TEXT("Flame"), TEXT("Flamethrower") }, { TEXT("Lanzallamas"), TEXT("Flamethrower") },
+		{ TEXT("PART_WALL"), TEXT("Wall") }, { TEXT("Muro"), TEXT("Wall") }, { TEXT("PART_PANEL"), TEXT("Panel") },
+		{ TEXT("DEV_WING"), TEXT("Wing") }, { TEXT("Ala"), TEXT("Wing") }, { TEXT("DEV_FROST"), TEXT("Frost") }, { TEXT("Ice"), TEXT("Frost") }, { TEXT("Hielo"), TEXT("Frost") },
+		{ TEXT("DEV_BEAM"), TEXT("Beam") }, { TEXT("Laser"), TEXT("Beam") }, { TEXT("DEV_HOVER"), TEXT("HoverStone") }, { TEXT("Hover"), TEXT("HoverStone") },
+		{ TEXT("CTRL_TIMEBOMB"), TEXT("Bomb") }, { TEXT("TimeBomb"), TEXT("Bomb") }, { TEXT("Bomba"), TEXT("Bomb") },
+		{ TEXT("DEV_SPRING"), TEXT("Spring") }, { TEXT("Resorte"), TEXT("Spring") }, { TEXT("Vela"), TEXT("Sail") }, { TEXT("Turbina"), TEXT("Turbine") },
 	};
 }
 

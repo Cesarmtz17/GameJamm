@@ -147,22 +147,27 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FJamRecipeComposeAll, "GameJamm.Building.Recipe
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FJamRecipeComposeAll::RunTest(const FString& Parameters)
 {
-	// Los 4 arquetipos × los 32 combos de extras: receta válida y sin piezas encimadas.
-	const FName Archetypes[] = { TEXT("Car"), TEXT("Flyer"), TEXT("Turret"), TEXT("Rocket") };
-	for (const FName& A : Archetypes)
+	// Cada arquetipo: sin extras, cada extra solo, y todos los extras juntos -> receta válida y sin piezas encimadas.
+	for (const FJamArchetypeDef& A : UJamBuildGenerator::ArchetypeTable())
 	{
-		for (int32 Mask = 0; Mask < 32; ++Mask)
+		TArray<TArray<FName>> Combos;
+		Combos.Add({});
+		TArray<FName> All;
+		for (const FJamExtraDef& E : UJamBuildGenerator::ExtraTable())
+		{
+			Combos.Add({ E.Key });
+			All.Add(E.Key);
+		}
+		Combos.Add(All);
+
+		for (int32 i = 0; i < Combos.Num(); ++i)
 		{
 			FJamBuildChoice C;
-			C.Archetype = A;
-			C.bFan = (Mask & 1) != 0;
-			C.bRocket = (Mask & 2) != 0;
-			C.bFlame = (Mask & 4) != 0;
-			C.bCannon = (Mask & 8) != 0;
-			C.bBalloon = (Mask & 16) != 0;
+			C.Archetype = A.Name;
+			C.Extras = Combos[i];
 			FBuildRecipe R;
 			FString Note;
-			const FString Ctx = FString::Printf(TEXT("%s mask=%d"), *A.ToString(), Mask);
+			const FString Ctx = FString::Printf(TEXT("%s combo=%d"), *A.Name.ToString(), i);
 			if (!TestTrue(Ctx + TEXT(" composes ") + Note, UJamBuildGenerator::ComposeRecipe(C, R, Note)))
 			{
 				continue;
