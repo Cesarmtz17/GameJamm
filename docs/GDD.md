@@ -1,11 +1,11 @@
 # GDD — GameJamm (título por definir)
 
-## ⚠️ REGLA PRINCIPAL (no negociable): construcción emergente estilo *Zelda: Tears of the Kingdom*
+## ⚠️ REGLA PRINCIPAL (no negociable): construcción emergente con física (sandbox)
 **La idea central del juego es un sistema donde el jugador arma estructuras combinando muchos elementos básicos (tablas/paredes, llantas, cilindros, bloques, rocas, motores, lanzallamas…) y las propiedades de esas piezas se traducen en mecánicas.** Lo que construyes determina lo que hace. Todo lo demás (tower push, loot, fusión, bots, arte) existe para alimentar este sistema.
 
 Reglas derivadas, valen para todos los roles y para cualquier agente de IA:
 1. **Las mecánicas salen de las propiedades de las piezas, no de objetos cerrados.** Una "rueda con lanzallamas" rueda y quema porque combina `Llanta` (rotación) con `Lanzallamas` (daño de fuego), no porque exista un objeto "Rueda Infernal" programado a mano.
-2. **Catálogo grande de piezas, definido por datos** (`UBuildPartData`): cada pieza declara forma, masa, vida, puntos de anclaje y *capacidades* (rotar, empujar, dañar, quemar, soportar peso, bloquear…). Agregar una pieza = agregar datos, no código nuevo.
+2. **Catálogo grande de piezas, definido por datos:** [`Content/Game/Building/Data/BuildKnowledge.json`](../Content/Game/Building/Data/BuildKnowledge.json) (capacidades, caras válidas, masa, energía, sustitutos y sinónimos para la IA) más la tabla física de `UJamPartCatalog` en `Source/GameJamm/Building/JamBuildPart.cpp` (tamaño, masa, potencia; pasará a DataAssets). Cada pieza declara forma, masa, puntos de anclaje y *capacidades* (rotar, empujar, dañar, quemar, soportar peso, bloquear…). Diseño completo: [research 13](mechanics-research/13-conocimiento-ia-construccion.md).
 3. **Capa de decisión:** un modelo recibe el pedido del jugador y su inventario y *decide* qué piezas usar y cómo ensamblarlas (receta JSON). El juego valida y construye. Ver [Capa de decisión](#capa-de-decisión).
 4. **Siempre hay fallback** (recetas fijas) para que el juego nunca se bloquee.
 5. **Prioridad de recorte:** cualquier feature que no sirva a esta regla se recorta primero. **Nadie del equipo, ni ningún agente, cambia este enfoque sin acuerdo de todos.**
@@ -78,18 +78,19 @@ Dirección de arte, UI y audio: **[ART.md](ART.md)** (islas flotantes + campo ab
 |---|---|---|
 | Partida | `AJamGameMode`, `AJamGameState`, `ATeamStructure` (torre/base) | BP de torres, reglas en DataAsset |
 | Combate | `UHealthComponent`, `AJamWeapon`, `UFusionComponent` | `UFusionMaterialData` (DataAsset por material) |
-| Construcción | `ABuildPart`, `UAttachPointComponent`, `UBuilderComponent` | `UBuildPartData`, BP por pieza |
+| Construcción | `AJamBuildPart`, `UJamPartCatalog`, `UJamAssembler` (receta → piezas + constraints), `AJamBuildSpawner` | `BuildKnowledge.json`; tabla de piezas en C++ (pasará a DataAssets) |
 | IA bots | `AJamAIController`, StateTree tasks | StateTrees, carriles (spline) |
-| Asistente / decisión | `UAIAssistantSubsystem`, `IBuildDecisionProvider` (HTTP → modelo → JSON) | `UBuildRecipeData` (recetas fallback) |
+| Asistente / decisión | `FJamDecisionClient` (Jev → OpenRouter → fal), `UJamBuildGenerator` (decisiones → receta); interfaz `IBuildDecisionProvider` por hacer | Arquetipos y extras en `JamAssembler.cpp`; `BuildKnowledge.json` |
 | Loot | `ALootCamp`, `ALootChest` | Tablas de loot |
 
 ### Capa de decisión
-La decisión de *qué construir y con qué piezas* va detrás de una interfaz única (`IBuildDecisionProvider`, en `Source/GameJamm/AI/`): entra `{pedido, inventario, contexto}` y sale una receta JSON (formato de abajo, sin cambios). Así el modelo se puede cambiar sin tocar construcción ni combate.
+La decisión de *qué construir y con qué piezas* va detrás de una interfaz única (`IBuildDecisionProvider`, **por hacer**, junto al cliente actual en `Source/GameJamm/Building/`): entra `{pedido, inventario, contexto}` y sale una receta JSON (formato de abajo, sin cambios). Así el modelo se puede cambiar sin tocar construcción ni combate.
 
 | Proveedor | Estado | Notas |
 |---|---|---|
-| LLM (Claude `claude-haiku-5-5`, sube a `claude-sonnet-5-5` si el pedido es ambiguo) | **MVP** | Mapea el catálogo de piezas y sus propiedades al pedido del jugador |
-| Recetas fijas | **Fallback obligatorio** | Se usa sin red, si tarda más de 3 s o si la receta no valida |
+| **Jev** (modelo de decisión de TypeSafe; respaldo vía OpenRouter y fal) | **MVP, ya en código** (`FJamDecisionClient`) | Elige forma, piezas y orientación entre opciones generadas **desde el inventario**; el código arma la receta (solver: sustituye, reduce y pide materiales). Ver [research 13](mechanics-research/13-conocimiento-ia-construccion.md) §3 |
+| LLM que escribe el JSON (p. ej. Claude `claude-haiku-5-5`) | Alternativa | Más libre y más lento; el parser ya repara JSON mal escrito (rama `build/recipe-hardening-v2`). Entra por la misma interfaz si Jev se queda corto |
+| Palabras clave + recetas fijas | **Fallback obligatorio, ya en código** (`UJamBuildGenerator::ChoiceFromKeywords`) | Se usa sin red, si tarda más de 3 s o si la receta no valida |
 | Modelo predictivo tipo JEPA | **Por definir** | Idea del equipo: predecir/evaluar el resultado de varias estructuras candidatas y elegir la mejor. Falta definir qué modelo concreto y cómo se integra (pendiente del material que compartió el equipo) |
 
 El proveedor **solo puede usar piezas del inventario**, y el juego valida la receta antes de construir.
