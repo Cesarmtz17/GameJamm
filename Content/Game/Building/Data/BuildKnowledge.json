@@ -2172,7 +2172,8 @@
     "zone": "front",
     "faces": [
      "Front_Bottom",
-     "Left_Bottom"
+     "Left_Bottom",
+     "Top_Front_Front"
     ],
     "sym": "y",
     "order": "front"

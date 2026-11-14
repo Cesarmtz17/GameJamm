@@ -13,6 +13,7 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/GameModeBase.h"
 #include "Building/JamAssembler.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SpotLightComponent.h"
@@ -224,7 +225,7 @@ namespace
 		// "utilizable": fases con entrada simulada (mando -> quieta -> disparar -> soltar -> acelerar -> girar -> turbo)
 		double BuiltAt = -1, IdleDisp = 0, DriveFwd = 0, SteerDeg = 0;
 		int32 Phase = 0, IdleWeapons = 0, FireOn = 0, WeaponsAfter = 0, Fx0 = 0, FireFx = 0;
-		bool bBoostOn = false, bPushPart = false, bLiftPart = false, bSeat = false;
+		bool bBoostOn = false, bPushPart = false, bLiftPart = false, bSeat = false, bMounted = false;
 		FVector P0 = FVector::ZeroVector, Fwd0 = FVector::ForwardVector;
 		FTransform Home;                   // donde estaba el jugador al empezar (vuelve ahi tras cada caso)
 		int32 CohSum = 0, CohPass = 0, UsablePass = 0, DecisionPass = 0;
@@ -319,6 +320,7 @@ namespace
 			Txt.Add(T.MaxOn > 0 ? FString::Printf(TEXT("C enciende %d dispositivos"), T.MaxOn) : FString::Printf(TEXT("estructura: se movio %.0f cm, %s"), T.Disp, bStill ? TEXT("en pie") : TEXT("se cayo")));
 		}
 		if (!T.bSeat && Need.Num() > 0) { Txt.Add(TEXT("sin asiento: mando desde la pieza")); }
+		if (!T.bMounted) { Txt.Add(TEXT("OJO: la prueba no pudo tomar el mando (medicion no valida)")); }
 		Out = FString::Join(Txt, TEXT("; "));
 		return bAll;
 	}
@@ -535,6 +537,7 @@ namespace
 					{
 						const APlayerController* PC = World->GetFirstPlayerController();
 						if (PC && PC->GetPawn() && !PC->GetPawn()->GetAttachParentActor()) { JamSeat(TArray<FString>(), World); }
+						T.bMounted = PC && PC->GetPawn() && PC->GetPawn()->GetAttachParentActor() != nullptr;
 					}
 					if (t >= 2.0 && Enter(2)) { T.P0 = L; }                                          // quieta: sin entrada
 					if (T.Phase == 2 && t >= 2.3) { T.IdleWeapons = FMath::Max(T.IdleWeapons, WeaponsOn); }
@@ -660,6 +663,20 @@ namespace
 			TestWriteReport(T);
 			T.Index = -1;
 			return false;
+		}
+		// El jugador de la bateria no puede morir ni quedarse sin peon (si pasa, ningun caso posterior toma el mando).
+		if (APlayerController* TestPC = World->GetFirstPlayerController())
+		{
+			if (!TestPC->GetPawn())
+			{
+				if (AGameModeBase* GM = World->GetAuthGameMode()) { GM->RestartPlayer(TestPC); }
+				UE_LOG(LogTemp, Warning, TEXT("JamTest: el jugador no tenia peon; se reinicio"));
+			}
+			if (APawn* TestPawn = TestPC->GetPawn())
+			{
+				TestPawn->SetCanBeDamaged(false);
+				if (!TestPawn->GetAttachParentActor()) { TestPawn->SetActorLocationAndRotation(T.Home.GetLocation(), T.Home.GetRotation(), false, nullptr, ETeleportType::TeleportPhysics); }
+			}
 		}
 		// Siguiente caso: energia llena, objetivo nuevo, metricas a cero (se conservan los resultados acumulados).
 		const FJamCase& Case = GCases[T.Index];

@@ -1410,7 +1410,7 @@ const TArray<FJamPieceRule>& UJamBuildGenerator::PieceTable()
 			Place({TEXT("Wing")}, K({TEXT("Left"), TEXT("Left_Front"), TEXT("Left_Back"), TEXT("Top")}), TEXT("xy"), TEXT("center"));
 			Place({TEXT("Sail")}, K({TEXT("Top_Front"), TEXT("Top"), TEXT("Top_Back")}), TEXT("y"), TEXT("center"));
 			Place({TEXT("Panel")}, K({TEXT("Front_Bottom"), TEXT("Left_Bottom"), TEXT("Back_Bottom"), TEXT("Top_Back_Back")}), TEXT("y"), TEXT("front")); // despues de las armas: no les tapa el tiro
-			Place({TEXT("Spikes")}, K({TEXT("Front_Bottom"), TEXT("Left_Bottom")}), TEXT("y"), TEXT("front")); // despues de las armas, como el escudo
+			Place({TEXT("Spikes")}, K({TEXT("Front_Bottom"), TEXT("Left_Bottom"), TEXT("Top_Front_Front")}), TEXT("y"), TEXT("front")); // despues de las armas, como el escudo
 			Place({TEXT("Ball")}, K({TEXT("Front_Bottom"), TEXT("Top_Front"), TEXT("Back_Bottom")}), TEXT("y"), TEXT("front"));
 			Place({TEXT("Girder"), TEXT("Rod")}, K({TEXT("Front_Bottom"), TEXT("Top")}), TEXT("y"), TEXT("front"));
 			Place({TEXT("Hinge")}, K({TEXT("Top_Back"), TEXT("Top_Front"), TEXT("Top")}), TEXT("y"), TEXT("back"));
