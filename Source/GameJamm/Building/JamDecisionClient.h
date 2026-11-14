@@ -25,6 +25,9 @@ public:
 	/** Respuesta de fal -> decisiones (el texto del modelo trae un JSON, a veces con ```). */
 	static bool ParseFalResponse(const FString& ResponseJson, FJamBuildChoice& OutChoice, FString& OutNote);
 
+	/** Catalogo de conexiones y colocacion generado desde las reglas del ensamblador. */
+	static FString BuildConnectionGuide();
+
 	/** Cuerpo JSON de la petición para un prompt (público para pruebas). */
 	static FString BuildRequestBody(const FString& Prompt, const TCHAR* ModelOverride = nullptr);
 

@@ -1,4 +1,5 @@
 #include "Building/JamDecisionClient.h"
+#include "Building/JamConnectionRules.h"
 
 #include "Building/JamBuildPart.h"
 
@@ -118,7 +119,8 @@ bool FJamDecisionClient::ParseFalResponse(const FString& ResponseJson, FJamBuild
 			FJamPieceCount* I = OutChoice.Pieces.FindByPredicate([Type](const FJamPieceCount& X) { return X.Type == Type; });
 			if (!I) { I = &OutChoice.Pieces.AddDefaulted_GetRef(); I->Type = Type; I->Count = 0; }
 			I->Count = FMath::Clamp(I->Count + (int32)Count, 1, 40);
-			if (ModeStr == TEXT("lift") || ModeStr == TEXT("launch") || ModeStr == TEXT("inline")) { I->Mode = FName(*ModeStr); }
+			const FJamPieceRule* Rule = UJamBuildGenerator::PieceTable().FindByPredicate([Type](const FJamPieceRule& R) { return R.Type == Type; });
+			if (Rule && Rule->Modes.Contains(FName(*ModeStr))) { I->Mode = FName(*ModeStr); }
 		}
 		for (const FJamPieceCount& I : OutChoice.Pieces) { Txt.Add(FString::Printf(TEXT("%s x%d"), *I.Type.ToString(), I.Count)); }
 		OutNote = FString::Printf(TEXT("fal-plan pieces=%d dropped=%d root=%s [%s]"), OutChoice.Pieces.Num(), Dropped, *OutChoice.Root.ToString(), *FString::Join(Txt, TEXT(", ")));
@@ -148,6 +150,22 @@ bool FJamDecisionClient::ParseFalResponse(const FString& ResponseJson, FJamBuild
 	return true;
 }
 
+FString FJamDecisionClient::BuildConnectionGuide()
+{
+	FString Guide = TEXT("Axes: X forward, Y right, Z up. Code places and validates all connections. Choose parts, counts and supported modes; do not invent coordinates or forces. Fans/rockets in default mode propel forward; lift mode provides upward thrust. Lift needs at least 1.2 times total weight, balanced around center of mass. Stabilizer permits controlled tilt in flight. Power units: fan/rocket/balloon force in kg*cm/s^2, wheel/turntable angular speed in rad/s, hinge limit in degrees; other device power is capability-specific. A mode applies to all pieces of that type. Propeller defaults to lift and Launcher to launch.\n");
+	for (const FJamPieceRule& R : UJamBuildGenerator::PieceTable())
+	{
+		FJamPartDef D;
+		if (!UJamPartCatalog::Find(R.Type, D)) { continue; }
+		TArray<FString> Modes = { TEXT("default") };
+		for (const auto& M : R.Modes) { Modes.Add(M.Key.ToString()); }
+		Modes.Sort();
+		Guide += FString::Printf(TEXT("%s: %s; mass=%.1f kg; power=%.1f; modes=%s; candidate faces=%s; clearance=%.0f cm; symmetry=%s\n"),
+			*R.Type.ToString(), *JamConnections::Describe(D), D.MassKg, D.Power, *FString::Join(Modes, TEXT(",")), *FString::Join(R.Faces, TEXT(",")), R.ClearCm, *R.Sym);
+	}
+	return Guide;
+}
+
 FString FJamDecisionClient::BuildRequestBody(const FString& Prompt, const TCHAR* ModelOverride)
 {
 	TSharedRef<FJsonObject> Root = Obj();
@@ -155,6 +173,7 @@ FString FJamDecisionClient::BuildRequestBody(const FString& Prompt, const TCHAR*
 
 	TSharedRef<FJsonObject> State = Obj();
 	State->SetStringField(TEXT("request"), Prompt);
+	State->SetStringField(TEXT("connection_rules"), BuildConnectionGuide());
 	Root->SetObjectField(TEXT("state"), State);
 
 	TSharedRef<FJsonObject> Questions = Obj();
@@ -215,6 +234,24 @@ FString FJamDecisionClient::BuildRequestBody(const FString& Prompt, const TCHAR*
 		{ TEXT("Sled"), TEXT("A sliding hull: a boat or sled.") },
 		{ TEXT("Wall"), TEXT("A thick wall: a fort, bunker or barricade.") },
 		{ TEXT("Wheel"), TEXT("A single wheel that rolls or spins by itself with things stuck on it.") } });
+	// Modos por tipo permiten mezclar sustentacion y avance. Al final preserva el orden anterior.
+	for (const FJamPieceRule& R : UJamBuildGenerator::PieceTable())
+	{
+		if (R.Modes.IsEmpty()) { continue; }
+		TSharedRef<FJsonObject> Q = Obj(), Criteria = Obj();
+		Q->SetStringField(TEXT("type"), TEXT("choice"));
+		Q->SetStringField(TEXT("instructions"), TEXT("Choose the role of ") + R.Type.ToString() + TEXT(" in this build using connection_rules. Choose default unless a special mode is needed."));
+		Criteria->SetStringField(TEXT("default"), TEXT("Normal placement; propulsion forward for fans/rockets; ordinary wheel support."));
+		TArray<FName> Modes;
+		R.Modes.GetKeys(Modes);
+		Modes.Sort(FNameLexicalLess());
+		for (const FName Mode : Modes)
+		{
+			Criteria->SetStringField(Mode.ToString(), Mode == "lift" ? TEXT("Provide upward thrust to rise or hover") : Mode == "launch" ? TEXT("Launch a payload from this spring") : TEXT("Wheels in a front/back line, such as a motorcycle"));
+		}
+		Q->SetObjectField(TEXT("criteria"), Criteria);
+		Questions->SetObjectField(TEXT("mode_") + R.Type.ToString(), Q);
+	}
 	Root->SetObjectField(TEXT("questions"), Questions);
 
 	FString Out;
@@ -284,6 +321,15 @@ bool FJamDecisionClient::ParseResponse(const FString& ResponseJson, FJamBuildCho
 				if (bSpring ? bLaunch : bLift) { I.Mode = bSpring ? FName("launch") : FName("lift"); }
 				if (I.Mode == "lift" && R.Type == "Fan") { I.Count = FMath::Max(I.Count, 2); } // para sustentar hacen falta al menos dos helices
 			}
+			const TSharedPtr<FJsonObject>* ModeAnswer = nullptr;
+			FString Mode;
+			double Confidence = 0;
+			if ((*Answers)->TryGetObjectField(TEXT("mode_") + R.Type.ToString(), ModeAnswer) && ModeAnswer
+				&& (*ModeAnswer)->TryGetStringField(TEXT("choice"), Mode) && (*ModeAnswer)->TryGetNumberField(TEXT("confidence"), Confidence) && Confidence >= 0.6)
+			{
+				if (Mode == TEXT("default")) { I.Mode = NAME_None; }
+				else if (R.Modes.Contains(FName(*Mode))) { I.Mode = FName(*Mode); }
+			}
 			OutChoice.Pieces.Add(I);
 			Txt.Add(FString::Printf(TEXT("%s x%d"), *I.Type.ToString(), I.Count));
 		}
@@ -345,6 +391,7 @@ void FJamDecisionClient::RequestPlan(const FString& Prompt, TFunction<void(bool,
 		FJamPartDef D;
 		if (UJamPartCatalog::Find(R.Type, D)) { Sys += FString::Printf(TEXT("%s | %.0fx%.0fx%.0f, %.0f kg | %s\n"), *R.Type.ToString(), D.Size.X, D.Size.Y, D.Size.Z, D.MassKg, *R.Ask); }
 	}
+	Sys += BuildConnectionGuide();
 	Sys += TEXT("OUTPUT: one JSON object, no markdown: {\"name\": short Spanish name, \"root\": the type of the main body (Plank, Block, Cylinder, Sled, Wall or Deck), \"pieces\": [{\"type\": type, \"count\": integer 1..40, \"mode\": optional}]}\n")
 		TEXT("- mode \"lift\" on Fan, Jet, Turbine, Propeller or Rocket = pointing down so it lifts (drones, helicopters, rocket ships). mode \"launch\" on Spring = it throws things. mode \"inline\" on wheels = one behind the other (motorcycle).\n")
 		TEXT("- To fly it needs lift: each Fan lifts about 25 kg, Turbine 60 kg, Propeller 70 kg, Balloon 14 kg. Keep total mass below the lift.\n")

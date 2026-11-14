@@ -3,6 +3,7 @@
 #include "Algo/Reverse.h"
 #include "Building/JamBuildPart.h"
 #include "Building/JamDrivePhysics.h"
+#include "Building/JamConnectionRules.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSocket.h"
@@ -720,8 +721,7 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 
 		// Pegamento: una pieza sin movimiento ni fuerza propia (estructura, asiento, bateria, trineo) pegada a otra igual
 		// se suelda en UN solo cuerpo rigido con ella. 25 ruedas sobre 5 tablas = 1 chasis + 25 ejes, no 30 cuerpos blandos.
-		auto Inert = [](EJamPartKind Kd) { return Kd == EJamPartKind::Structural || Kd == EJamPartKind::Seat || Kd == EJamPartKind::Battery || Kd == EJamPartKind::Slide; };
-		if (CVarJamWeld.GetValueOnGameThread() != 0 && Inert(Child.Def.Kind) && Inert(Parent.Def.Kind))
+		if (CVarJamWeld.GetValueOnGameThread() != 0 && JamConnections::Inert(Child.Def.Kind) && JamConnections::Inert(Parent.Def.Kind))
 		{
 			if (JoinPass == 0)
 			{
@@ -743,8 +743,8 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 		C->SetDisableCollision(true);
 
 		const EJamPartKind Kind = Child.Def.Kind;
-		const bool bAxleY = Kind == EJamPartKind::Wheel || Kind == EJamPartKind::Hinge;       // gira sobre Y del vehiculo
-		const bool bAxleZ = Kind == EJamPartKind::Turntable || Kind == EJamPartKind::Head;    // gira sobre Z del vehiculo
+		const bool bAxleY = JamConnections::AxleY(Kind);       // gira sobre Y del vehiculo
+		const bool bAxleZ = JamConnections::AxleZ(Kind);    // gira sobre Z del vehiculo
 		if (bAxleY || bAxleZ)
 		{
 			// La constraint gira (twist) sobre su eje X: se orienta ese eje al eje de giro.
@@ -764,7 +764,7 @@ bool UJamAssembler::Assemble(UObject* WorldContextObject, const FBuildRecipe& Re
 				C->SetAngularTwistLimit(ACM_Free, 0);
 			}
 			// Rueda con Power 0 (rueda de carreta): eje libre, sin motor. Un motor con velocidad objetivo 0 la frenaria.
-			if ((Kind == EJamPartKind::Wheel && Child.Def.Power > 0.f) || Kind == EJamPartKind::Turntable)
+			if (JamConnections::Motor(Child.Def))
 			{
 				C->SetAngularDriveMode(EAngularDriveMode::TwistAndSwing);
 				C->SetAngularVelocityDriveTwistAndSwing(true, false);
