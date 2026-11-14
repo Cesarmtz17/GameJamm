@@ -11,7 +11,7 @@
           },
           {
             "type": "command",
-            "command": "printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"Team rule (CLAUDE.md, Sincronizacion): 5 people push to main from separate machines. Run git pull --rebase --autostash now and start /loop 2m git pull --rebase --autostash. On conflict, stop and tell the user.\"}}'",
+            "command": "printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"CRITICAL team rule (CLAUDE.md section 0): 5 people push to main from separate machines. Every agent must commit its own files (never git add -A), git pull --rebase --autostash and git push EVERY 1 MINUTE. Start /loop 1m now. Never push secrets or the AndroidFileServer token in DefaultEngine.ini. On pull or push failure, stop and tell the user.\"}}'",
             "timeout": 5
           }
         ]
