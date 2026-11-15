@@ -2,6 +2,7 @@
 #include "AI/JamWaveSpawner.h"
 #include "Core/JamCharacter.h"
 #include "Core/JamAudio.h"
+#include "Combat/JamWeaponComponent.h"
 #include "Core/JamGameState.h"
 #include "Core/JamHUD.h"
 #include "Core/InventoryComponent.h"
@@ -173,8 +174,13 @@ void AJamGameMode::Respawn(AController* Controller)
 	// Renacer con la mitad (GDD 4): el peon viejo ya solto la otra mitad en la bolsa al morir; lo que le quedo se guarda para el nuevo.
 	const bool bPlayer = Controller->IsPlayerController();
 	TMap<FName, int32> Carried;
+	bool bHadGun = false; // GDD 4: si caes, reapareces y vuelves a pedir (el arma pedida no pasa al peon nuevo)
 	if (APawn* Old = Controller->GetPawn())
 	{
+		if (const UJamWeaponComponent* OldWeapon = bPlayer ? Old->FindComponentByClass<UJamWeaponComponent>() : nullptr)
+		{
+			bHadGun = OldWeapon->HasGeneratedWeapon();
+		}
 		if (const UInventoryComponent* OldInv = bPlayer ? Old->FindComponentByClass<UInventoryComponent>() : nullptr)
 		{
 			for (const auto& Item : OldInv->Items) { if (Item.Value > 0) { Carried.Add(Item.Key, Item.Value); } }
@@ -197,7 +203,8 @@ void AJamGameMode::Respawn(AController* Controller)
 			}
 			int32 Pieces = 0;
 			for (const auto& Item : NewInv->Items) { if (Item.Key.ToString().StartsWith(TEXT("Part."))) { Pieces += FMath::Max(Item.Value, 0); } }
-			JamMsg::Post(FString::Printf(TEXT("Reapareciste con %d %s"), Pieces, Pieces == 1 ? TEXT("pieza") : TEXT("piezas")), JamMsg::Info, 5.f, FName(TEXT("respawn")));
+			JamMsg::Post(FString::Printf(TEXT("Reapareciste con %d %s%s"), Pieces, Pieces == 1 ? TEXT("pieza") : TEXT("piezas"),
+				bHadGun ? TEXT(". Pulsa B y pide tu arma otra vez") : TEXT("")), JamMsg::Info, 6.f, FName(TEXT("respawn")));
 		}
 	}
 }

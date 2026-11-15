@@ -1,6 +1,8 @@
 #include "Core/JamAudio.h"
 #include "GameJamm.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Components/AudioComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
@@ -68,6 +70,19 @@ namespace JamAudio
 
 	void PlayAt(const UObject* WorldContext, const TCHAR* Name, const FVector& Where, float Volume)
 	{
+		// Los WAV importados no traen atenuacion: sin esto una torre o un cofre al otro lado del mapa sonarian igual de fuerte.
+		// El volumen baja con la distancia a la camara del jugador: lleno hasta 15 m, nada desde 60 m.
+		const UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
+		const APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+		if (PC && PC->PlayerCameraManager)
+		{
+			const float Dist = FVector::Dist(PC->PlayerCameraManager->GetCameraLocation(), Where);
+			Volume *= 1.f - FMath::Clamp((Dist - 1500.f) / 4500.f, 0.f, 1.f);
+		}
+		if (Volume <= 0.02f)
+		{
+			return;
+		}
 		if (USoundBase* S = Find(Name))
 		{
 			UGameplayStatics::PlaySoundAtLocation(WorldContext, S, Where, Volume);

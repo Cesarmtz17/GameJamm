@@ -9,6 +9,20 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+
+namespace
+{
+	/** Avisos del muneco solo si el jugador esta a menos de 30 m (si no, "Muneco: -5" saldria en cualquier lado del mapa). */
+	bool JamDummyPlayerNear(const AActor* Dummy)
+	{
+		const UWorld* World = Dummy ? Dummy->GetWorld() : nullptr;
+		const APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+		const APawn* Pawn = PC ? PC->GetPawn() : nullptr;
+		return Pawn && FVector::DistSquared(Pawn->GetActorLocation(), Dummy->GetActorLocation()) < FMath::Square(3000.f);
+	}
+}
 
 namespace
 {
@@ -73,7 +87,7 @@ void AJamTrainingDummy::Tick(float DeltaSeconds)
 	ShownState = State;
 	Paint(JamDummyColor(State));
 	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
-	if (State == 0 || Now - LastFxPost[State] < 1.5) { return; }
+	if (State == 0 || Now - LastFxPost[State] < 1.5 || !JamDummyPlayerNear(this)) { return; }
 	LastFxPost[State] = Now;
 	switch (State)
 	{
@@ -90,6 +104,7 @@ void AJamTrainingDummy::HandleHealthChanged(UHealthComponent*, float NewHealth, 
 {
 	if (Delta >= 0.f) { return; }
 	UE_LOG(LogJam, Log, TEXT("Dummy %s: -%.0f (queda %.0f)"), *GetName(), -Delta, NewHealth);
+	if (!JamDummyPlayerNear(this)) { return; } // solo avisa si el jugador esta practicando cerca
 	JamMsg::Post(FString::Printf(TEXT("Muneco: -%.0f"), -Delta), JamMsg::Warn, 1.5f, TEXT("dummy_dmg"));
 }
 

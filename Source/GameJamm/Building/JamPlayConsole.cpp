@@ -1080,6 +1080,14 @@ namespace
 				return;
 			}
 		}
+		// Montado en tu construccion: bajar antes de rearmarla (si no, el asiento se destruye y el jugador queda sin
+		// colision ni movimiento hasta pulsar E).
+		if (World)
+		{
+			const APlayerController* PC = World->GetFirstPlayerController();
+			const APawn* Me = PC ? PC->GetPawn() : nullptr;
+			if (Me && Cast<AJamBuildPart>(Me->GetAttachParentActor())) { JamSeat(TArray<FString>(), World); }
+		}
 		SpawnSay(World, Phrase, SayTransform(World), nullptr, false);
 	}
 
@@ -1196,6 +1204,7 @@ void AJamTestCharacter::PossessedBy(AController* NewController)
 	Super::PossessedBy(NewController);
 	if (APlayerController* PC = Cast<APlayerController>(NewController))
 	{
+		GTyping = false; // por si una sesion anterior termino con la caja de texto abierta
 		// Captura el mouse al entrar: no hace falta hacer clic en la ventana.
 		PC->SetInputMode(FInputModeGameOnly());
 		PC->bShowMouseCursor = false;
@@ -1697,7 +1706,12 @@ void AJamTestHUD::DrawHUD()
 	// 2) Construccion actual (arriba a la derecha). Sin construccion no se dibuja.
 	const float RW = 400.f * K, RX = SX - RW - 14.f * K;
 	float RY = 14.f * K;
-	if (AJamBuildSpawner* S = GLastSay.Get())
+	AJamBuildSpawner* S = GLastSay.Get();
+	if (S && S->CountAliveParts() == 0 && !S->LastStatus.StartsWith(TEXT("waiting")))
+	{
+		S = nullptr; // desarmada con X (o destruida): no queda un panel con "Piezas: 0"
+	}
+	if (S)
 	{
 		TArray<FString> Lines;
 		const FString& St = S->LastStatus;
