@@ -56,7 +56,7 @@ def char_master():
     if not mat.get_editor_property("used_with_skeletal_mesh"):
         mat.set_editor_property("used_with_skeletal_mesh", True)
         MEL.recompile_material(mat)
-    EAL.save_loaded_asset(mat)
+    EAL.save_loaded_asset(mat, True)  # solo si cambió: subido es de solo lectura sin lock
     return mat
 
 

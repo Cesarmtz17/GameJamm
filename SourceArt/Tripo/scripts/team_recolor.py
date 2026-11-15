@@ -29,7 +29,7 @@ def main():
     s = hsv[..., 1] / 255.0
     d = np.abs((h - a.src_hue + 180.0) % 360.0 - 180.0)
     # Peso suave en el borde del rango para no dejar halos.
-    w = np.clip((a.width - d) / 6.0, 0.0, 1.0) * np.clip((s - a.min_sat) / 0.08, 0.0, 1.0)
+    w = np.clip((a.width - d) / 3.0, 0.0, 1.0) * np.clip((s - a.min_sat) / 0.08, 0.0, 1.0)
     new_h = (h + ((a.hue - a.src_hue + 180.0) % 360.0 - 180.0)) % 360.0
     out = hsv.copy()
     out[..., 0] = np.where(w > 0, new_h * (255.0 / 360.0), hsv[..., 0])

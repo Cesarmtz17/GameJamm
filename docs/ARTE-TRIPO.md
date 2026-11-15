@@ -114,12 +114,13 @@ basta agregar estas entradas a `RealMeshNames()` en `Source/GameJamm/Building/Ja
 > - **Jesús:** "Para personajes no hace falta tocar tu código: César oculta `Body`/`Nose` desde `AJamCharacter`. Lo único
 >   pendiente tuyo sigue siendo agregar las 10 líneas a `RealMeshNames()` (sección de arriba)."
 
-**Ya existe (Javier, en `Content/Game/Art/Tripo/Characters/`):** `SK_CHAR_MINION` + `SK_CHAR_MINION_Skeleton`,
-`Anims/A_CHAR_MINION_{Idle,Walk,Jog,Run,RunComic,Attack,Throw,Hit,Death,Sit}`, `Materials/MI_CHAR_MINION_{RED,BLUE}`.
-Esqueleto UE5 (nombres de Manny), pivote en los pies, mira a +Y como Manny (por eso `Yaw` −90), un solo slot de material.
-Llegan con los mismos nombres `PLAYER`, `BOTHERO` y `GUARD`: **no hace falta código distinto por personaje**.
+**Ya existe (Javier, en `Content/Game/Art/Tripo/Characters/`), los cuatro:** `SK_CHAR_{PLAYER,MINION,BOTHERO,GUARD}`
+(cada uno con su `_Skeleton`), `Anims/A_CHAR_<X>_{Idle,Walk,Jog,Run,Attack,Throw,Hit,Death,Sit}` (+ `Swing` o
+`RunComic`), `Materials/MI_CHAR_<X>_{RED,BLUE}` y `MI_CHAR_GUARD_NEUTRAL`. Esqueleto UE5 (nombres de Manny), pivote en
+los pies, mira a +Y como Manny (por eso `Yaw` −90), un solo slot de material. **No hace falta código distinto por
+personaje**: todo sale del JSON.
 
-**Datos:** `Content/Game/Art/Tripo/Characters/Characters.json` (lo edita Javier sin recompilar; ya trae `Minion`). Por
+**Datos:** `Content/Game/Art/Tripo/Characters/Characters.json` (lo edita Javier sin recompilar; ya trae las 5 claves). Por
 clave: `Mesh`, `Materials` (`Red`/`Blue`/`Neutral`), `Offset` [x,y,z], `Yaw`, `Scale`, `RunAbove` y `Anims` con
 `Idle`, `Walk`, `Run`, `Attack`, `Shoot`, `Hit`, `Death`, `Sit`; cada una con `Asset` y opcionales `Speed` (cm/s en que
 el ciclo no patina) y `Rate` (velocidad fija de las acciones). Claves: `Player` = `AJamCharacter`, `Minion` =

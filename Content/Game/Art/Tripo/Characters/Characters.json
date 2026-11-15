@@ -1,24 +1,236 @@
 {
   "_doc": "Figuras rigeadas (Rodin, esqueleto UE5). Lo edita Javier (arte) sin recompilar; el codigo lo lee como Loot.json. Contrato en docs/ARTE-TRIPO.md, seccion Personajes. Claves: Player = AJamCharacter, Minion = AJamMinion, BotHero = AJamBotHero, Guard / Thrower = AJamCampGuard. Sin entrada (o si la malla no carga) se queda el cilindro. Offset/Yaw/Scale van en GetMesh() relativo a la capsula. Speed = cm/s a los que el ciclo se ve sin patinar con este Scale (el codigo lo multiplica por la escala del actor). Rate = velocidad de reproduccion fija de las acciones.",
+  "Player": {
+    "Mesh": "/Game/Game/Art/Tripo/Characters/SK_CHAR_PLAYER.SK_CHAR_PLAYER",
+    "Materials": {
+      "Red": "/Game/Game/Art/Tripo/Characters/Materials/MI_CHAR_PLAYER_RED.MI_CHAR_PLAYER_RED",
+      "Blue": "/Game/Game/Art/Tripo/Characters/Materials/MI_CHAR_PLAYER_BLUE.MI_CHAR_PLAYER_BLUE"
+    },
+    "Offset": [
+      0,
+      0,
+      -88
+    ],
+    "Yaw": -90,
+    "Scale": 0.92,
+    "RunAbove": 250,
+    "Anims": {
+      "Idle": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_PLAYER_Idle.A_CHAR_PLAYER_Idle"
+      },
+      "Walk": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_PLAYER_Walk.A_CHAR_PLAYER_Walk",
+        "Speed": 120
+      },
+      "Run": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_PLAYER_Run.A_CHAR_PLAYER_Run",
+        "Speed": 423
+      },
+      "Attack": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_PLAYER_Attack.A_CHAR_PLAYER_Attack",
+        "Rate": 2.0
+      },
+      "Shoot": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_PLAYER_Throw.A_CHAR_PLAYER_Throw",
+        "Rate": 2.5
+      },
+      "Hit": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_PLAYER_Hit.A_CHAR_PLAYER_Hit",
+        "Rate": 1.5
+      },
+      "Death": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_PLAYER_Death.A_CHAR_PLAYER_Death",
+        "Rate": 1.5
+      },
+      "Sit": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_PLAYER_Sit.A_CHAR_PLAYER_Sit"
+      }
+    }
+  },
   "Minion": {
     "Mesh": "/Game/Game/Art/Tripo/Characters/SK_CHAR_MINION.SK_CHAR_MINION",
     "Materials": {
       "Red": "/Game/Game/Art/Tripo/Characters/Materials/MI_CHAR_MINION_RED.MI_CHAR_MINION_RED",
       "Blue": "/Game/Game/Art/Tripo/Characters/Materials/MI_CHAR_MINION_BLUE.MI_CHAR_MINION_BLUE"
     },
-    "Offset": [0, 0, -80],
+    "Offset": [
+      0,
+      0,
+      -80
+    ],
     "Yaw": -90,
     "Scale": 0.84,
     "RunAbove": 220,
     "Anims": {
-      "Idle": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Idle.A_CHAR_MINION_Idle"},
-      "Walk": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Walk.A_CHAR_MINION_Walk", "Speed": 111},
-      "Run": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Run.A_CHAR_MINION_Run", "Speed": 398},
-      "Attack": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Attack.A_CHAR_MINION_Attack", "Rate": 1.5},
-      "Shoot": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Throw.A_CHAR_MINION_Throw", "Rate": 2.0},
-      "Hit": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Hit.A_CHAR_MINION_Hit", "Rate": 1.5},
-      "Death": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Death.A_CHAR_MINION_Death", "Rate": 1.5},
-      "Sit": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Sit.A_CHAR_MINION_Sit"}
+      "Idle": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Idle.A_CHAR_MINION_Idle"
+      },
+      "Walk": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Walk.A_CHAR_MINION_Walk",
+        "Speed": 111
+      },
+      "Run": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Run.A_CHAR_MINION_Run",
+        "Speed": 398
+      },
+      "Attack": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Attack.A_CHAR_MINION_Attack",
+        "Rate": 1.5
+      },
+      "Shoot": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Throw.A_CHAR_MINION_Throw",
+        "Rate": 2.0
+      },
+      "Hit": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Hit.A_CHAR_MINION_Hit",
+        "Rate": 1.5
+      },
+      "Death": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Death.A_CHAR_MINION_Death",
+        "Rate": 1.5
+      },
+      "Sit": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Sit.A_CHAR_MINION_Sit"
+      }
+    }
+  },
+  "BotHero": {
+    "Mesh": "/Game/Game/Art/Tripo/Characters/SK_CHAR_BOTHERO.SK_CHAR_BOTHERO",
+    "Materials": {
+      "Red": "/Game/Game/Art/Tripo/Characters/Materials/MI_CHAR_BOTHERO_RED.MI_CHAR_BOTHERO_RED",
+      "Blue": "/Game/Game/Art/Tripo/Characters/Materials/MI_CHAR_BOTHERO_BLUE.MI_CHAR_BOTHERO_BLUE"
+    },
+    "Offset": [
+      0,
+      0,
+      -92
+    ],
+    "Yaw": -90,
+    "Scale": 0.97,
+    "RunAbove": 250,
+    "Anims": {
+      "Idle": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_BOTHERO_Idle.A_CHAR_BOTHERO_Idle"
+      },
+      "Walk": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_BOTHERO_Walk.A_CHAR_BOTHERO_Walk",
+        "Speed": 123
+      },
+      "Run": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_BOTHERO_Run.A_CHAR_BOTHERO_Run",
+        "Speed": 442
+      },
+      "Attack": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_BOTHERO_Attack.A_CHAR_BOTHERO_Attack",
+        "Rate": 1.5
+      },
+      "Shoot": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_BOTHERO_Throw.A_CHAR_BOTHERO_Throw",
+        "Rate": 2.0
+      },
+      "Hit": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_BOTHERO_Hit.A_CHAR_BOTHERO_Hit",
+        "Rate": 1.5
+      },
+      "Death": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_BOTHERO_Death.A_CHAR_BOTHERO_Death",
+        "Rate": 1.5
+      },
+      "Sit": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_BOTHERO_Sit.A_CHAR_BOTHERO_Sit"
+      }
+    }
+  },
+  "Guard": {
+    "Mesh": "/Game/Game/Art/Tripo/Characters/SK_CHAR_GUARD.SK_CHAR_GUARD",
+    "Materials": {
+      "Neutral": "/Game/Game/Art/Tripo/Characters/Materials/MI_CHAR_GUARD_NEUTRAL.MI_CHAR_GUARD_NEUTRAL"
+    },
+    "Offset": [
+      0,
+      0,
+      -80
+    ],
+    "Yaw": -90,
+    "Scale": 0.84,
+    "RunAbove": 220,
+    "Anims": {
+      "Idle": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Idle.A_CHAR_GUARD_Idle"
+      },
+      "Walk": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Walk.A_CHAR_GUARD_Walk",
+        "Speed": 118
+      },
+      "Run": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Run.A_CHAR_GUARD_Run",
+        "Speed": 434
+      },
+      "Attack": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Attack.A_CHAR_GUARD_Attack",
+        "Rate": 1.5
+      },
+      "Shoot": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Throw.A_CHAR_GUARD_Throw",
+        "Rate": 2.0
+      },
+      "Hit": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Hit.A_CHAR_GUARD_Hit",
+        "Rate": 1.5
+      },
+      "Death": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Death.A_CHAR_GUARD_Death",
+        "Rate": 1.5
+      },
+      "Sit": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Sit.A_CHAR_GUARD_Sit"
+      }
+    }
+  },
+  "Thrower": {
+    "Mesh": "/Game/Game/Art/Tripo/Characters/SK_CHAR_GUARD.SK_CHAR_GUARD",
+    "Materials": {
+      "Neutral": "/Game/Game/Art/Tripo/Characters/Materials/MI_CHAR_GUARD_NEUTRAL.MI_CHAR_GUARD_NEUTRAL"
+    },
+    "Offset": [
+      0,
+      0,
+      -80
+    ],
+    "Yaw": -90,
+    "Scale": 0.84,
+    "RunAbove": 220,
+    "Anims": {
+      "Idle": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Idle.A_CHAR_GUARD_Idle"
+      },
+      "Walk": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Walk.A_CHAR_GUARD_Walk",
+        "Speed": 118
+      },
+      "Run": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Run.A_CHAR_GUARD_Run",
+        "Speed": 434
+      },
+      "Attack": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Attack.A_CHAR_GUARD_Attack",
+        "Rate": 1.5
+      },
+      "Shoot": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Throw.A_CHAR_GUARD_Throw",
+        "Rate": 2.0
+      },
+      "Hit": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Hit.A_CHAR_GUARD_Hit",
+        "Rate": 1.5
+      },
+      "Death": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Death.A_CHAR_GUARD_Death",
+        "Rate": 1.5
+      },
+      "Sit": {
+        "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Sit.A_CHAR_GUARD_Sit"
+      }
     }
   }
 }
