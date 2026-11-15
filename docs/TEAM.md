@@ -26,4 +26,4 @@ Compartido: `Content/Game/Shared/` (lock obligatorio). Pruebas: `Content/Develop
 - **Inventario:** `UInventoryComponent` en el personaje (materiales + piezas) — lo hace Core, lo usan Combate/Construcción/IA.
 - **Receta de construcción:** JSON en [GDD.md](GDD.md#formato-de-receta-contrato-entre-ia-y-sistema-de-construcción).
 
-**Deadline y freeze de features:** ver [README.md](../README.md).
+**Deadline:** ver [README.md](../README.md) (sin feature freeze desde el 15 nov).

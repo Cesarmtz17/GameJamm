@@ -3,6 +3,7 @@
 #include "Core/InventoryComponent.h"
 #include "Core/JamGameMode.h"
 #include "Core/JamLoot.h"
+#include "Core/JamAudio.h"
 #include "Core/JamCharacterLook.h"
 #include "GameJamm.h"
 #include "Core/JamPickup.h"
@@ -115,6 +116,7 @@ void AJamCharacter::HandleDied(UHealthComponent* HealthComponent, AActor* Killer
 {
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (IsPlayerControlled()) { JamAudio::Play2D(this, TEXT("SFX_Death"), 0.8f); }
 	// GDD 4 (ya sin colision, para no recogerla uno mismo): bolsa con el 50 % de tus piezas y materiales (redondeado abajo) y orbe con el 50 % de la energia sobre el minimo.
 	TMap<FName, int32> Bag;
 	if (Inventory)

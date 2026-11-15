@@ -1,12 +1,16 @@
 // Consola de Combate (pruebas sin teclado):
 //   Jam.Dummy [red|blue]     pone un muneco de practica enemigo 3 m frente al jugador
-//   Jam.Weapon [sword|bow]   cambia de arma (sin argumento alterna, como la rueda o Q)
+//   Jam.Weapon [sword|bow|arma] cambia de arma (sin argumento alterna, como la rueda o Q)
+//   Jam.Arma <frase>         pide un arma de mano ("Jam.Arma un rifle que dispare hielo"); relee Weapons.json. Sin frase: dice la actual
+//   Jam.Arma.Mano P Y R [X Y Z] [escala] ajusta en vivo como va el arma pedida en la mano (hand.rot / loc / scale de Weapons.json)
 //   Jam.Attack [veces]       ataca con el arma en mano (repite cada intervalo)
 //   Jam.Fuse [Material]      fusiona un material del inventario al arma (como F)
 //   Jam.Grip P Y R [GX GY GZ [hueso]] agarre en vivo: giro y punto del arma que va en la mano, para afinar Weapon de Characters.json
 //   Jam.Later <seg> <cmd...> corre un comando de consola despues (pruebas con -ExecCmds, que corre todo en el frame 0)
 #include "Combat/JamTrainingDummy.h"
 #include "Combat/JamWeaponComponent.h"
+#include "Combat/JamGunSpec.h"
+#include "Core/JamMessages.h"
 #include "GameFramework/Character.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "TimerManager.h"
@@ -47,7 +51,46 @@ namespace
 		UJamWeaponComponent* W = Pawn ? Pawn->FindComponentByClass<UJamWeaponComponent>() : nullptr;
 		if (!W) { return; }
 		if (Args.Num() == 0) { W->NextWeapon(); }
+		else if (Args[0].Equals(TEXT("arma"), ESearchCase::IgnoreCase) || Args[0].Equals(TEXT("gun"), ESearchCase::IgnoreCase)) { W->SetWeapon(EJamWeapon::Generated); }
 		else { W->SetWeapon(Args[0].Equals(TEXT("bow"), ESearchCase::IgnoreCase) ? EJamWeapon::Bow : EJamWeapon::Sword); }
+	}
+
+	// Arma de mano pedida (GDD 5.1): lo mismo que hara la caja de pedir (B) cuando la frase sea de arma.
+	void JamArma(const TArray<FString>& Args, UWorld* World)
+	{
+		APawn* Pawn = LocalPawn(World);
+		UJamWeaponComponent* W = Pawn ? Pawn->FindComponentByClass<UJamWeaponComponent>() : nullptr;
+		if (!W) { return; }
+		const FName Key(TEXT("JamGunMade"));
+		if (Args.Num() == 0)
+		{
+			if (W->HasGeneratedWeapon()) { JamMsg::Post(FString::Printf(TEXT("Tu arma: %s"), *W->GetGeneratedHudText()), JamMsg::Info, 5.f, Key); }
+			else { JamMsg::Post(TEXT("Aun no has pedido un arma. Prueba: un rifle que dispare hielo"), JamMsg::Info, 5.f, Key); }
+			return;
+		}
+		JamGun::Reload(); // vuelve a leer Weapons.json: se afina sin compilar
+		const FString Phrase = FString::Join(Args, TEXT(" "));
+		if (W->RequestGeneratedWeapon(Phrase)) { return; }
+		if (!UJamWeaponComponent::IsGeneratedEnabled()) { JamMsg::Post(TEXT("El arma pedida esta apagada (jam.Weapon.Generated 0)"), JamMsg::Warn, 5.f, Key); }
+		else { JamMsg::Post(FString::Printf(TEXT("No entendi un arma de mano en: %s"), *Phrase), JamMsg::Warn, 5.f, Key); }
+	}
+
+	void JamArmaMano(const TArray<FString>& Args, UWorld* World)
+	{
+		APawn* Pawn = LocalPawn(World);
+		UJamWeaponComponent* W = Pawn ? Pawn->FindComponentByClass<UJamWeaponComponent>() : nullptr;
+		if (!W || !W->HasGeneratedWeapon() || Args.Num() < 3)
+		{
+			UE_LOG(LogJam, Log, TEXT("Jam.Arma.Mano P Y R [X Y Z] [escala]: primero pide un arma con Jam.Arma <frase>"));
+			return;
+		}
+		auto F = [&Args](int32 I, float Default) { return Args.Num() > I ? FCString::Atof(*Args[I]) : Default; };
+		const FRotator Rot(F(0, 0.f), F(1, 0.f), F(2, 0.f));
+		const FVector Loc = Args.Num() > 5 ? FVector(F(3, 0.f), F(4, 0.f), F(5, 0.f)) : W->GetGeneratedSpec().HandLoc;
+		const float Scale = F(6, W->GetGeneratedSpec().HandScale);
+		W->SetGeneratedGrip(Rot, Loc, Scale);
+		UE_LOG(LogJam, Log, TEXT("Jam.Arma.Mano: copia a hand de Weapons.json -> \"rot\": [%.1f, %.1f, %.1f], \"loc\": [%.1f, %.1f, %.1f], \"scale\": %.2f"),
+			Rot.Pitch, Rot.Yaw, Rot.Roll, Loc.X, Loc.Y, Loc.Z, Scale);
 	}
 
 	void JamAttack(const TArray<FString>& Args, UWorld* World)
@@ -76,7 +119,9 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs CmdFuse(TEXT("Jam.Fuse"), TEXT("Jam.Fuse [Fire|Ice|Shock|Rock|Bomb]: fusiona al arma en mano un material del inventario (sin argumento: el siguiente, como F)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamFuse));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdDummy(TEXT("Jam.Dummy"), TEXT("Jam.Dummy [red|blue] [distancia cm]: muneco de practica enemigo al frente."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamDummy));
-	FAutoConsoleCommandWithWorldAndArgs CmdWeapon(TEXT("Jam.Weapon"), TEXT("Jam.Weapon [sword|bow]: cambia de arma (sin argumento alterna)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamWeapon));
+	FAutoConsoleCommandWithWorldAndArgs CmdWeapon(TEXT("Jam.Weapon"), TEXT("Jam.Weapon [sword|bow|arma]: cambia de arma (sin argumento alterna)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamWeapon));
+	FAutoConsoleCommandWithWorldAndArgs CmdArma(TEXT("Jam.Arma"), TEXT("Jam.Arma <frase>: pide un arma de mano (un rifle que dispare hielo) y relee Weapons.json. Sin frase: dice la actual."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamArma));
+	FAutoConsoleCommandWithWorldAndArgs CmdArmaMano(TEXT("Jam.Arma.Mano"), TEXT("Jam.Arma.Mano P Y R [X Y Z] [escala]: ajusta en vivo el arma pedida en la mano (hand de Weapons.json)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamArmaMano));
 	void JamGrip(const TArray<FString>& Args, UWorld* World)
 	{
 		ACharacter* Char = Cast<ACharacter>(LocalPawn(World));

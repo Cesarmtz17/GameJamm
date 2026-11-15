@@ -1,6 +1,8 @@
 #include "Core/JamLootChest.h"
 #include "Core/JamLoot.h"
 #include "Core/JamPickup.h"
+#include "Core/JamAudio.h"
+#include "Core/JamMessages.h"
 #include "Core/InventoryComponent.h"
 #include "Core/HealthComponent.h"
 #include "GameJamm.h"
@@ -92,10 +94,25 @@ bool AJamLootChest::OpenFor(AActor* Taker)
 	const FString What = bScrapLook ? TEXT("Chatarra") : FixedItems.Num() > 0 ? TEXT("Cofre inicial") : Table == TEXT("rare") ? TEXT("Cofre raro") : TEXT("Cofre");
 	UE_LOG(LogJam, Log, TEXT("Loot: %s abre %s (%s): %s"), *Taker->GetName(), *What, *Table, *Got);
 	const APawn* Pawn = Cast<APawn>(Taker);
-	if (GEngine && Pawn && Pawn->IsPlayerControlled())
+	// Sonido: el cofre se abre (la chatarra suena a recoger); si es el jugador y se llevo algo, el pitido de loot; si no cupo, mochila llena.
+	JamAudio::PlayAt(this, bScrapLook ? TEXT("SFX_Loot_Pickup") : TEXT("SFX_Chest_Open"), GetActorLocation(), 0.8f);
+	if (Pawn && Pawn->IsPlayerControlled())
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor(255, 214, 120), FString::Printf(TEXT("%s: %s"), *What, Got.IsEmpty() ? TEXT("nada") : *Got));
-		if (!Message.IsEmpty()) { GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Cyan, Message); }
+		if (!Got.IsEmpty() && !bScrapLook) { JamAudio::Play2D(this, TEXT("SFX_Loot_Pickup"), 0.6f); }
+		if (Leftover.Num() > 0) { JamAudio::Play2D(this, TEXT("SFX_Backpack_Full"), 0.7f); }
+	}
+	if (Pawn && Pawn->IsPlayerControlled())
+	{
+		// Aviso al jugador: lo que recibio ("Cofre: +2 Rueda, +1 Lanzallamas"); el cofre raro va como aviso grande.
+		const bool bRareChest = !bScrapLook && FixedItems.Num() == 0 && Table == TEXT("rare");
+		if (!Got.IsEmpty() || Leftover.Num() == 0)
+		{
+			const FString Line = FString::Printf(TEXT("%s: %s"), *What, Got.IsEmpty() ? TEXT("vacio") : *Got);
+			if (bRareChest) { JamMsg::Big(Line, JamMsg::Loot, 5.f, TEXT("loot")); }
+			else { JamMsg::Post(Line, JamMsg::Loot, 5.f, TEXT("loot")); }
+		}
+		if (Leftover.Num() > 0) { JamMsg::Post(TEXT("Mochila llena: se quedo en el suelo"), JamMsg::Warn, 5.f, TEXT("bag")); }
+		if (!Message.IsEmpty()) { JamMsg::Post(Message, JamMsg::Info, 10.f, TEXT("tip")); }
 	}
 	if (bScrapLook) { SetActorHiddenInGame(true); SetActorEnableCollision(false); }
 	if (RespawnSeconds > 0.f)

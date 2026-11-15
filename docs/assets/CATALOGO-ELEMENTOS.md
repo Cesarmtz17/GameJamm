@@ -194,7 +194,7 @@ Cada material necesita: **mesh pegable** (con socket `Attach_*`), **icono**, y *
 | `PWR_BATTERY_*` | cualquier `DEV_*` | Consumen primero la batería desechable |
 | `CTRL_TIMEBOMB` | `DEV_*` cercano | La onda lo activa |
 
-## 9. Prioridad de producción (jam: freeze dom 15, 12:00 CDMX)
+## 9. Prioridad de producción (jam: entrega dom 15, 19:59 CDMX)
 
 1. **Imprescindibles (MVP):** `PART_PLANK`, `PART_BLOCK`, `PART_CYLINDER`, `JOINT_GLUE`, `DEV_WHEEL_S`, `DEV_FAN`, `CTRL_SEAT`, `PWR_BATTERY_S`, `DEV_CANNON`, `FUSE_FIRE`.
 2. **Alta:** `PART_PANEL`, `PART_WALL`, `PART_BALL`, `DEV_WHEEL_L`, `DEV_ROCKET`, `DEV_WING`, `DEV_FLAME`, `DEV_FROST`, `JOINT_HINGE`, `ANCHOR_STAKE`, `FUSE_ICE`, `FUSE_SHOCK`, `FUSE_BOMB`.

@@ -1,0 +1,15 @@
+{
+ "_doc": "Lote de piezas de arma de mano (noche 15 nov, GDD v2 5.1): Rodin Gen-2.5-Medium solo texto, quality 1000. Ejes: X = canon (adelante), Y = ancho, Z = alto. fit height: escala uniforme a la altura y conserva proporciones (el codigo del arma vuelve a escalar cada pieza con el size de Weapons.json). Importadas a /Game/Game/Combat/WeaponParts (carpeta que siempre se cocina).",
+ "parts": [
+  {"name": "SM_WPN_GRIP", "size": [7, 4, 13], "sockets": "none", "fx": [], "tex": 512, "tris": 1500, "fit": "height", "overflow": 1.6},
+  {"name": "SM_WPN_TRIGGER", "size": [9, 3, 6], "sockets": "none", "fx": [], "tex": 512, "tris": 1500, "fit": "height", "overflow": 1.6},
+  {"name": "SM_WPN_STOCK", "size": [30, 6, 13], "sockets": "none", "fx": [], "tex": 512, "tris": 1500, "fit": "height", "overflow": 1.6},
+  {"name": "SM_WPN_BARREL_S", "size": [20, 6, 6], "sockets": "none", "fx": [], "tex": 512, "tris": 1500, "fit": "height", "overflow": 1.6},
+  {"name": "SM_WPN_BARREL_L", "size": [50, 6, 6], "sockets": "none", "fx": [], "tex": 512, "tris": 1500, "fit": "height", "overflow": 1.6},
+  {"name": "SM_WPN_SCOPE", "size": [20, 5, 7], "sockets": "none", "fx": [], "tex": 512, "tris": 1500, "fit": "height", "overflow": 1.6},
+  {"name": "SM_WPN_MAG", "size": [6, 4, 13], "sockets": "none", "fx": [], "tex": 512, "tris": 1500, "fit": "height", "overflow": 1.6},
+  {"name": "SM_WPN_DRUM", "size": [12, 7, 12], "sockets": "none", "fx": [], "tex": 512, "tris": 1500, "fit": "height", "overflow": 1.6},
+  {"name": "SM_WPN_BODY", "size": [26, 8, 11], "sockets": "none", "fx": [], "tex": 512, "tris": 1500, "fit": "height", "overflow": 1.6},
+  {"name": "SM_WPN_MUZZLE", "size": [10, 8, 8], "sockets": "none", "fx": [], "tex": 512, "tris": 1500, "fit": "height", "overflow": 1.6}
+ ]
+}

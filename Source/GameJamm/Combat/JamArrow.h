@@ -37,6 +37,17 @@ public:
 	/** Muestra el material en la punta. */
 	void ShowFuse(UStaticMesh* FuseMesh);
 
+	/**
+	 * La convierte en disparo del arma pedida (GDD 5.1), antes de Launch: malla y tamano propios (MeshInShot = transform
+	 * local de la malla), color si bGlow, gravedad (0 = linea recta, laser), segundos de vida (alcance / velocidad) y
+	 * bAreaEffect = como aplica el efecto de Fused (true = de flecha, en area; false = de golpe, solo al blanco).
+	 * Un disparo no se queda clavado: desaparece al pegar.
+	 */
+	void SetupShot(UStaticMesh* ShotMesh, const FTransform& MeshInShot, const FLinearColor& Color, bool bGlow, float GravityScale, float LifeSeconds, bool bAreaEffect);
+
+	/** Dos disparos de la misma rafaga (perdigones) no chocan entre si. */
+	void IgnoreShot(AJamArrow* Other);
+
 private:
 	UFUNCTION()
 	void HandleHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
@@ -49,4 +60,6 @@ private:
 	TWeakObjectPtr<UJamWeaponComponent> Weapon;
 	float Damage = 15.f;
 	bool bDone = false;
+	bool bShot = false;      // disparo del arma pedida: no se clava
+	bool bFuseArea = true;   // el efecto de Fused se aplica como flecha (en area)
 };

@@ -36,6 +36,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Status")
 	bool IsFrozen() const;
 
+	/** Lento o aturdido ahora mismo (para que el muneco de practica lo muestre; no cambian los efectos). */
+	bool IsSlowed() const;
+	bool IsStunned() const;
+
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:

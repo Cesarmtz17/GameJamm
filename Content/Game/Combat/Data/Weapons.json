@@ -1,0 +1,444 @@
+{
+  "_doc": "Arma de mano pedida (GDD 5.1). La lee Combat/JamGunSpec.cpp en runtime (como Fusion.json): cambiar aqui NO requiere compilar; 'Jam.Arma <frase>' vuelve a leer el archivo. Solo ASCII (sin tildes). Un arma = grip + body + muzzle (boca: decide el efecto) + extras. Numeros finales = muzzle * body *_mult * extras *_mult. Medidas en cm en el espacio del arma: origen = centro de la mano, X = hacia donde dispara, Y = derecha, Z = arriba. Pieza visual: mesh (nombre corto de /Game/Game/Building/Parts o ruta completa /Game/...), size [largo, ancho, alto] en cm (0 = conserva la proporcion de la malla), pos [x,y,z] = centro de la pieza, rot [pitch,yaw,roll]. Palabras clave: se comparan en minusculas y sin tildes, por inicio de palabra ('electri' vale para 'electrico'); con '=' al inicio exigen palabra(s) completas ('=un arma' no vale para 'un armario'). keywords = frases que significan arma de mano (tambien cuentan las keywords de cada body); exclude = si aparece una de estas el pedido es de construccion (un carro que dispare fuego) y NO se toma como arma. El primer body / muzzle de la lista cuya palabra aparece gana (el orden es la prioridad). muzzle.effect = material de Fusion.json (Fire, Ice, Shock, Rock, Bomb) o vacio; area true = efecto de flecha (en area), false = efecto de golpe (Ice: ralentiza y congela a los N impactos); effect_pellets = cuantos proyectiles de la rafaga llevan el efecto (0 = todos; Bomb usa 1 para no explotar 6 veces). energy = energia del jugador por clic (no por perdigon). sound = nombre del SFX que se tocara al disparar (aun no se toca). hand: socket = hueso de la mano; auto true = el canon sigue la direccion antebrazo>mano y rot/loc son un ajuste en ejes del arma (afinar en vivo: Jam.Arma.Mano P Y R [X Y Z] [S] y copiar aqui); auto false = rot/loc directos en el hueso; loose_loc = posicion si la figura no tiene esqueleto; aim_seconds = cuanto dura el brazo extendido despues de disparar.",
+  "defaults": {
+    "body": "Rifle",
+    "muzzle": "Rock",
+    "damage": 12,
+    "interval": 0.5,
+    "speed": 4500,
+    "gravity": 0.2,
+    "energy": 4,
+    "range": 4500,
+    "push": 250,
+    "max_pellets": 12,
+    "min_interval": 0.06,
+    "fan_jitter": 0.25,
+    "flash_seconds": 0.07,
+    "flash_intensity": 6000,
+    "flash_radius": 350,
+    "projectile": { "mesh": "SM_PART_BALL", "size": [10, 10, 10], "glow": true }
+  },
+  "keywords": ["=un arma", "=una arma", "=el arma", "=mi arma", "=otra arma", "=arma de", "=arma que", "=arma con", "=armas", "dispar", "gun", "weapon", "firearm"],
+  "exclude": ["carro", "carrito", "carreta", "coche", "=auto", "=autos", "automovil", "camion", "vehic", "buggy", "kart", "tanque", "torreta", "torre", "=moto", "=motos", "motocicleta", "bici", "monociclo", "patineta", "dron", "helicop", "avion", "planeador", "dirigible", "globo", "nave", "volador", "que vuele", "que ruede", "barco", "bote", "lancha", "velero", "balsa", "submarino", "canoa", "catapulta", "trebuchet", "robot", "mecha", "fortaleza", "castillo", "bunker", "barricada", "muralla", "muro", "pared", "puente", "rampa", "escalera", "plataforma", "trineo", "rueda", "llanta", "tren", "vagon", "trompo", "aspersor", "casa", "constru", "hover", "=car", "=tank", "turret", "truck", "=boat", "=plane", "vehicle"],
+  "hand": {
+    "socket": "hand_r",
+    "auto": true,
+    "loc": [7, 0, -2],
+    "rot": [0, 0, 0],
+    "scale": 1.5,
+    "loose_loc": [45, 38, 10],
+    "aim_seconds": 1.2
+  },
+  "grip": {
+    "pieces": [
+      { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_GRIP.SM_WPN_GRIP", "size": [0, 0, 12], "pos": [0, 0, 0] }
+    ]
+  },
+  "muzzles": [
+    {
+      "id": "Laser",
+      "keywords": ["laser", "rayo laser", "plasma", "luz"],
+      "name": "Laser",
+      "suffix": "laser",
+      "effect": "",
+      "area": false,
+      "mesh": "SM_DEV_BEAM",
+      "size": [16, 0, 0],
+      "damage": 13,
+      "interval": 0.3,
+      "speed": 14000,
+      "gravity": 0,
+      "energy": 3,
+      "range": 7000,
+      "push": 80,
+      "color": [1.0, 0.1, 0.4],
+      "sound": "SFX_Shock",
+      "projectile": { "mesh": "SM_PART_ROD", "size": [110, 3.5, 3.5], "glow": true }
+    },
+    {
+      "id": "Fire",
+      "keywords": ["fuego", "llama", "quem", "incendi", "lava", "fire", "flame"],
+      "name": "Fuego",
+      "suffix": "de fuego",
+      "effect": "Fire",
+      "area": true,
+      "mesh": "SM_DEV_FLAME",
+      "size": [14, 0, 0],
+      "damage": 9,
+      "interval": 0.45,
+      "speed": 3200,
+      "gravity": 0.25,
+      "energy": 4,
+      "range": 3000,
+      "push": 100,
+      "color": [1.0, 0.45, 0.05],
+      "sound": "SFX_Explosion",
+      "projectile": { "mesh": "SM_PART_BALL", "size": [13, 13, 13], "glow": true }
+    },
+    {
+      "id": "Ice",
+      "keywords": ["hielo", "congel", "frio", "helad", "nieve", "escarcha", "ice", "frost", "freez"],
+      "name": "Hielo",
+      "suffix": "de hielo",
+      "effect": "Ice",
+      "area": false,
+      "mesh": "SM_DEV_FROST",
+      "size": [14, 0, 0],
+      "damage": 10,
+      "interval": 0.5,
+      "speed": 3800,
+      "gravity": 0.2,
+      "energy": 4,
+      "range": 4000,
+      "push": 120,
+      "color": [0.5, 0.9, 1.0],
+      "sound": "SFX_Ice",
+      "projectile": { "mesh": "SM_PART_BALL", "size": [11, 11, 11], "glow": true }
+    },
+    {
+      "id": "Shock",
+      "keywords": ["rayo", "electri", "choque", "descarga", "trueno", "relampago", "tesla", "shock", "lightning"],
+      "name": "Rayo",
+      "suffix": "de rayos",
+      "effect": "Shock",
+      "area": true,
+      "mesh": "SM_DEV_SHOCK",
+      "size": [14, 0, 0],
+      "damage": 8,
+      "interval": 0.7,
+      "speed": 6000,
+      "gravity": 0.05,
+      "energy": 6,
+      "range": 4000,
+      "push": 80,
+      "color": [1.0, 1.0, 0.3],
+      "sound": "SFX_Shock",
+      "projectile": { "mesh": "SM_PART_BALL", "size": [9, 9, 9], "glow": true }
+    },
+    {
+      "id": "Bomb",
+      "keywords": ["bomba", "explosi", "explot", "cohete", "misil", "granada", "dinamita", "bomb", "rocket"],
+      "name": "Bomba",
+      "suffix": "de bombas",
+      "effect": "Bomb",
+      "area": true,
+      "effect_pellets": 1,
+      "mesh": "SM_DEV_CANNON",
+      "size": [16, 0, 0],
+      "damage": 12,
+      "interval": 1.4,
+      "speed": 2600,
+      "gravity": 0.45,
+      "energy": 12,
+      "range": 5000,
+      "push": 300,
+      "color": [1.0, 0.6, 0.15],
+      "sound": "SFX_Cannon",
+      "projectile": { "mesh": "SM_DEV_ROCKET", "size": [28, 0, 0], "glow": false }
+    },
+    {
+      "id": "Rock",
+      "keywords": ["roca", "piedra", "rock", "stone"],
+      "name": "Roca",
+      "suffix": "de roca",
+      "effect": "Rock",
+      "area": true,
+      "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_MUZZLE.SM_WPN_MUZZLE",
+      "size": [10, 0, 0],
+      "damage": 14,
+      "interval": 0.5,
+      "speed": 6000,
+      "gravity": 0.15,
+      "energy": 3,
+      "range": 4500,
+      "push": 700,
+      "color": [1.0, 0.85, 0.5],
+      "sound": "SFX_Cannon",
+      "projectile": { "mesh": "SM_PART_BALL", "size": [8, 8, 8], "glow": false }
+    }
+  ],
+  "bodies": [
+    {
+      "id": "Sniper",
+      "keywords": ["francotirador", "sniper", "de precision", "largo alcance"],
+      "name": "Francotirador",
+      "extras": ["Stock", "Scope"],
+      "damage_mult": 2.8,
+      "interval_mult": 2.6,
+      "speed_mult": 2.0,
+      "energy_mult": 2.4,
+      "range_mult": 2.2,
+      "push_mult": 1.5,
+      "pellets": 1,
+      "spread_deg": 0,
+      "muzzle_pos": [66, 0, 9],
+      "muzzle_scale": 0.8,
+      "mounts": {
+        "Scope": [8, 0, 17],
+        "Stock": [-18, 0, 6],
+        "Mag": [10, 0, -2],
+        "Double": [43, 0, 4]
+      },
+      "pieces": [
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BODY.SM_WPN_BODY", "size": [26, 0, 0], "pos": [7, 0, 8] },
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BARREL_L.SM_WPN_BARREL_L", "size": [46, 0, 0], "pos": [43, 0, 9] }
+      ]
+    },
+    {
+      "id": "Launcher",
+      "keywords": ["lanzacohetes", "lanzamisiles", "lanzagranadas", "bazuca", "bazooka", "canon de mano", "=rpg"],
+      "name": "Lanzacohetes",
+      "muzzle": "Bomb",
+      "extras": [],
+      "damage_mult": 1.6,
+      "interval_mult": 1.5,
+      "speed_mult": 0.8,
+      "energy_mult": 1.25,
+      "range_mult": 1.0,
+      "push_mult": 1.5,
+      "pellets": 1,
+      "spread_deg": 0,
+      "muzzle_pos": [38, 0, 11],
+      "muzzle_scale": 1.1,
+      "mounts": {
+        "Scope": [4, 0, 19],
+        "Stock": [-30, 0, 9],
+        "Mag": [14, 0, 2],
+        "Double": [6, 0, 22]
+      },
+      "pieces": [
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BARREL_S.SM_WPN_BARREL_S", "size": [64, 12, 12], "pos": [6, 0, 11] },
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BODY.SM_WPN_BODY", "size": [14, 0, 0], "pos": [2, 0, 5] }
+      ]
+    },
+    {
+      "id": "Flamer",
+      "keywords": ["lanzallamas", "flamethrower", "soplete"],
+      "name": "Lanzallamas",
+      "muzzle": "Fire",
+      "extras": [],
+      "damage_mult": 0.35,
+      "interval_mult": 0.3,
+      "speed_mult": 0.5,
+      "energy_mult": 0.3,
+      "range_mult": 0.3,
+      "push_mult": 0.5,
+      "pellets": 1,
+      "spread_deg": 4,
+      "muzzle_pos": [29, 0, 9],
+      "muzzle_scale": 1.0,
+      "mounts": {
+        "Scope": [5, 0, 21],
+        "Stock": [-15, 0, 5.5],
+        "Mag": [10, 0, 1],
+        "Double": [23, 0, 5]
+      },
+      "pieces": [
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BODY.SM_WPN_BODY", "size": [18, 0, 0], "pos": [5, 0, 8] },
+        { "mesh": "SM_PART_CYLINDER", "size": [20, 8, 8], "pos": [4, 0, 16] },
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BARREL_S.SM_WPN_BARREL_S", "size": [14, 0, 0], "pos": [22, 0, 9] }
+      ]
+    },
+    {
+      "id": "Shotgun",
+      "keywords": ["escopeta", "shotgun", "recortada", "trabuco"],
+      "name": "Escopeta",
+      "extras": ["Stock"],
+      "damage_mult": 0.45,
+      "interval_mult": 1.8,
+      "speed_mult": 0.9,
+      "energy_mult": 2.0,
+      "range_mult": 0.5,
+      "push_mult": 0.6,
+      "pellets": 6,
+      "spread_deg": 10,
+      "muzzle_pos": [44, 0, 9],
+      "muzzle_scale": 1.0,
+      "mounts": {
+        "Scope": [6, 0, 17],
+        "Stock": [-17, 0, 6],
+        "Mag": [10, 0, -2],
+        "Double": [31, 0, 1]
+      },
+      "pieces": [
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BODY.SM_WPN_BODY", "size": [24, 0, 0], "pos": [6, 0, 8] },
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BARREL_S.SM_WPN_BARREL_S", "size": [26, 0, 0], "pos": [31, 0, 9] }
+      ]
+    },
+    {
+      "id": "Smg",
+      "keywords": ["metralleta", "ametralladora", "subfusil", "=smg", "automatic", "rafaga"],
+      "name": "Metralleta",
+      "extras": [],
+      "damage_mult": 0.4,
+      "interval_mult": 0.28,
+      "speed_mult": 1.0,
+      "energy_mult": 0.3,
+      "range_mult": 0.8,
+      "push_mult": 0.4,
+      "pellets": 1,
+      "spread_deg": 2.5,
+      "muzzle_pos": [27, 0, 9],
+      "muzzle_scale": 0.8,
+      "mounts": {
+        "Scope": [5, 0, 16],
+        "Stock": [-15, 0, 6],
+        "Mag": [9, 0, -2],
+        "Double": [21, 0, 4]
+      },
+      "pieces": [
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BODY.SM_WPN_BODY", "size": [20, 0, 0], "pos": [5, 0, 8] },
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BARREL_S.SM_WPN_BARREL_S", "size": [12, 0, 0], "pos": [21, 0, 9] },
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_DRUM.SM_WPN_DRUM", "size": [0, 0, 11], "pos": [9, 0, -1] }
+      ]
+    },
+    {
+      "id": "Crossbow",
+      "keywords": ["ballesta", "crossbow"],
+      "name": "Ballesta",
+      "extras": [],
+      "damage_mult": 1.6,
+      "interval_mult": 1.6,
+      "speed_mult": 1.0,
+      "energy_mult": 0.8,
+      "range_mult": 1.0,
+      "push_mult": 1.0,
+      "pellets": 1,
+      "spread_deg": 0,
+      "muzzle_pos": [36, 0, 7.5],
+      "muzzle_scale": 0.6,
+      "mounts": {
+        "Scope": [6, 0, 11.5],
+        "Stock": [-18, 0, 5.5],
+        "Mag": [10, 0, 1],
+        "Double": [22, 0, 4]
+      },
+      "pieces": [
+        { "mesh": "SM_PART_PLANK", "size": [44, 4, 4.5], "pos": [14, 0, 7.5] },
+        { "mesh": "SM_PART_ROD", "size": [2.6, 44, 2.6], "pos": [31, 0, 8.5] }
+      ]
+    },
+    {
+      "id": "Blaster",
+      "keywords": ["blaster", "desintegrador"],
+      "name": "Blaster",
+      "muzzle": "Laser",
+      "extras": [],
+      "damage_mult": 0.9,
+      "interval_mult": 0.9,
+      "speed_mult": 1.0,
+      "energy_mult": 0.9,
+      "range_mult": 0.8,
+      "push_mult": 1.0,
+      "pellets": 1,
+      "spread_deg": 0,
+      "muzzle_pos": [19, 0, 8.5],
+      "muzzle_scale": 0.8,
+      "mounts": {
+        "Scope": [4, 0, 11.5],
+        "Stock": [-13, 0, 5.5],
+        "Mag": [0, 0, -7.5],
+        "Double": [8, 0, 4]
+      },
+      "pieces": [
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BODY.SM_WPN_BODY", "size": [16, 0, 0], "pos": [4, 0, 7.5] },
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BARREL_S.SM_WPN_BARREL_S", "size": [8, 0, 0], "pos": [15, 0, 8.5] },
+        { "mesh": "SM_PART_BLOCK", "size": [8, 2, 4], "pos": [2, 0, 14], "rot": [20, 0, 0] }
+      ]
+    },
+    {
+      "id": "Pistol",
+      "keywords": ["pistol", "revolver", "=arma corta", "handgun"],
+      "name": "Pistola",
+      "extras": [],
+      "damage_mult": 0.8,
+      "interval_mult": 0.8,
+      "speed_mult": 0.9,
+      "energy_mult": 0.75,
+      "range_mult": 0.7,
+      "push_mult": 0.8,
+      "pellets": 1,
+      "spread_deg": 0.5,
+      "muzzle_pos": [21, 0, 8.5],
+      "muzzle_scale": 0.8,
+      "mounts": {
+        "Scope": [4, 0, 11.5],
+        "Stock": [-13, 0, 5.5],
+        "Mag": [0, 0, -7.5],
+        "Double": [8, 0, 4]
+      },
+      "pieces": [
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BODY.SM_WPN_BODY", "size": [16, 0, 0], "pos": [4, 0, 7.5] },
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BARREL_S.SM_WPN_BARREL_S", "size": [10, 0, 0], "pos": [16, 0, 8.5] }
+      ]
+    },
+    {
+      "id": "Rifle",
+      "keywords": ["rifle", "fusil", "carabina", "mosquete"],
+      "name": "Rifle",
+      "extras": ["Stock"],
+      "damage_mult": 1.0,
+      "interval_mult": 1.0,
+      "speed_mult": 1.2,
+      "energy_mult": 1.0,
+      "range_mult": 1.2,
+      "push_mult": 1.0,
+      "pellets": 1,
+      "spread_deg": 0,
+      "muzzle_pos": [49, 0, 9],
+      "muzzle_scale": 1.0,
+      "mounts": {
+        "Scope": [6, 0, 17],
+        "Stock": [-17, 0, 6],
+        "Mag": [10, 0, -2],
+        "Double": [34, 0, 4]
+      },
+      "pieces": [
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BODY.SM_WPN_BODY", "size": [24, 0, 0], "pos": [7, 0, 8] },
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BARREL_L.SM_WPN_BARREL_L", "size": [30, 0, 0], "pos": [34, 0, 9] }
+      ]
+    }
+  ],
+  "extras": [
+    {
+      "id": "Scope",
+      "keywords": ["mira", "telescop", "scope", "zoom"],
+      "name": "mira",
+      "range_mult": 1.5,
+      "speed_mult": 1.15,
+      "pieces": [
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_SCOPE.SM_WPN_SCOPE", "size": [18, 0, 0], "pos": [0, 0, 0] }
+      ]
+    },
+    {
+      "id": "Stock",
+      "keywords": ["culata", "stock"],
+      "name": "culata",
+      "spread_mult": 0.5,
+      "pieces": [
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_STOCK.SM_WPN_STOCK", "size": [26, 5, 10], "pos": [0, 0, 0] }
+      ]
+    },
+    {
+      "id": "Mag",
+      "keywords": ["cargador", "bateria", "pila", "municion extra", "magazine", "battery"],
+      "name": "cargador",
+      "energy_mult": 0.75,
+      "pieces": [
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_MAG.SM_WPN_MAG", "size": [0, 0, 12], "pos": [0, 0, -4] }
+      ]
+    },
+    {
+      "id": "Double",
+      "keywords": ["doble canon", "dos canones", "doble", "double"],
+      "name": "doble canon",
+      "pellets_add": 1,
+      "spread_add": 3,
+      "energy_mult": 1.5,
+      "pieces": [
+        { "mesh": "/Game/Game/Combat/WeaponParts/SM_WPN_BARREL_L.SM_WPN_BARREL_L", "size": [26, 0, 0], "pos": [0, 0, 0] }
+      ]
+    }
+  ],
+  "_doc_t5": "Noche 15 nov (T5): piezas de arma de Rodin en /Game/Game/Combat/WeaponParts (SM_WPN_*); las bocas de efecto siguen con SM_DEV_*. Copia previa en el historial de git."
+}

@@ -1,7 +1,9 @@
 #include "Core/JamLootDirector.h"
 #include "Core/JamLoot.h"
 #include "Core/JamLootChest.h"
+#include "Core/JamMessages.h"
 #include "AI/JamCampGuard.h"
+#include "Combat/JamTrainingDummy.h"
 #include "GameJamm.h"
 #include "Core/HealthComponent.h"
 #include "Engine/Engine.h"
@@ -122,6 +124,36 @@ void AJamLootDirector::BeginPlay()
 		GetWorldTimerManager().SetTimer(CampTimer, this, &AJamLootDirector::CheckCamps, 5.f, true);
 	}
 
+	// Munecos de practica junto al spawn rojo (GDD 8). Se crean por codigo desde "dummies"; nunca van guardados en L_Main.
+	const TArray<TSharedPtr<FJsonValue>>* Dummies = nullptr;
+	if (Cfg->TryGetArrayField(TEXT("dummies"), Dummies))
+	{
+		int32 Placed = 0;
+		for (const auto& V : *Dummies)
+		{
+			const TSharedPtr<FJsonObject> O = V.IsValid() ? V->AsObject() : nullptr;
+			double DX = 0.0, DY = 0.0;
+			if (!O || !O->TryGetNumberField(TEXT("x"), DX) || !O->TryGetNumberField(TEXT("y"), DY)) { continue; }
+			FVector Ground;
+			if (!JamLoot::GroundAt(GetWorld(), float(DX), float(DY), Ground, this))
+			{
+				UE_LOG(LogJam, Warning, TEXT("Loot: sin suelo para el muneco en (%.0f, %.0f), no lo pongo"), DX, DY);
+				continue;
+			}
+			// El cilindro mide 180 cm con el pivote al centro: se sube 90 cm para que no quede enterrado. Mira hacia el spawn (X = -10800).
+			const FVector At = Ground + FVector(0.f, 0.f, 90.f);
+			const FTransform T(FRotator(0.f, FMath::RadiansToDegrees(FMath::Atan2(-At.Y, -10800.f - At.X)), 0.f), At);
+			if (AJamTrainingDummy* D = GetWorld()->SpawnActorDeferred<AJamTrainingDummy>(AJamTrainingDummy::StaticClass(), T, this, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn))
+			{
+				// Neutral: el dano del jugador cuenta (AreEnemies) y los minions, bots y torres ignoran a los neutrales.
+				D->Health->Team = EJamTeam::Neutral;
+				D->FinishSpawning(T);
+				++Placed;
+			}
+		}
+		UE_LOG(LogJam, Log, TEXT("Loot: %d munecos de practica"), Placed);
+	}
+
 	const TSharedPtr<FJsonObject>* Rare = nullptr;
 	if (Cfg->TryGetObjectField(TEXT("rare_event"), Rare))
 	{
@@ -169,9 +201,9 @@ void AJamLootDirector::SpawnRareChest()
 	const TSharedPtr<FJsonObject>* Rare = nullptr;
 	if (!JamLoot::Config()->TryGetObjectField(TEXT("rare_event"), Rare)) { return; }
 	RareChest = PlaceChest((*Rare)->GetNumberField(TEXT("x")), (*Rare)->GetNumberField(TEXT("y")), TEXT("rare"), -1.f, true, false);
-	if (RareChest.IsValid() && GEngine)
+	if (RareChest.IsValid())
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 6.f, FColor(255, 170, 60), TEXT("Cofre raro en la pradera central!"));
+		JamMsg::Big(TEXT("Cofre raro en la pradera central"), JamMsg::Loot, 6.f, TEXT("rare"));
 	}
 }
 

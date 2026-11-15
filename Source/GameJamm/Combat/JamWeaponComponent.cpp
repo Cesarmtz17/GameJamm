@@ -23,6 +23,15 @@
 #include "Containers/Ticker.h"
 #include "DrawDebugHelpers.h"
 #include "HAL/IConsoleManager.h"
+#include "Building/JamBuildPart.h"
+#include "Combat/JamGunSpec.h"
+#include "Components/PointLightComponent.h"
+#include "Components/SceneComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Core/JamMessages.h"
+#include "Core/JamAudio.h"
+#include "Engine/SkeletalMesh.h"
+#include "ReferenceSkeleton.h"
 
 namespace
 {
@@ -127,6 +136,7 @@ void UJamWeaponComponent::AttachToHand(USceneComponent* Skeleton, FName InSwordS
 	SwordInHand = Sword;
 	BowInHand = Bow;
 	SwingAlpha = 1.f;
+	PlaceGun(); // si ya habia arma pedida, pasa al hueso de la mano
 	RefreshHandMesh();
 }
 
@@ -134,6 +144,19 @@ void UJamWeaponComponent::RefreshHandMesh()
 {
 	if (!HandMesh)
 	{
+		return;
+	}
+	// Arma pedida en la mano: se ven sus piezas y se esconden la espada / el arco (y al reves).
+	const bool bGun = Current == EJamWeapon::Generated && bHasGun;
+	HandMesh->SetVisibility(!bGun);
+	if (GunRoot)
+	{
+		GunRoot->SetVisibility(bGun, true);
+		if (GunFlash) { GunFlash->SetVisibility(false); }
+	}
+	if (bGun)
+	{
+		if (FuseMesh) { FuseMesh->SetVisibility(false); }
 		return;
 	}
 	if (USceneComponent* Parent = HandParent.Get())
@@ -197,12 +220,14 @@ void UJamWeaponComponent::RefreshFuseMesh()
 
 FName UJamWeaponComponent::GetFused() const
 {
+	if (Current == EJamWeapon::Generated) { return NAME_None; } // el arma pedida no lleva material: su boca trae el efecto
 	return Current == EJamWeapon::Sword ? FusedSword : FusedBow;
 }
 
 int32 UJamWeaponComponent::GetFusedUses() const
 {
 	if (Current == EJamWeapon::Sword) { return FusedSword.IsNone() ? 0 : SwordUses; }
+	if (Current == EJamWeapon::Generated) { return 0; }
 	const UInventoryComponent* Inv = GetOwner() ? GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
 	return FusedBow.IsNone() || !Inv ? 0 : Inv->GetCount(InvId(FusedBow));
 }
@@ -217,18 +242,30 @@ float UJamWeaponComponent::MatNumber(FName MaterialId, const TCHAR* Field, float
 float UJamWeaponComponent::GetInterval() const
 {
 	if (Current == EJamWeapon::Bow) { return BowInterval; }
+	if (Current == EJamWeapon::Generated) { return bHasGun ? Gun.Interval : BowInterval; }
 	return SwordInterval * (FusedSword.IsNone() ? 1.f : MatNumber(FusedSword, TEXT("sword_interval"), 1.f));
 }
 
 void UJamWeaponComponent::Notify(const FString& Text) const
 {
+	Notify(Text, JamMsg::Warn, NAME_None);
+}
+
+void UJamWeaponComponent::Notify(const FString& Text, const FLinearColor& Color, FName Key) const
+{
+	// Avisos del jugador por JamMsg (los dibuja el HUD y se ven en Shipping; JamMsg ya los escribe en el log).
 	const APawn* Pawn = Cast<APawn>(GetOwner());
-	UE_LOG(LogJam, Log, TEXT("Fusion: %s"), *Text);
-	if (GEngine && Pawn && Pawn->IsPlayerControlled()) { GEngine->AddOnScreenDebugMessage(9100, 3.f, FColor(255, 200, 90), Text); }
+	if (Pawn && Pawn->IsPlayerControlled()) { JamMsg::Post(Text, Color, 4.f, Key); }
+	else { UE_LOG(LogJam, Log, TEXT("Arma: %s"), *Text); }
 }
 
 bool UJamWeaponComponent::Fuse(FName MaterialId)
 {
+	if (Current == EJamWeapon::Generated)
+	{
+		Notify(TEXT("Tu arma pedida ya trae su efecto. Cambia a la espada o al arco (Q) para fusionar"));
+		return false;
+	}
 	UInventoryComponent* Inv = GetOwner() ? GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
 	if (!Inv || !MatConfig(MaterialId).IsValid() || Inv->GetCount(InvId(MaterialId)) <= 0)
 	{
@@ -242,12 +279,12 @@ bool UJamWeaponComponent::Fuse(FName MaterialId)
 		double Uses = 20.0;
 		FusionConfig()->TryGetNumberField(TEXT("sword_uses"), Uses);
 		SwordUses = FMath::RoundToInt(MatNumber(MaterialId, TEXT("sword_uses"), float(Uses)));
-		Notify(FString::Printf(TEXT("Espada + %s (%d golpes)"), *MatName(MaterialId), SwordUses));
+		Notify(FString::Printf(TEXT("Espada + %s (%d golpes)"), *MatName(MaterialId), SwordUses), JamMsg::Good, NAME_None);
 	}
 	else
 	{
 		FusedBow = MaterialId;
-		Notify(FString::Printf(TEXT("Flechas de %s (%d)"), *MatName(MaterialId), Inv->GetCount(InvId(MaterialId))));
+		Notify(FString::Printf(TEXT("Flechas de %s (%d)"), *MatName(MaterialId), Inv->GetCount(InvId(MaterialId))), JamMsg::Good, NAME_None);
 	}
 	RefreshFuseMesh();
 	return true;
@@ -255,6 +292,10 @@ bool UJamWeaponComponent::Fuse(FName MaterialId)
 
 bool UJamWeaponComponent::FuseNext()
 {
+	if (Current == EJamWeapon::Generated)
+	{
+		return Fuse(NAME_None); // avisa que el arma pedida no se fusiona
+	}
 	const UInventoryComponent* Inv = GetOwner() ? GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
 	TArray<FString> Order;
 	FusionConfig()->TryGetStringArrayField(TEXT("order"), Order);
@@ -366,6 +407,10 @@ bool UJamWeaponComponent::Attack()
 	{
 		return false;
 	}
+	if (Current == EJamWeapon::Generated)
+	{
+		return FireGenerated(); // dispara al instante con la energia del jugador (GDD 5.1)
+	}
 	const float Now = GetWorld()->GetTimeSeconds();
 	LastAttackTime = Now;
 	// Voltea a la mira (la camara puede ver a otro lado que el cuerpo) y espera a que la animacion llegue al golpe.
@@ -386,25 +431,31 @@ bool UJamWeaponComponent::Attack()
 
 void UJamWeaponComponent::NextWeapon()
 {
-	SetWeapon(Current == EJamWeapon::Sword ? EJamWeapon::Bow : EJamWeapon::Sword);
+	// Espada > arco > arma pedida (si ya pediste una y jam.Weapon.Generated esta encendida) > espada.
+	if (Current == EJamWeapon::Sword) { SetWeapon(EJamWeapon::Bow); }
+	else if (Current == EJamWeapon::Bow) { SetWeapon(HasGeneratedWeapon() && IsGeneratedEnabled() ? EJamWeapon::Generated : EJamWeapon::Sword); }
+	else { SetWeapon(EJamWeapon::Sword); }
 }
 
 void UJamWeaponComponent::SetWeapon(EJamWeapon Weapon)
 {
+	if (Weapon == EJamWeapon::Generated && !(bHasGun && IsGeneratedEnabled())) { Weapon = EJamWeapon::Sword; } // aun no hay arma pedida
 	Current = Weapon;
 	SwingAlpha = 1.f;
 	RefreshHandMesh();
 }
 
-void UJamWeaponComponent::GetAim(FVector& OutFrom, FVector& OutDir) const
+void UJamWeaponComponent::GetAim(FVector& OutFrom, FVector& OutDir, float Range, FVector* OutTarget) const
 {
+	const float Reach = Range > 0.f ? Range : BowRange;
 	const AActor* Owner = GetOwner();
 	const APawn* Pawn = Cast<APawn>(Owner);
 	const FRotator Control = Pawn && Pawn->GetController() ? Pawn->GetController()->GetControlRotation() : Owner->GetActorRotation();
 	OutFrom = Owner->GetActorLocation() + FRotator(0.f, Control.Yaw, 0.f).Vector() * 50.f + FVector(0, 0, 40.f);
 	OutDir = Control.Vector();
+	FVector Target = OutFrom + OutDir * Reach;
 
-	// Con camara: a donde mira el centro de la pantalla (hasta BowRange), para que la flecha vaya a la mira.
+	// Con camara: a donde mira el centro de la pantalla (hasta el alcance), para que la flecha vaya a la mira.
 	if (const APlayerController* PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr)
 	{
 		FVector ViewLoc;
@@ -412,10 +463,11 @@ void UJamWeaponComponent::GetAim(FVector& OutFrom, FVector& OutDir) const
 		PC->GetPlayerViewPoint(ViewLoc, ViewRot);
 		FCollisionQueryParams Params(SCENE_QUERY_STAT(JamBowAim), false, Owner);
 		FHitResult Hit;
-		const FVector End = ViewLoc + ViewRot.Vector() * BowRange;
-		const FVector Target = GetWorld()->LineTraceSingleByChannel(Hit, ViewLoc + ViewRot.Vector() * 200.f, End, ECC_Visibility, Params) ? Hit.ImpactPoint : End;
+		const FVector End = ViewLoc + ViewRot.Vector() * Reach;
+		Target = GetWorld()->LineTraceSingleByChannel(Hit, ViewLoc + ViewRot.Vector() * 200.f, End, ECC_Visibility, Params) ? Hit.ImpactPoint : End;
 		OutDir = (Target - OutFrom).GetSafeNormal();
 	}
+	if (OutTarget) { *OutTarget = Target; }
 }
 
 bool UJamWeaponComponent::DealDamage(AActor* Target, float Damage, const FVector& Push)
@@ -437,7 +489,8 @@ bool UJamWeaponComponent::DealDamage(AActor* Target, float Damage, const FVector
 		Char->LaunchCharacter(Push + FVector(0, 0, Push.IsNearlyZero() ? 0.f : 180.f), true, false);
 	}
 	AJamTestCharacter::AddTrauma(GetWorld(), Target->GetActorLocation(), 0.25f, 300.f, 1500.f);
-	UE_LOG(LogJam, Log, TEXT("Arma %s pega a %s: %.0f"), Current == EJamWeapon::Sword ? TEXT("espada") : TEXT("arco"), *Target->GetName(), Damage);
+	JamAudio::PlayAt(this, TEXT("SFX_Hit"), Target->GetActorLocation(), 0.7f);
+	UE_LOG(LogJam, Log, TEXT("Arma %s pega a %s: %.0f"), Current == EJamWeapon::Sword ? TEXT("espada") : (Current == EJamWeapon::Bow ? TEXT("arco") : TEXT("arma pedida")), *Target->GetName(), Damage);
 	OnWeaponHit.Broadcast(this, Target, Damage);
 	return true;
 }
@@ -446,6 +499,10 @@ void UJamWeaponComponent::SwingSword()
 {
 	SwingAlpha = 0.f;
 	AActor* Owner = GetOwner();
+	if (Owner)
+	{
+		JamAudio::PlayAt(this, TEXT("SFX_Sword_Swing"), Owner->GetActorLocation(), 0.6f);
+	}
 	const FVector Fwd = FRotator(0.f, FaceYaw, 0.f).Vector();
 	const FVector Origin = Owner->GetActorLocation();
 	const float Radius = SwordRange;
@@ -574,9 +631,18 @@ void UJamWeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 		if (!(Health && Health->IsDead()))
 		{
 			if (PendingKind == EJamWeapon::Sword) { SwingSword(); }
-			else { ShootArrow(); }
+			else if (PendingKind == EJamWeapon::Bow) { ShootArrow(); } // el arma pedida dispara al instante, nunca queda pendiente
 		}
 	}
+	// Arma pedida: apaga el fogonazo; si la apagan por consola (jam.Weapon.Generated 0) vuelve a la espada; y sus piezas
+	// no se quedan a la vista con otra arma en la mano (por si alguien vuelve a prender todo lo que cuelga de la figura).
+	if (GunFlash && FlashUntil >= 0.f && Now >= FlashUntil)
+	{
+		FlashUntil = -1.f;
+		GunFlash->SetVisibility(false);
+	}
+	if (Current == EJamWeapon::Generated && !(bHasGun && IsGeneratedEnabled())) { SetWeapon(EJamWeapon::Sword); }
+	if (GunRoot && Current != EJamWeapon::Generated && GunRoot->IsVisible()) { GunRoot->SetVisibility(false, true); }
 	if (!HandMesh || Current != EJamWeapon::Sword || SwingAlpha >= 1.f || HandParent.IsValid())
 	{
 		return; // con figura rigeada el tajo viene en la animacion Attack
@@ -586,4 +652,314 @@ void UJamWeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 	const float Yaw = SwingAlpha < 1.f ? FMath::Lerp(60.f, -70.f, SwingAlpha) : 0.f;
 	HandMesh->SetRelativeRotation(FRotator(0.f, Yaw, 0.f));
 	HandMesh->SetRelativeLocation(FVector(45.f, SwingAlpha < 1.f ? FMath::Lerp(45.f, -20.f, SwingAlpha) : 38.f, 0.f));
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Arma de mano pedida (GDD 5.1). La decision y todos los numeros salen de Weapons.json (Combat/JamGunSpec).
+// ---------------------------------------------------------------------------------------------------------------------
+
+bool UJamWeaponComponent::IsGeneratedEnabled()
+{
+	return JamGun::IsEnabled();
+}
+
+bool UJamWeaponComponent::IsWeaponPhrase(const FString& Phrase)
+{
+	return JamGun::IsWeaponPhrase(Phrase);
+}
+
+bool UJamWeaponComponent::HasGeneratedWeapon() const
+{
+	return bHasGun;
+}
+
+FString UJamWeaponComponent::GetGeneratedName() const
+{
+	return bHasGun ? Gun.Name : FString();
+}
+
+float UJamWeaponComponent::GetGeneratedEnergyCost() const
+{
+	return bHasGun ? Gun.Energy : 0.f;
+}
+
+FString UJamWeaponComponent::GetGeneratedHudText() const
+{
+	if (!bHasGun)
+	{
+		return FString();
+	}
+	const FString Cost = FString::Printf(TEXT("%s de energia por disparo"), *JamGun::Number(Gun.Energy));
+	return Gun.MuzzleName.IsEmpty() ? FString::Printf(TEXT("%s - %s"), *Gun.Name, *Cost) : FString::Printf(TEXT("%s - %s, %s"), *Gun.Name, *Gun.MuzzleName, *Cost);
+}
+
+bool UJamWeaponComponent::RequestGeneratedWeapon(const FString& Phrase)
+{
+	FJamGunSpec Spec;
+	if (!IsGeneratedEnabled() || !JamGun::Decide(Phrase, Spec))
+	{
+		return false;
+	}
+	Gun = MoveTemp(Spec);
+	bHasGun = true;
+	BuildGunMesh();
+	SetWeapon(EJamWeapon::Generated);
+	Notify(FString::Printf(TEXT("Armaste: %s"), *GetGeneratedHudText()), JamMsg::Good, TEXT("JamGunMade"));
+	return true;
+}
+
+void UJamWeaponComponent::BuildGunMesh()
+{
+	AActor* Owner = GetOwner();
+	if (!Owner || !Owner->GetRootComponent())
+	{
+		return;
+	}
+	// Otro pedido: las piezas del arma anterior se van.
+	for (UStaticMeshComponent* Old : GunParts)
+	{
+		if (Old) { Old->DestroyComponent(); }
+	}
+	GunParts.Reset();
+	if (!GunRoot)
+	{
+		GunRoot = NewObject<USceneComponent>(Owner);
+		GunRoot->SetupAttachment(Owner->GetRootComponent());
+		GunRoot->RegisterComponent();
+	}
+	if (!GunFlash)
+	{
+		GunFlash = NewObject<UPointLightComponent>(Owner);
+		GunFlash->SetMobility(EComponentMobility::Movable);
+		GunFlash->SetupAttachment(GunRoot);
+		GunFlash->SetCastShadows(false);
+		GunFlash->SetVisibility(false);
+		GunFlash->RegisterComponent();
+	}
+	// Empunadura + cuerpo + boca + extras: mallas sin fisica ni colision, hijas de GunRoot (que va en la mano).
+	for (const FJamGunPiece& Piece : Gun.Pieces)
+	{
+		UStaticMesh* PieceMesh = JamGun::LoadMesh(Piece.Mesh);
+		if (!PieceMesh)
+		{
+			continue;
+		}
+		UStaticMeshComponent* Part = NewObject<UStaticMeshComponent>(Owner);
+		Part->SetupAttachment(GunRoot);
+		Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Part->SetGenerateOverlapEvents(false);
+		Part->SetCanEverAffectNavigation(false);
+		Part->SetCastShadow(true);
+		Part->SetStaticMesh(PieceMesh);
+		Part->SetRelativeTransform(JamGun::FitPiece(PieceMesh, Piece));
+		Part->RegisterComponent();
+		GunParts.Add(Part);
+	}
+	GunShotMesh = JamGun::LoadMesh(Gun.Projectile.Mesh);
+	GunFlash->SetRelativeLocation(Gun.MuzzlePoint + FVector(6.f, 0.f, 0.f));
+	GunFlash->SetLightColor(Gun.Color);
+	GunFlash->SetIntensity(Gun.FlashIntensity);
+	GunFlash->SetAttenuationRadius(Gun.FlashRadius);
+	FlashUntil = -1.f;
+	PlaceGun();
+	UE_LOG(LogJam, Log, TEXT("Arma pedida: %s armada con %d de %d piezas (hueso %s)"), *Gun.Name, GunParts.Num(), Gun.Pieces.Num(), *GunSocket.ToString());
+}
+
+FTransform UJamWeaponComponent::MakeGunGrip(USceneComponent* Parent, FName Socket) const
+{
+	if (!Gun.bAutoGrip)
+	{
+		// hand.auto false: rot / loc directos en el hueso.
+		return FTransform(Gun.HandRot, Gun.HandLoc, FVector(Gun.HandScale));
+	}
+	// Respaldo: como la espada (el canon donde iba la hoja).
+	FQuat Base = SwordInHand.GetRotation();
+	const USkeletalMeshComponent* Skel = Cast<USkeletalMeshComponent>(Parent);
+	const USkeletalMesh* Asset = Skel ? Skel->GetSkeletalMeshAsset() : nullptr;
+	if (Asset)
+	{
+		const FReferenceSkeleton& Ref = Asset->GetRefSkeleton();
+		const int32 Bone = Ref.FindBoneIndex(Socket);
+		if (Bone != INDEX_NONE && Ref.GetParentIndex(Bone) != INDEX_NONE && Ref.GetRefBonePose().IsValidIndex(Bone))
+		{
+			// Canon = direccion antebrazo > mano vista desde el hueso de la mano (sirve para cualquier rig).
+			const FTransform& Local = Ref.GetRefBonePose()[Bone];
+			const FVector Fwd = Local.GetRotation().UnrotateVector(Local.GetTranslation()).GetSafeNormal();
+			if (!Fwd.IsNearlyZero())
+			{
+				// Arriba del arma = hacia donde sale la hoja de la espada del puno; asi la empunadura queda dentro de la mano.
+				FVector Up = SwordInHand.GetRotation().RotateVector(FVector::ForwardVector);
+				Up -= Fwd * FVector::DotProduct(Up, Fwd);
+				if (Up.SizeSquared() < 0.04)
+				{
+					FVector Other;
+					Fwd.FindBestAxisVectors(Up, Other);
+				}
+				Base = FRotationMatrix::MakeFromXZ(Fwd, Up.GetSafeNormal()).ToQuat();
+			}
+		}
+	}
+	// hand.rot / hand.loc son un ajuste en los ejes del arma (X = canon, Y = derecha, Z = arriba).
+	return FTransform(Base * Gun.HandRot.Quaternion(), Base.RotateVector(Gun.HandLoc), FVector(Gun.HandScale));
+}
+
+void UJamWeaponComponent::PlaceGun()
+{
+	AActor* Owner = GetOwner();
+	if (!GunRoot || !bHasGun || !Owner)
+	{
+		return;
+	}
+	if (USceneComponent* Parent = HandParent.Get())
+	{
+		// Figura rigeada: al hueso de la mano (hand.socket; si ese hueso no existe, el de la espada).
+		FName Socket = Gun.Socket;
+		if (Socket.IsNone() || !Parent->DoesSocketExist(Socket)) { Socket = SwordSocket; }
+		GunSocket = Socket;
+		GunInHand = MakeGunGrip(Parent, Socket);
+		GunRoot->AttachToComponent(Parent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
+		GunRoot->SetRelativeTransform(GunInHand);
+	}
+	else if (USceneComponent* Root = Owner->GetRootComponent())
+	{
+		// Sin esqueleto: a un lado del cuerpo, apuntando al frente (como la espada suelta).
+		GunSocket = NAME_None;
+		GunInHand = FTransform(Gun.HandRot, Gun.LooseLoc, FVector(Gun.HandScale));
+		GunRoot->AttachToComponent(Root, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		GunRoot->SetRelativeTransform(GunInHand);
+	}
+}
+
+void UJamWeaponComponent::SetGeneratedGrip(const FRotator& Rot, const FVector& Loc, float Scale)
+{
+	if (!bHasGun)
+	{
+		return;
+	}
+	Gun.HandRot = Rot;
+	Gun.HandLoc = Loc;
+	Gun.HandScale = FMath::Clamp(Scale, 0.05f, 20.f);
+	PlaceGun();
+}
+
+bool UJamWeaponComponent::GetGeneratedPose(FName& OutBone, FQuat& OutInBone, float& OutAim) const
+{
+	if (Current != EJamWeapon::Generated || !bHasGun || !HandParent.IsValid() || GunSocket.IsNone())
+	{
+		return false;
+	}
+	OutBone = GunSocket;
+	OutInBone = GunInHand.GetRotation();
+	const UWorld* World = GetWorld();
+	OutAim = (World && World->GetTimeSeconds() - LastAttackTime < Gun.AimSeconds) ? 1.f : 0.f;
+	return true;
+}
+
+bool UJamWeaponComponent::FireGenerated()
+{
+	UWorld* World = GetWorld();
+	AActor* Owner = GetOwner();
+	if (!bHasGun || !World || !Owner)
+	{
+		return false;
+	}
+	const float Now = World->GetTimeSeconds();
+
+	// Municion = energia del jugador (GDD 5.1): un cobro por clic (no por perdigon). jam.Build.Energy 0 = gratis.
+	// Se revisa antes de tocar LastAttackTime: sin energia no dispara ni entra en espera.
+	const APawn* Pawn = Cast<APawn>(Owner);
+	if (Pawn && Pawn->IsPlayerControlled() && AJamBuildPart::EnergyMode() != 0 && Gun.Energy > 0.f)
+	{
+		const float Have = AJamBuildPart::GetPlayerEnergy(World);
+		if (Have < Gun.Energy)
+		{
+			// Attack corre cada frame con el clic sostenido: el aviso sale como mucho cada 2 s.
+			if (Now - LastNoEnergyNote > 2.f)
+			{
+				LastNoEnergyNote = Now;
+				Notify(FString::Printf(TEXT("Sin energia: %s gasta %s por disparo. Junta energia o espera a que se recargue"), *Gun.Name, *JamGun::Number(Gun.Energy)), JamMsg::Warn, TEXT("JamGunEnergy"));
+			}
+			return false;
+		}
+		AJamBuildPart::SetPlayerEnergy(World, Have - Gun.Energy);
+	}
+	LastAttackTime = Now;
+
+	// Voltea a la mira y dispara al centro de la pantalla.
+	FVector From, Dir, Target;
+	GetAim(From, Dir, Gun.Range, &Target);
+	FaceYaw = Dir.Rotation().Yaw;
+	FaceUntil = Now + 0.3f;
+	if (!Owner->GetAttachParentActor()) { Owner->SetActorRotation(FRotator(0.f, FaceYaw, 0.f)); }
+
+	// Sale de la boca del arma si esta a la vista y el blanco no esta pegado; si no, del pecho como la flecha.
+	if (GunRoot && GunRoot->IsVisible())
+	{
+		const FVector Muzzle = GunRoot->GetComponentTransform().TransformPosition(Gun.MuzzlePoint);
+		const FVector ToTarget = Target - Muzzle;
+		if (FVector::DistSquared(Muzzle, Owner->GetActorLocation()) < FMath::Square(250.0) && ToTarget.SizeSquared() > FMath::Square(150.0)
+			&& FVector::DotProduct(ToTarget.GetSafeNormal(), Dir) > 0.5)
+		{
+			From = Muzzle;
+			Dir = ToTarget.GetSafeNormal();
+		}
+	}
+
+	FActorSpawnParameters P;
+	P.Owner = Owner;
+	P.Instigator = Cast<APawn>(Owner);
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	UStaticMesh* ShotMesh = GunShotMesh;
+	const FTransform ShotFit = JamGun::FitPiece(ShotMesh, Gun.Projectile);
+	const float Life = FMath::Clamp(Gun.Range / FMath::Max(1.f, Gun.Speed), 0.15f, 8.f);
+	const FVector Right = FVector::CrossProduct(FVector::UpVector, Dir).GetSafeNormal();
+	const int32 Half = FMath::Max(1, Gun.Pellets / 2);
+	TArray<AJamArrow*> Volley;
+	for (int32 I = 0; I < Gun.Pellets; ++I)
+	{
+		// Un proyectil: recto (con su dispersion). Varios: abanico; el primero va al centro y los demas se abren a los lados.
+		FVector ShotDir = Dir;
+		if (Gun.SpreadDeg > 0.f && Gun.Pellets == 1)
+		{
+			ShotDir = FMath::VRandCone(Dir, FMath::DegreesToRadians(Gun.SpreadDeg));
+		}
+		else if (Gun.SpreadDeg > 0.f && I > 0)
+		{
+			const float Yaw = float((I + 1) / 2) * (Gun.SpreadDeg / float(Half)) * ((I % 2) != 0 ? 1.f : -1.f);
+			const float Jitter = Gun.SpreadDeg * Gun.FanJitter;
+			ShotDir = Dir.RotateAngleAxis(Yaw, FVector::UpVector);
+			if (!Right.IsNearlyZero()) { ShotDir = ShotDir.RotateAngleAxis(FMath::FRandRange(-Jitter, Jitter), Right); }
+		}
+		AJamArrow* Shot = World->SpawnActor<AJamArrow>(AJamArrow::StaticClass(), From, ShotDir.Rotation(), P);
+		if (!Shot)
+		{
+			continue;
+		}
+		// El efecto de la boca va por la misma via que la flecha fusionada (ApplyFusionHit, con credito al jugador),
+		// pero sin gastar material del inventario.
+		Shot->Fused = (Gun.EffectPellets <= 0 || I < Gun.EffectPellets) ? Gun.Effect : FName();
+		Shot->Push = Gun.Push;
+		Shot->SetupShot(ShotMesh, ShotFit, Gun.Color, Gun.Projectile.bGlow, Gun.Gravity, Life, Gun.bArea);
+		for (AJamArrow* Other : Volley)
+		{
+			Shot->IgnoreShot(Other);
+			Other->IgnoreShot(Shot);
+		}
+		Shot->Launch(this, ShotDir * Gun.Speed, Gun.Damage);
+		Volley.Add(Shot);
+	}
+
+	// Fogonazo: la luz de la boca un instante.
+	if (GunFlash && Gun.FlashSeconds > 0.f && GunRoot && GunRoot->IsVisible())
+	{
+		GunFlash->SetVisibility(true);
+		FlashUntil = Now + Gun.FlashSeconds;
+	}
+	// Sonido del disparo segun la boca (Weapons.json, "sound"). Un *_Loop como disparo suelto no pararia nunca: se omite.
+	if (!Gun.Sound.IsEmpty() && !Gun.Sound.EndsWith(TEXT("_Loop")))
+	{
+		JamAudio::PlayAt(this, *Gun.Sound, Owner->GetActorLocation(), 0.7f);
+	}
+	OnWeaponAttack.Broadcast(this, Current);
+	return Volley.Num() > 0;
 }

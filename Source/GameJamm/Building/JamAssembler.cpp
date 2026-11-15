@@ -1584,7 +1584,10 @@ const TArray<FJamPieceRule>& UJamBuildGenerator::PieceTable()
 		Words(TEXT("Sled"), K({TEXT("nieve")}), {});
 		Words(TEXT("Frost"), K({TEXT("freeze")}), {});
 		Words(TEXT("Ball"), K({TEXT("balon")}), {});
-		Words(TEXT("Flamethrower"), K({TEXT("escupa fuego"), TEXT("eche fuego"), TEXT("echa fuego"), TEXT("de fuego"), TEXT("con fuego")}), {});
+		// "quem" (de la tabla de extras) mide 4 letras y HitWords lo toma como palabra exacta: "queme", "quema" o "quemar" no lo
+		// activaban y "un carro que queme todo" (tecla 1) salia sin lanzallamas. Con 5+ letras compara por prefijo.
+		Words(TEXT("Flamethrower"), K({TEXT("escupa fuego"), TEXT("eche fuego"), TEXT("echa fuego"), TEXT("de fuego"), TEXT("con fuego"),
+			TEXT("queme"), TEXT("quema"), TEXT("quemar"), TEXT("quemen"), TEXT("incendia"), TEXT("llamas")}), {});
 		Words(TEXT("Hydrant"), {}, K({TEXT("agua")}));
 		Words(TEXT("Flamethrower"), {}, K({TEXT("fuego"), TEXT("fire")}));
 		Words(TEXT("Panel"), {}, K({TEXT("pared"), TEXT("muro"), TEXT("wall")})); // muro / pared es Wall, no Panel

@@ -5,6 +5,7 @@
 #include "Building/JamBuildSpawner.h"
 #include "Core/InventoryComponent.h"
 #include "Building/JamVoice.h"
+#include "Combat/JamWeaponComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CanvasPanel.h"
@@ -21,6 +22,7 @@
 #include "Components/SpotLightComponent.h"
 #include "Containers/Ticker.h"
 #include "Core/JamStatics.h"
+#include "Core/JamMessages.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Misc/FileHelper.h"
@@ -51,10 +53,10 @@ namespace
 
 	void Screen(const FString& Msg, FColor Color = FColor::Yellow)
 	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 8.f, Color, Msg);
-		}
+		// Va a la cola de avisos del jugador (JamMsg), que dibuja AJamHUD; la build Shipping no muestra el canal de depuracion.
+		const FLinearColor& Col = Color == FColor::Red ? JamMsg::Bad : Color == FColor::Green ? JamMsg::Good
+			: (Color == FColor::Orange || Color == FColor::Magenta) ? JamMsg::Warn : JamMsg::Info;
+		JamMsg::Post(Msg, Col, Color == FColor::Red ? 6.f : 5.f);
 	}
 
 	/** ~6 m delante del jugador, sobre el suelo, de perfil (su frente apunta a la derecha del jugador: no le dispara ni lo atropella). */
@@ -112,7 +114,7 @@ namespace
 		const FString Text = FString::Join(Args, TEXT(" ")).TrimStartAndEnd();
 		if (!World || Text.IsEmpty())
 		{
-			Screen(TEXT("Uso: Jam.Say <que quieres construir>   (ej. Jam.Say un carro con cohete)"));
+			Screen(TEXT("Uso: Jam.Say <que quieres construir>   (ej. Jam.Say un carro que queme todo)"));
 			return;
 		}
 		SpawnSay(World, Text, SayTransform(World));
@@ -131,12 +133,39 @@ namespace
 		}
 	}
 
+	void JamSeat(const TArray<FString>&, UWorld* World);
+
+	/** X / Jam.Clear: desarma SOLO la construccion del jugador (GLastSay) y le devuelve las piezas que siguen vivas. */
 	void JamClear(const TArray<FString>&, UWorld* World)
+	{
+		if (!World) { return; }
+		AJamBuildSpawner* Mine = GLastSay.Get();
+		if (!Mine || Mine->CountAliveParts() == 0)
+		{
+			Screen(TEXT("No tienes construccion"), FColor::Orange);
+			return;
+		}
+		// Si estaba montado en ella, baja antes de que se destruya el asiento (si no, se quedaria sin colision y sin movimiento).
+		if (const APlayerController* PC = World->GetFirstPlayerController())
+		{
+			const APawn* Me = PC->GetPawn();
+			const AJamBuildPart* Seat = Me ? Cast<AJamBuildPart>(Me->GetAttachParentActor()) : nullptr;
+			if (Seat && Mine->GetParts().ContainsByPredicate([Seat](const TObjectPtr<AJamBuildPart>& P) { return P.Get() == Seat; })) { JamSeat(TArray<FString>(), World); }
+		}
+		int32 Back = 0;
+		for (const auto& Item : Mine->GetRefundableItems()) { Back += Item.Value; }
+		Mine->ClearBuild();
+		if (!Mine->bUseInventory) { Mine->Destroy(); } // construccion de pruebas (sin inventario): no deja el spawner suelto
+		Screen(Back > 0 ? FString::Printf(TEXT("Desarmaste tu construccion: +%d %s"), Back, Back == 1 ? TEXT("pieza") : TEXT("piezas")) : FString(TEXT("Desarmaste tu construccion")), FColor::Green);
+	}
+
+	/** Jam.ClearAll (solo pruebas): borra todas las construcciones y piezas del mapa, tambien las de los bots. */
+	void JamClearAll(const TArray<FString>&, UWorld* World)
 	{
 		if (World)
 		{
 			ClearAll(World);
-			Screen(TEXT("Jam.Clear: construcciones borradas"));
+			Screen(TEXT("Todas las construcciones borradas"));
 		}
 	}
 
@@ -870,7 +899,7 @@ namespace
 		ACharacter* Me = PC ? Cast<ACharacter>(PC->GetPawn()) : nullptr;
 		if (!Me)
 		{
-			Screen(TEXT("Jam.Seat: no hay personaje (usa PIE normal con AJamTestGameMode)"), FColor::Red);
+			Screen(TEXT("No puedes subirte ahora"), FColor::Orange);
 			return;
 		}
 		if (Cast<AJamBuildPart>(Me->GetAttachParentActor()))
@@ -884,31 +913,35 @@ namespace
 			Me->SetActorEnableCollision(true);
 			Me->GetCharacterMovement()->SetMovementMode(MOVE_Falling);
 			Me->GetCharacterMovement()->Velocity = Vel;
-			Screen(TEXT("Jam.Seat: te bajaste"));
+			Screen(TEXT("Te bajaste"));
 			return;
 		}
-		// El asiento mas cercano; si no hay asiento, la pieza mas cercana.
+		// El asiento mas cercano de TU construccion (GLastSay); si no hay asiento, la pieza mas cercana de ella. Las de otros no cuentan.
 		AJamBuildPart* Best = nullptr;
 		double BestD = FMath::Square(1500.0);
-		for (TActorIterator<AJamBuildPart> It(World); It; ++It)
+		if (const AJamBuildSpawner* Mine = GLastSay.Get())
 		{
-			const double D = FVector::DistSquared(It->GetActorLocation(), Me->GetActorLocation()) * (It->Kind == EJamPartKind::Seat ? 0.01 : 1.0);
-			if (D < BestD)
+			for (AJamBuildPart* P : Mine->GetParts())
 			{
-				BestD = D;
-				Best = *It;
+				if (!IsValid(P)) { continue; }
+				const double D = FVector::DistSquared(P->GetActorLocation(), Me->GetActorLocation()) * (P->Kind == EJamPartKind::Seat ? 0.01 : 1.0);
+				if (D < BestD)
+				{
+					BestD = D;
+					Best = P;
+				}
 			}
 		}
 		if (!Best)
 		{
-			Screen(TEXT("No hay ninguna construccion a menos de 15 m para subirse"), FColor::Red);
+			Screen(TEXT("No hay construccion tuya cerca. Pulsa B y pide una"), FColor::Orange);
 			return;
 		}
 		Me->GetCharacterMovement()->SetMovementMode(MOVE_None);
 		Me->SetActorEnableCollision(false);
 		Me->SetActorLocation(Best->GetActorLocation() + FVector(0, 0, 110));
 		Me->AttachToActor(Best, FAttachmentTransformRules::KeepWorldTransform);
-		Screen(FString::Printf(TEXT("Montado en %s: W/S acelera y frena, A/D gira, E para bajar"), *Best->PartType.ToString()));
+		Screen(TEXT("Subiste. W/S acelera y frena, A/D gira, E para bajar"), FColor::Green);
 	}
 
 	void SayFromGame(UWorld* World, const FString& Phrase);
@@ -925,7 +958,7 @@ namespace
 			Screen(Text, FColor::Red);
 			return;
 		}
-		Screen(FString::Printf(TEXT("Voz: entendi \"%s\""), *Text), FColor::Cyan);
+		Screen(FString::Printf(TEXT("Te escuche: \"%s\""), *Text));
 		SayFromGame(World.Get(), Text);
 	}
 
@@ -1019,7 +1052,8 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs CmdFire(TEXT("Jam.Fire"), TEXT("Jam.Fire [segundos] | Jam.Fire boost: simula el clic (armas) o Espacio (cohetes) estando montado."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamFire));
 	FAutoConsoleCommandWithWorldAndArgs CmdDrive(TEXT("Jam.Drive"), TEXT("Jam.Drive <acelerador -1..1> <giro -1..1> [segundos]: simula W/S y A/D estando montado."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamDrive));
 	FAutoConsoleCommandWithWorldAndArgs CmdSay(TEXT("Jam.Say"), TEXT("Jam.Say <texto libre>: construye lo que pidas delante del jugador (modelo de decision Jev; respaldo por palabras clave)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamSay));
-	FAutoConsoleCommandWithWorldAndArgs CmdClear(TEXT("Jam.Clear"), TEXT("Borra todas las construcciones."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamClear));
+	FAutoConsoleCommandWithWorldAndArgs CmdClear(TEXT("Jam.Clear"), TEXT("Desarma tu construccion (tecla X) y te devuelve las piezas que siguen vivas."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamClear));
+	FAutoConsoleCommandWithWorldAndArgs CmdClearAll(TEXT("Jam.ClearAll"), TEXT("Borra todas las construcciones y piezas del mapa, tambien las de los bots (pruebas)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamClearAll));
 	FAutoConsoleCommandWithWorldAndArgs CmdEnergy(TEXT("Jam.Energy"), TEXT("Jam.Energy [valor]: muestra (o fija) la barra de energia del jugador."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamEnergy));
 	FAutoConsoleCommandWithWorldAndArgs CmdTest(TEXT("Jam.Test"), TEXT("Jam.Test [segundos] [iso | frases | ruta.json [desde] [cuantas]]: bateria con coherencia y 'utilizable' (entrada simulada); escribe docs/building/REPORTE-POC.md (o REPORTE-BATERIA.md con JSON externo)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamTest));
 	FAutoConsoleCommandWithWorldAndArgs CmdCoh(TEXT("Jam.Coh"), TEXT("Imprime las ocho notas de coherencia (sentido) de la ultima construccion."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamCoh));
@@ -1035,11 +1069,30 @@ namespace
 	/** Pedido hecho jugando (caja de texto o tecla 1..9): la construccion sale APAGADA y se enciende con C (GDD 6.3). */
 	void SayFromGame(UWorld* World, const FString& Phrase)
 	{
+		// GDD 5.1: si la frase pide un arma de mano (palabras de Content/Game/Combat/Data/Weapons.json) va al arma pedida;
+		// si no (o si jam.Weapon.Generated 0), a construccion como siempre.
+		if (World && UJamWeaponComponent::IsWeaponPhrase(Phrase))
+		{
+			const APlayerController* PC = World->GetFirstPlayerController();
+			UJamWeaponComponent* Weapon = PC && PC->GetPawn() ? PC->GetPawn()->FindComponentByClass<UJamWeaponComponent>() : nullptr;
+			if (Weapon && Weapon->RequestGeneratedWeapon(Phrase))
+			{
+				return;
+			}
+		}
+		// Montado en tu construccion: bajar antes de rearmarla (si no, el asiento se destruye y el jugador queda sin
+		// colision ni movimiento hasta pulsar E).
+		if (World)
+		{
+			const APlayerController* PC = World->GetFirstPlayerController();
+			const APawn* Me = PC ? PC->GetPawn() : nullptr;
+			if (Me && Cast<AJamBuildPart>(Me->GetAttachParentActor())) { JamSeat(TArray<FString>(), World); }
+		}
 		SpawnSay(World, Phrase, SayTransform(World), nullptr, false);
 	}
 
 	const TCHAR* QuickPhrases[9] = {
-		TEXT("un carro con cohete"), TEXT("un tanque"), TEXT("una torreta con laser"), TEXT("un globo aerostatico con fuego debajo"),
+		TEXT("un carro que queme todo"), TEXT("un tanque"), TEXT("una torreta con laser"), TEXT("un globo aerostatico con fuego debajo"),
 		TEXT("un hovercraft con vela y emisor de hielo"), TEXT("un avion con alas"), TEXT("una catapulta"), TEXT("un dron con un faro"),
 		TEXT("una rueda sola con lanzallamas"),
 	};
@@ -1088,6 +1141,7 @@ namespace
 static TAutoConsoleVariable<float> CVarJamMouseSens(TEXT("jam.Mouse.Sens"), 0.12f, TEXT("Sensibilidad del mouse: grados por unidad de movimiento (0.05 - 0.25)."));
 static TAutoConsoleVariable<int32> CVarJamMouseInvertY(TEXT("jam.Mouse.InvertY"), 0, TEXT("1 = invertir el eje vertical del mouse y del stick."));
 static TAutoConsoleVariable<float> CVarJamShake(TEXT("jam.Shake"), 1.f, TEXT("Intensidad de la sacudida de camara (0 = apagada, 1 = normal)."));
+static TAutoConsoleVariable<int32> CVarJamHudDebug(TEXT("jam.Hud.Debug"), 0, TEXT("1 = muestra los paneles de depuracion del HUD: lista de elementos, decision del modelo, sentido, mecanicas y comandos de consola. 0 = HUD limpio (GDD 9)."));
 
 AJamTestCharacter::AJamTestCharacter()
 {
@@ -1150,10 +1204,16 @@ void AJamTestCharacter::PossessedBy(AController* NewController)
 	Super::PossessedBy(NewController);
 	if (APlayerController* PC = Cast<APlayerController>(NewController))
 	{
+		GTyping = false; // por si una sesion anterior termino con la caja de texto abierta
 		// Captura el mouse al entrar: no hace falta hacer clic en la ventana.
 		PC->SetInputMode(FInputModeGameOnly());
 		PC->bShowMouseCursor = false;
 		FJamVoice::Get().WarmUp(); // deja listo el reconocedor de voz local
+		// Al renacer (peon nuevo): la construccion del jugador pasa a ser de este peon, para volver a pedir y desarmar con reembolso.
+		if (AJamBuildSpawner* Mine = GLastSay.Get())
+		{
+			if (Mine->GetOwner() != this) { Mine->RebindOwner(this); }
+		}
 	}
 }
 
@@ -1524,7 +1584,7 @@ bool UJamSayWidget::Initialize()
 		UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
 		WidgetTree->RootWidget = Root;
 		Box = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("SayBox"));
-		Box->SetHintText(FText::FromString(TEXT("Que quieres construir? (Enter = construir, Esc = cerrar)   ej: un carro con cohete y lanzallamas")));
+		Box->SetHintText(FText::FromString(TEXT("Que quieres construir? (Enter = construir, Esc = cerrar)   ej: un carro que queme todo")));
 		Box->OnTextChanged.AddDynamic(this, &UJamSayWidget::OnChanged);
 		if (UCanvasPanelSlot* CanvasSlot = Root->AddChildToCanvas(Box))
 		{
@@ -1599,14 +1659,15 @@ void AJamTestHUD::DrawHUD()
 	UWorld* World = GetWorld();
 	const float SX = Canvas->SizeX, SY = Canvas->SizeY;
 	K = FMath::Clamp(SY / 800.f, 1.f, 3.f); // texto legible tambien en pantallas de alta resolucion
+	const bool bDebug = CVarJamHudDebug.GetValueOnGameThread() != 0;
 
 	DrawRect(FLinearColor(1, 1, 1, 0.6f), SX * 0.5f - 2, SY * 0.5f - 2, 4, 4); // punto central
 
-	// 1) Barra de energia del jugador (arriba al centro).
+	// 1) Barra de energia del jugador (abajo al centro, justo encima de la vida; GDD 9).
 	const float E = AJamBuildPart::GetPlayerEnergy(World);
 	const int32 Mode = AJamBuildPart::EnergyMode();
-	const float BW = 390.f * K, BH = 20.f * K, BX = (SX - BW) * 0.5f, BY = 14.f * K;
-	DrawRect(ColPanel, BX - 6 * K, BY - 6 * K, BW + 12 * K, BH + 34 * K);
+	const float BW = 360.f * K, BH = 14.f * K, BX = (SX - BW) * 0.5f, PanelTop = SY - 108.f * K, BY = PanelTop + 6.f * K;
+	DrawRect(ColPanel, BX - 6 * K, PanelTop, BW + 12 * K, 44.f * K);
 	// 15 segmentos de 10 (GDD 5): los 5 primeros son el minimo garantizado y van en otro tono.
 	const float Blink = E < 1.f && FMath::Fmod(World->GetTimeSeconds(), 0.6f) < 0.3f ? 1.f : 0.f;
 	for (int32 i = 0; i < 15; ++i)
@@ -1616,73 +1677,85 @@ void AJamTestHUD::DrawHUD()
 		DrawRect(E < 1.f ? FLinearColor(0.35f + 0.4f * Blink, 0.1f, 0.1f, 1.f) : FLinearColor(0.15f, 0.17f, 0.2f, 1.f), X0, BY, BW / 15.f - 3.f * K, BH);
 		DrawRect(i < 5 ? ColGood : ColAccent, X0, BY, (BW / 15.f - 3.f * K) * Fill, BH);
 	}
-	DrawText(Mode == 2 ? FString::Printf(TEXT("ENERGIA  %.0f / 150%s"), E, E < 1.f ? TEXT("   AGOTADA: apaga (C) y se recarga sola hasta 50") : TEXT(""))
-		: Mode == 1 ? FString(TEXT("ENERGIA: reserva propia de cada construccion (jam.Build.Energy 1)")) : FString(TEXT("ENERGIA infinita (jam.Build.Energy 0)")),
+	DrawText(Mode == 2 ? FString::Printf(TEXT("ENERGIA  %.0f / 150%s"), E, E < 1.f ? TEXT("   AGOTADA: apaga con C") : TEXT(""))
+		: Mode == 1 ? FString(TEXT("ENERGIA: cada construccion tiene su reserva")) : FString(TEXT("ENERGIA infinita")),
 		E < 1.f ? ColBad : ColText, BX, BY + BH + 3 * K, GEngine->GetSmallFont(), K);
 
-	// Voz: microfono (debajo de la barra de energia).
+	// Los avisos de JamMsg se apilan encima de este bloque (y de la voz, si esta activa).
+	MsgBaseY = PanelTop - 10.f * K;
+
+	// Voz: microfono (encima de la energia). Solo mientras escucha o transcribe; lo que entendio sale como aviso.
 	{
 		const FJamVoice& Voice = FJamVoice::Get();
-		const double Ago = FPlatformTime::Seconds() - Voice.LastTime;
 		FString Txt;
 		FLinearColor Col = ColText;
 		if (Voice.IsRecording()) { Txt = TEXT("(O)  ESCUCHANDO...  habla y suelta G"); Col = ColBad; }
 		else if (Voice.Status == TEXT("transcribiendo")) { Txt = TEXT("(o)  transcribiendo tu voz..."); Col = ColAccent; }
-		else if (Ago < 7.0) { Txt = Voice.bLastOk ? FString::Printf(TEXT("(o)  Entendi: \"%s\"   voz %.1f s (%s)"), *Voice.LastText.Left(60), Voice.LastSeconds, *Voice.LastBackend) : Voice.LastText.Left(120); Col = Voice.bLastOk ? ColIce : ColBad; }
 		if (!Txt.IsEmpty())
 		{
 			float TW = 0.f, TH = 0.f;
 			GetTextSize(Txt, TW, TH, GEngine->GetMediumFont(), K);
-			const float X = (SX - TW) * 0.5f, Y = 78.f * K;
+			const float X = (SX - TW) * 0.5f, Y = PanelTop - 14.f * K - TH;
 			DrawRect(ColPanel, X - 12 * K, Y - 6 * K, TW + 24 * K, TH + 12 * K);
 			if (Voice.IsRecording()) { DrawRect(ColBad, X - 12 * K, Y - 6 * K, 5 * K, TH + 12 * K); }
 			DrawText(Txt, Col, X, Y, GEngine->GetMediumFont(), K);
+			MsgBaseY = Y - 14.f * K;
 		}
 	}
 
-	// 2) Construccion actual y sus mecanicas (arriba a la derecha).
+	// 2) Construccion actual (arriba a la derecha). Sin construccion no se dibuja.
 	const float RW = 400.f * K, RX = SX - RW - 14.f * K;
 	float RY = 14.f * K;
+	AJamBuildSpawner* S = GLastSay.Get();
+	if (S && S->CountAliveParts() == 0 && !S->LastStatus.StartsWith(TEXT("waiting")))
+	{
+		S = nullptr; // desarmada con X (o destruida): no queda un panel con "Piezas: 0"
+	}
+	if (S)
 	{
 		TArray<FString> Lines;
-		if (AJamBuildSpawner* S = GLastSay.Get())
+		const FString& St = S->LastStatus;
+		FString Pieces;
+		int32 A = St.Find(TEXT("pieces=["));
+		if (A != INDEX_NONE) { Pieces = St.Mid(A + 8); int32 End; if (Pieces.FindChar(TEXT(']'), End)) { Pieces = Pieces.Left(End); } }
+		const TCHAR* Backend = St.Contains(TEXT("fallback")) ? TEXT("respaldo por palabras clave (fallo el modelo)") : St.Contains(TEXT("(jev")) ? TEXT("Jev (modelo de decision)")
+			: St.Contains(TEXT("keywords")) ? TEXT("palabras clave (sin clave del modelo)") : St.Contains(TEXT("source=json")) ? TEXT("receta fija") : TEXT("...");
+		Lines.Add(TEXT("!\"") + S->Prompt.Left(52) + TEXT("\""));
+		if (!St.StartsWith(TEXT("OK")))
 		{
-			const FString& St = S->LastStatus;
-			FString Pieces;
-			int32 A = St.Find(TEXT("pieces=["));
-			if (A != INDEX_NONE) { Pieces = St.Mid(A + 8); int32 End; if (Pieces.FindChar(TEXT(']'), End)) { Pieces = Pieces.Left(End); } }
-			const TCHAR* Backend = St.Contains(TEXT("fallback")) ? TEXT("respaldo por palabras clave (fallo el modelo)") : St.Contains(TEXT("(jev")) ? TEXT("Jev (modelo de decision)")
-				: St.Contains(TEXT("keywords")) ? TEXT("palabras clave (sin clave del modelo)") : St.Contains(TEXT("source=json")) ? TEXT("receta fija") : TEXT("...");
-			Lines.Add(TEXT("!\"") + S->Prompt.Left(52) + TEXT("\""));
-			if (!St.StartsWith(TEXT("OK")))
+			// Estado de espera o de fallo, en palabras del jugador (el detalle tecnico solo en depuracion).
+			if (bDebug) { Lines.Add(St.Left(60)); }
+			else if (St.StartsWith(TEXT("FAIL"))) { Lines.Add(TEXT("No se pudo armar. Prueba otra frase.")); }
+			else if (St.StartsWith(TEXT("waiting"))) { Lines.Add(TEXT("Pensando...")); }
+			else { Lines.Add(St.Left(60)); }
+		}
+		else
+		{
+			if (bDebug) { Lines.Add(FString::Printf(TEXT("Decidio: %s"), Backend)); }
+			if (bDebug) { for (int32 c = 0; c < Pieces.Len(); c += 56) { Lines.Add((c == 0 ? TEXT("Piezas: ") : TEXT("        ")) + Pieces.Mid(c, 56)); } }
+			// Mecanicas agrupadas por capacidad, con su estado.
+			TMap<EJamPartKind, TPair<int32, FString>> Groups;
+			TArray<EJamPartKind> Order;
+			float Drain = 0.f;
+			int32 Alive = 0;
+			for (const AJamBuildPart* P : S->GetParts())
 			{
-				Lines.Add(St.Left(60));
-			}
-			else
-			{
-				Lines.Add(FString::Printf(TEXT("Decidio: %s"), Backend));
-				for (int32 c = 0; c < Pieces.Len(); c += 56) { Lines.Add((c == 0 ? TEXT("Piezas: ") : TEXT("        ")) + Pieces.Mid(c, 56)); }
-				// Mecanicas agrupadas por capacidad, con su estado.
-				TMap<EJamPartKind, TPair<int32, FString>> Groups;
-				TArray<EJamPartKind> Order;
-				float Drain = 0.f;
-				int32 Alive = 0;
-				for (const AJamBuildPart* P : S->GetParts())
+				if (!IsValid(P)) { continue; }
+				++Alive;
+				Drain += P->GetEnergyDrain();
+				if (KindName(P->Kind))
 				{
-					if (!IsValid(P)) { continue; }
-					++Alive;
-					Drain += P->GetEnergyDrain();
-					if (KindName(P->Kind))
-					{
-						if (!Groups.Contains(P->Kind)) { Order.Add(P->Kind); }
-						TPair<int32, FString>& G = Groups.FindOrAdd(P->Kind);
-						++G.Key;
-						const FString Txt = P->GetStatusText();
-						if (G.Value.IsEmpty() || P->bActive) { G.Value = Txt; }
-					}
+					if (!Groups.Contains(P->Kind)) { Order.Add(P->Kind); }
+					TPair<int32, FString>& G = Groups.FindOrAdd(P->Kind);
+					++G.Key;
+					const FString Txt = P->GetStatusText();
+					if (G.Value.IsEmpty() || P->bActive) { G.Value = Txt; }
 				}
-				Lines.Add(FString::Printf(TEXT("Piezas: %d    Gasto de energia: %.1f por segundo"), Alive, Drain));
-				Lines.Add(S->IsBuildActive() ? TEXT("!ENCENDIDA  (C la apaga)") : TEXT("!APAGADA: pulsa C para encenderla"));
+			}
+			Lines.Add(FString::Printf(TEXT("Piezas: %d    Gasto de energia: %.1f por segundo"), Alive, Drain));
+			Lines.Add(S->IsBuildActive() ? TEXT("!ENCENDIDA  (C la apaga)") : TEXT("!APAGADA: pulsa C para encenderla"));
+			if (bDebug)
+			{
 				int32 Skip = St.Find(TEXT("skipped=["));
 				if (Skip != INDEX_NONE)
 				{
@@ -1694,26 +1767,37 @@ void AJamTestHUD::DrawHUD()
 					Lines.Add(FString::Printf(TEXT("%sSentido: %d / 100"), S->LastCoherence >= 85 ? TEXT("") : TEXT("#"), S->LastCoherence));
 					for (int32 c = 0; c < S->LastCoherenceNote.Len() && c < 168; c += 56) { Lines.Add(TEXT("#") + S->LastCoherenceNote.Mid(c, 56)); }
 				}
-				// Controles disponibles segun las capacidades que tiene ESTA construccion.
+			}
+			// Controles disponibles segun las capacidades que tiene ESTA construccion.
+			{
+				bool bWheels = false, bWeapons = false, bRocket = false, bSeat = false, bPush = false;
+				for (const AJamBuildPart* P : S->GetParts())
 				{
-					bool bWheels = false, bWeapons = false, bRocket = false, bSeat = false, bPush = false;
-					for (const AJamBuildPart* P : S->GetParts())
-					{
-						if (!IsValid(P)) { continue; }
-						bWheels |= P->Kind == EJamPartKind::Wheel;
-						bSeat |= P->Kind == EJamPartKind::Seat;
-						bRocket |= P->Kind == EJamPartKind::Rocket || P->Kind == EJamPartKind::Bomb;
-						bPush |= P->Kind == EJamPartKind::Fan;
-						bWeapons |= P->Kind == EJamPartKind::Cannon || P->Kind == EJamPartKind::Flame || P->Kind == EJamPartKind::Frost || P->Kind == EJamPartKind::Beam || P->Kind == EJamPartKind::Shock || P->Kind == EJamPartKind::Hydrant;
-					}
-					FString Ctl = TEXT("!C encender");
-					if (bSeat) { Ctl += TEXT("  E subir"); }
-					if (bSeat && (bWheels || bPush)) { Ctl += TEXT("  W/S A/D manejar"); }
-					if (bSeat && bWeapons) { Ctl += TEXT("  Clic disparar"); }
-					if (bSeat && bRocket) { Ctl += TEXT("  Espacio/Shift cohete/bomba"); }
-					if (bSeat) { Ctl += TEXT("  Espacio/Ctrl subir/bajar (si flota)"); }
-					Lines.Add(Ctl);
+					if (!IsValid(P)) { continue; }
+					bWheels |= P->Kind == EJamPartKind::Wheel;
+					bSeat |= P->Kind == EJamPartKind::Seat;
+					bRocket |= P->Kind == EJamPartKind::Rocket || P->Kind == EJamPartKind::Bomb;
+					bPush |= P->Kind == EJamPartKind::Fan;
+					bWeapons |= P->Kind == EJamPartKind::Cannon || P->Kind == EJamPartKind::Flame || P->Kind == EJamPartKind::Frost || P->Kind == EJamPartKind::Beam || P->Kind == EJamPartKind::Shock || P->Kind == EJamPartKind::Hydrant;
 				}
+				TArray<FString> Ctl;
+				Ctl.Add(TEXT("C encender"));
+				if (bSeat) { Ctl.Add(TEXT("E subir")); }
+				if (bSeat && (bWheels || bPush)) { Ctl.Add(TEXT("W/S A/D manejar")); }
+				if (bSeat && bWeapons) { Ctl.Add(TEXT("Clic disparar")); }
+				if (bSeat && bRocket) { Ctl.Add(TEXT("Espacio/Shift cohete o bomba")); }
+				if (bSeat) { Ctl.Add(TEXT("Espacio/Ctrl subir/bajar si flota")); }
+				// Lineas de hasta ~44 caracteres para que quepan en el panel.
+				FString Row;
+				for (const FString& C : Ctl)
+				{
+					if (!Row.IsEmpty() && Row.Len() + C.Len() + 3 > 44) { Lines.Add(TEXT("!") + Row); Row.Reset(); }
+					Row += (Row.IsEmpty() ? FString() : FString(TEXT("   "))) + C;
+				}
+				if (!Row.IsEmpty()) { Lines.Add(TEXT("!") + Row); }
+			}
+			if (bDebug)
+			{
 				Lines.Add(TEXT("#Mecanicas:"));
 				for (EJamPartKind Kd : Order)
 				{
@@ -1723,21 +1807,11 @@ void AJamTestHUD::DrawHUD()
 				}
 			}
 		}
-		else
-		{
-			Lines.Add(TEXT("#Todavia no has construido nada."));
-			Lines.Add(TEXT("Pulsa T y escribe, o 1 para un carro con cohete; luego C."));
-		}
 		RY = Panel(RX, RY, RW, TEXT("CONSTRUCCION ACTUAL"), Lines, ColAccent);
 	}
 
-	if (!bShowHelp)
-	{
-		DrawText(TEXT("H = ayuda"), ColDim, 16 * K, SY - 28 * K, GEngine->GetSmallFont(), K);
-		return;
-	}
-
-	// 3) Elementos que el modelo puede usar (derecha, debajo): clave + palabra de ejemplo.
+	// 3) Depuracion (jam.Hud.Debug 1): elementos que el modelo puede usar (derecha, debajo): clave + palabra de ejemplo.
+	if (bDebug)
 	{
 		TArray<FString> Lines;
 		Lines.Add(TEXT("#Pide cualquiera en tu frase, p. ej. \"un carro con <palabra>\":"));
@@ -1754,21 +1828,30 @@ void AJamTestHUD::DrawHUD()
 		Panel(RX, RY, RW, TEXT("ELEMENTOS DISPONIBLES (clave -> palabra)"), Lines, ColIce);
 	}
 
-	// 4) Ayuda (abajo a la izquierda).
+	// 4) Ayuda (H, abajo a la izquierda): solo los controles reales (GDD 11).
+	if (!bShowHelp)
+	{
+		DrawText(TEXT("H = ayuda"), ColDim, 16 * K, SY - 28 * K, GEngine->GetSmallFont(), K);
+		return;
+	}
 	{
 		TArray<FString> Lines = {
 			TEXT("WASD mover   Mouse mirar   Espacio saltar"),
-			TEXT("!T, B o Enter   escribir que construir (Enter construye, Esc cierra)"),
-			TEXT("!G (mantener)   HABLAR: di que construir y suelta"),
-			TEXT("!C   ENCENDER / APAGAR la construccion (sale apagada)"),
-			TEXT("X   borrar todo    E   subir / bajar (montado: W/S A/D dirigen)"),
-			TEXT("V   primera / tercera persona   H   ocultar ayuda   ~   consola"),
-			TEXT("#Ejemplos rapidos:"),
+			TEXT("!Clic   atacar o disparar"),
+			TEXT("Q o rueda   cambiar arma (espada, arco, pedida)"),
+			TEXT("!B (o T, Enter)   pedir por texto"),
+			TEXT("!G (mantener)   pedir por voz"),
+			TEXT("!C   encender o apagar tu construccion"),
+			TEXT("E   subir o bajar del asiento"),
+			TEXT("X   desarmar tu construccion"),
+			TEXT("F   fusionar material a espada o arco"),
+			TEXT("V   camara        H   cerrar ayuda"),
+			TEXT("#Frases rapidas:"),
 		};
 		for (int32 i = 0; i < 9; ++i) { Lines.Add(FString::Printf(TEXT("!%d   %s"), i + 1, QuickPhrases[i])); }
-		Lines.Add(TEXT("#Consola: Jam.Say <frase>  Jam.Clear  Jam.Seat  Jam.Energy 100  Jam.Test"));
-		Lines.Add(TEXT("#Los dispositivos gastan energia; apagada se recarga sola hasta 50."));
+		if (bDebug) { Lines.Add(TEXT("#Consola: Jam.Say <frase>  Jam.Clear  Jam.Seat  Jam.Energy 100  Jam.Test")); }
+		Lines.Add(TEXT("#Los dispositivos gastan energia; apagada se recarga sola."));
 		const float H = (20 + 24 + Lines.Num() * 17.f) * K;
-		Panel(14 * K, SY - H - 14 * K, 470 * K, TEXT("COMO JUGAR"), Lines, ColGood);
+		Panel(14 * K, SY - H - 14 * K, 430 * K, TEXT("COMO JUGAR"), Lines, ColGood);
 	}
 }

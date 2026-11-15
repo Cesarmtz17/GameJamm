@@ -12,8 +12,8 @@ class UCameraComponent;
 /**
  * Banco de pruebas jugable de construccion (rol Building). Comandos de consola (tecla ~), en JamPlayConsole.cpp:
  *   Jam.Say <texto libre>  -> prompt -> modelo de decision (Jev) -> receta -> ensamblador, ~6 m delante del jugador
- *   Jam.Clear              -> borra todo lo construido
- *   Jam.Seat               -> se sube al asiento de la construccion mas cercana / se baja
+ *   Jam.Clear              -> desarma tu construccion y devuelve las piezas vivas (Jam.ClearAll borra todo, para pruebas)
+ *   Jam.Seat               -> se sube al asiento de tu construccion / se baja
  *   Jam.Energy [valor]     -> muestra o fija la barra de energia del jugador
  *   Jam.Test [seg]         -> bateria de frases; escribe docs/building/REPORTE-POC.md
  * En el juego: mantener G = hablar (voz -> texto -> construir); T, B o Enter = escribir la frase; 1..9 = ejemplos; C = encender/apagar; X = limpiar; E = subir/bajar (montado: WASD dirige);
@@ -67,8 +67,8 @@ private:
 };
 
 /**
- * HUD del banco de pruebas: barra de energia, ayuda (H), construccion actual con sus mecanicas activas y
- * lista de elementos que el modelo de decision puede usar.
+ * HUD del banco de pruebas: barra de energia (abajo, junto a la vida), ayuda (H) y construccion actual. La lista de elementos,
+ * las mecanicas y la linea de consola solo salen con jam.Hud.Debug 1.
  */
 UCLASS()
 class GAMEJAMM_API AJamTestHUD : public AHUD
@@ -78,8 +78,11 @@ class GAMEJAMM_API AJamTestHUD : public AHUD
 public:
 	virtual void DrawHUD() override;
 
-	bool bShowHelp = true;
+	bool bShowHelp = false;   // H la abre; la ayuda no tapa la pantalla por defecto (GDD 9)
 	float K = 1.f;   // escala del HUD segun la resolucion
+
+	/** Y (en pixeles) donde termina hacia arriba el bloque de abajo (vida, energia, voz): los avisos de JamMsg se apilan encima. */
+	float MsgBaseY = 0.f;
 
 private:
 	float Panel(float X, float Y, float W, const FString& Title, const TArray<FString>& Lines, const FLinearColor& TitleColor);

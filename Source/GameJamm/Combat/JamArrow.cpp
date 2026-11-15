@@ -4,6 +4,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 
 AJamArrow::AJamArrow()
@@ -74,10 +76,17 @@ void AJamArrow::Strike(AActor* Other)
 		return;
 	}
 	bDone = true;
-	if (W && !Fused.IsNone()) { W->ApplyFusionHit(Fused, bHurt ? Other : nullptr, GetActorLocation(), true); }
+	if (W && !Fused.IsNone()) { W->ApplyFusionHit(Fused, bHurt ? Other : nullptr, GetActorLocation(), bFuseArea); }
 	Movement->StopMovementImmediately();
 	Movement->Deactivate();
 	Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (bShot)
+	{
+		// Disparo del arma pedida: no se clava, desaparece al pegar.
+		SetActorHiddenInGame(true);
+		SetLifeSpan(0.05f);
+		return;
+	}
 	if (USceneComponent* Root = Other->GetRootComponent()) { AttachToComponent(Root, FAttachmentTransformRules::KeepWorldTransform); }
 	SetLifeSpan(3.f);
 }
@@ -92,4 +101,34 @@ void AJamArrow::ShowFuse(UStaticMesh* FuseMesh)
 	Tip->SetRelativeLocation(FVector(20.f, 0.f, 0.f));
 	Tip->SetRelativeScale3D(FVector(12.f / FMath::Max(1.f, FuseMesh->GetBoundingBox().GetSize().GetMax())));
 	Tip->RegisterComponent();
+}
+
+void AJamArrow::SetupShot(UStaticMesh* ShotMesh, const FTransform& MeshInShot, const FLinearColor& Color, bool bGlow, float GravityScale, float LifeSeconds, bool bAreaEffect)
+{
+	bShot = true;
+	bFuseArea = bAreaEffect;
+	Movement->ProjectileGravityScale = FMath::Max(0.f, GravityScale);
+	SetLifeSpan(FMath::Max(0.1f, LifeSeconds));
+	if (!ShotMesh)
+	{
+		return; // sin malla se queda la flecha: al menos se ve
+	}
+	Mesh->SetStaticMesh(ShotMesh);
+	Mesh->SetRelativeTransform(MeshInShot);
+	Mesh->SetCastShadow(false);
+	if (bGlow)
+	{
+		// Mismo material emisivo que las bocanadas de AJamBuildPart::Puff: brilla con el color de la boca.
+		UMaterialInterface* Mat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/EmissiveMeshMaterial.EmissiveMeshMaterial"));
+		if (UMaterialInstanceDynamic* MID = Mat ? UMaterialInstanceDynamic::Create(Mat, this) : nullptr)
+		{
+			MID->SetVectorParameterValue(TEXT("Color"), Color * 4.f);
+			for (int32 I = 0; I < Mesh->GetNumMaterials(); ++I) { Mesh->SetMaterial(I, MID); }
+		}
+	}
+}
+
+void AJamArrow::IgnoreShot(AJamArrow* Other)
+{
+	if (Other && Other != this) { Collision->IgnoreActorWhenMoving(Other, true); }
 }

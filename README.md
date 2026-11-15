@@ -3,7 +3,7 @@
 Entrada del equipo para la [2026 Epic AI MegaJam](https://itch.io/jam/2026-epic-ai-megajam). Tema: **DIRECTOR'S CUT**.
 
 > **DEADLINE: domingo 15 nov, 8:59 PM EST / 5:59 PM PST / 7:59 PM CDMX.** Tarde = descalificados.
-> Freeze de features: **15 nov 12:00 PM CDMX**. Después de eso solo bugs, build, video y página.
+> Sin feature freeze (lo quitó Javier el 15 nov): se sigue completando el GDD hasta el paquete final; lo único fijo es el deadline.
 
 - Diseño: [docs/GDD.md](docs/GDD.md)
 - Quién trabaja en qué (dueño por carpeta): [docs/TEAM.md](docs/TEAM.md)

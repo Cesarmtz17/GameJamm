@@ -6,6 +6,7 @@
 #include "Components/AudioComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Core/JamStatics.h"
+#include "Core/JamMessages.h"
 #include "Components/StaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
@@ -896,9 +897,11 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 		{
 			UE_LOG(LogJamPart, Log, TEXT("build out of energy: devices off"));
 			PlaySfx(TEXT("SFX_Energy_Empty"));
-			if (GEngine)
+			// Solo avisa al jugador (o a una construccion sin dueno): las de los bots no hablan. Misma Key: no se apila.
+			const APawn* EnergyOwner = Build.IsValid() ? Cast<APawn>(Build->Owner.Get()) : nullptr;
+			if (!EnergyOwner || EnergyOwner->IsPlayerControlled())
 			{
-				GEngine->AddOnScreenDebugMessage(7001, 6.f, FColor::Orange, TEXT("Sin energia: los dispositivos se apagaron. Apagada, la barra se recarga sola hasta 50; C para volver a encender."));
+				JamMsg::Post(TEXT("Sin energia: dispositivos apagados. La barra se recarga sola; C los vuelve a encender"), JamMsg::Warn, 6.f, TEXT("energy"));
 			}
 			for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts)
 			{

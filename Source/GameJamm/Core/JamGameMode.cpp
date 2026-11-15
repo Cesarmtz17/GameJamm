@@ -1,8 +1,12 @@
 #include "Core/JamGameMode.h"
 #include "AI/JamWaveSpawner.h"
 #include "Core/JamCharacter.h"
+#include "Core/JamAudio.h"
+#include "Combat/JamWeaponComponent.h"
 #include "Core/JamGameState.h"
 #include "Core/JamHUD.h"
+#include "Core/InventoryComponent.h"
+#include "Core/JamMessages.h"
 #include "Core/JamLootDirector.h"
 #include "Core/JamStatics.h"
 #include "Core/HealthComponent.h"
@@ -39,6 +43,7 @@ void AJamGameMode::StartPlay()
 		{
 			GetWorld()->SpawnActor<AJamWaveSpawner>();
 		}
+		JamAudio::Music(this, TEXT("MUS_Match_Loop"), 0.4f); // GDD 10: musica de partida (la intensa entra en muerte subita)
 		GetWorld()->SpawnActor<AJamLootDirector>(); // GDD 4: cofres, chatarra y cofre raro (Content/Game/Core/Data/Loot.json)
 	}
 }
@@ -62,6 +67,8 @@ void AJamGameMode::MatchTick()
 			It->AttackDamage *= 0.5f;
 		}
 		UE_LOG(LogJam, Log, TEXT("Muerte subita"));
+		JamMsg::Big(TEXT("MUERTE SUBITA: las torres pegan menos y reapareces mas tarde"), JamMsg::Warn, 5.f, TEXT("sudden"));
+		JamAudio::Music(this, TEXT("MUS_Match_Intense_Loop"), 0.45f);
 		OnSuddenDeath();
 	}
 
@@ -113,6 +120,7 @@ void AJamGameMode::EndMatch(EJamTeam Winner)
 	UE_LOG(LogJam, Log, TEXT("Match over. Winner: %s"), *UEnum::GetValueAsString(Winner));
 	GetWorldTimerManager().ClearTimer(MatchTimer);
 	JamGameState->SetMatchResult(Winner);
+	JamAudio::Music(this, TEXT("MUS_Menu_Loop"), 0.4f); // pantalla final
 	OnMatchEnded(Winner);
 }
 
@@ -164,12 +172,42 @@ void AJamGameMode::Respawn(AController* Controller)
 	{
 		return;
 	}
+	// Renacer con la mitad (GDD 4): el peon viejo ya solto la otra mitad en la bolsa al morir; lo que le quedo se guarda para el nuevo.
+	const bool bPlayer = Controller->IsPlayerController();
+	TMap<FName, int32> Carried;
+	bool bHadGun = false; // GDD 4: si caes, reapareces y vuelves a pedir (el arma pedida no pasa al peon nuevo)
 	if (APawn* Old = Controller->GetPawn())
 	{
+		if (const UJamWeaponComponent* OldWeapon = bPlayer ? Old->FindComponentByClass<UJamWeaponComponent>() : nullptr)
+		{
+			bHadGun = OldWeapon->HasGeneratedWeapon();
+		}
+		if (const UInventoryComponent* OldInv = bPlayer ? Old->FindComponentByClass<UInventoryComponent>() : nullptr)
+		{
+			for (const auto& Item : OldInv->Items) { if (Item.Value > 0) { Carried.Add(Item.Key, Item.Value); } }
+		}
 		Controller->UnPossess();
 		Old->Destroy();
 	}
 	RestartPlayer(Controller);
+	if (bPlayer)
+	{
+		JamAudio::Play2D(this, TEXT("SFX_Respawn"), 0.8f);
+		UInventoryComponent* NewInv = Controller->GetPawn() ? Controller->GetPawn()->FindComponentByClass<UInventoryComponent>() : nullptr;
+		if (NewInv)
+		{
+			// Reemplaza (no suma): el peon nuevo ya recibio sus StartingItems en BeginPlay. Si no traia nada, se queda con ellos.
+			if (Carried.Num() > 0)
+			{
+				NewInv->ClearInventory();
+				for (const auto& Item : Carried) { NewInv->AddItem(Item.Key, Item.Value); }
+			}
+			int32 Pieces = 0;
+			for (const auto& Item : NewInv->Items) { if (Item.Key.ToString().StartsWith(TEXT("Part."))) { Pieces += FMath::Max(Item.Value, 0); } }
+			JamMsg::Post(FString::Printf(TEXT("Reapareciste con %d %s%s"), Pieces, Pieces == 1 ? TEXT("pieza") : TEXT("piezas"),
+				bHadGun ? TEXT(". Pulsa B y pide tu arma otra vez") : TEXT("")), JamMsg::Info, 6.f, FName(TEXT("respawn")));
+		}
+	}
 }
 
 EJamTeam AJamGameMode::GetControllerTeam(const AController* Controller) const

@@ -27,7 +27,7 @@ Proyecto: entrada de 5 personas para la Epic AI MegaJam 2026 (Unreal Engine 5.8,
 
 ## Reglas duras
 - **REGLA PRINCIPAL (no negociable):** el juego es construcción emergente con física (sandbox): el jugador combina muchas piezas básicas (tablas, llantas, cilindros, bloques, motores, lanzallamas…) y **las propiedades de las piezas se traducen en mecánicas**. Una capa de decisión (modelo) mapea pedido + inventario → receta de piezas. Nada de objetos cerrados hechos a mano. Un cambio de enfoque se anota en el Historial del GDD y se avisa al equipo (§0.1). Detalle en [docs/GDD.md](docs/GDD.md).
-- **Deadline 15 nov 2026 8:59 PM EST.** Prioriza que el juego funcione de punta a punta sobre features nuevas. Respeta el feature freeze (dom 15, 12:00 CDMX).
+- **Deadline 15 nov 2026 8:59 PM EST (7:59 PM CDMX).** Prioriza que el juego funcione de punta a punta. No hay feature freeze (lo quitó Javier el 15 nov): se sigue completando el GDD hasta el paquete final; lo único fijo es entregar a tiempo.
 - **No edites `.uasset`/`.umap` como texto** ni los muevas/renombres desde el sistema de archivos. Cambios a assets → por el editor (o el plugin Unreal MCP).
 - **Solo toca las carpetas que el usuario tiene anotadas en `docs/TEAM.md`** (si no tiene fila, pídele su nombre y carpetas y agrégala antes de empezar). Para tocar código/asset de una carpeta con otro dueño, pregunta primero.
 - **Devlog (excepción a la regla de carpetas):** al cerrar trabajo notable —feature, decisión, algo que falló y se arregló— añade una entrada corta a [docs/DEVLOG.md](docs/DEVLOG.md) (premio Glass Box). El devlog lo escribe todo el equipo y sus agentes; el resto de `docs/` sí respeta dueños. Qué registrar y formato de entrada → instrucciones al inicio de ese archivo.

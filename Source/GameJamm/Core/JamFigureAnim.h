@@ -26,6 +26,13 @@ struct FJamFigureState
 	float T = 1.f;     // avance del movimiento 0..1
 	float Pitch = 0.f; // mira vertical en grados (arco)
 
+	// Arma de mano pedida (GDD 5.1): va en GunBone; GunInBone = su rotacion en ese hueso (X = canon, Z = arriba).
+	bool bGun = false;
+	FName GunBone;
+	FQuat GunInBone = FQuat::Identity;
+	float GunAim = 0.f;  // 0 = arma baja al frente; 1 = brazo extendido a la mira (acaba de disparar)
+	float GunSide = 1.f; // 1 = mano derecha, -1 = izquierda (espeja la pose)
+
 	// Cuerpo natural (todas las figuras): cruce entre clips, inclinacion al correr/girar y cabeza hacia la mira.
 	bool bNatural = false;
 	FName LowSpineBone, NeckBone, HeadBone;
@@ -86,4 +93,5 @@ private:
 	float PrevYaw = 0.f;
 	bool bHasPrev = false;
 	float BodyLean = 0.f, BodyRoll = 0.f, LookYaw = 0.f, LookPitch = 0.f;
+	float GunAim = 0.f; // arma pedida: 0..1 suavizado hacia "apuntando"
 };
