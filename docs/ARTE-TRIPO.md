@@ -105,9 +105,44 @@ basta agregar estas entradas a `RealMeshNames()` en `Source/GameJamm/Building/Ja
 
 `Spikes` lleva las púas hacia +X (cara frontal) y `Propeller` es un disco en YZ como `Fan`.
 
-### Personajes (César; aviso a Jesús): figuras rigeadas — pedido para ANTES del freeze (dom 15, 12:00 CDMX)
+### Personajes 2 (César): dos ajustes antes del freeze (dom 15, 12:00 CDMX) — PENDIENTE
 
-> [!important] Primera línea para cada persona (el agente la puede repetir tal cual)
+> [!important] Para César (el agente lo puede repetir tal cual)
+> "Javier pide dos ajustes chicos a las figuras (~30 min en total), ya probadas en PIE con tu `UJamCharacterLook`:
+> (1) que la figura se siente **sobre** el asiento, no 40 cm arriba; (2) que la espada y el arco vayan **en la mano**.
+> Los números van en `Characters.json` para que Javier los afine sin recompilar."
+
+1. **Sentado (`UJamCharacterLook`)**:
+   - Problema: mientras está montado (`GetAttachParentActor()`), la figura queda ~40 cm arriba del asiento. `Jam.Seat`
+     pone la cápsula 110 cm sobre el asiento, y la animación `Sit` es de silla: los pies van en la base de la cápsula y la
+     cadera, a altura de silla.
+   - Pedido: leer el campo opcional `SitOffset` [x,y,z] de la entrada y, mientras se reproduce `Sit`, poner la malla en
+     `Offset + SitOffset`. Al bajarse, volver a `Offset`.
+   - Ya está en el JSON para `Player` y `BotHero` (`[0, 0, -40]`); si falta, vale 0.
+2. **Arma en la mano (`JamWeaponComponent`)**:
+   - Problema: hoy `HandMesh` cuelga de la cápsula en (45, 38, 0) y flota junto a la figura.
+   - Pedido: si el dueño tiene `GetMesh()` con SkeletalMesh y el hueso `hand_r` existe, pegar `HandMesh` a ese hueso con
+     el campo opcional `Weapon` de su entrada: `{"Socket": "hand_r", "Offset": [x,y,z], "Rot": [pitch,yaw,roll]}`.
+   - Con la mano no hace falta el balanceo por código (`SwingAlpha`, ~línea 478): el golpe ya viene en la animación
+     `Attack`.
+   - Sin SkeletalMesh queda como hoy.
+   - `Player` ya trae un `Weapon` inicial en el JSON; Javier afina el giro viéndolo en PIE.
+
+**Hecho cuando:** montado en un carro, la cadera queda en el asiento, y a pie la espada y el arco siguen la mano al
+caminar y al atacar. Sin figura, todo queda como hoy.
+
+### Personajes (César; aviso a Jesús): figuras rigeadas — HECHO (`08a1bdb`, empaquetado `a574410`)
+
+> [!success] Estado (14 nov, 19:45)
+> César subió `UJamCharacterLook` y la configuración de empaquetado. Javier lo probó en PIE:
+> - Jugador, minions, bots y guardias salen con su figura (24 de 24 agentes) y no hay errores de carga.
+> - Caminar, correr, espadazo (`Attack`) y arco (`Shoot`) cambian la animación como se esperaba.
+> - FPS en el spawn con la oleada en pantalla: 60 (GPU 9.3 ms; antes ~7.0).
+>
+> Falta probar morir y reaparecer, la primera persona (V) y una build empaquetada: la configuración de empaquetado está,
+> pero **no se ha hecho ninguna build de prueba**. Los dos ajustes de arriba son la continuación.
+
+> [!note] Pedido original (para referencia)
 > - **César:** "Javier pide ~1 h de código antes del freeze: que jugador, minion, bot héroe y guardia usen las figuras
 >   rigeadas de Rodin (SkeletalMesh + animaciones sueltas, sin Anim Blueprint) cuando existan, y el cilindro de hoy si no.
 >   Arte, materiales y datos los pone Javier en `Content/Game/Art/Tripo/Characters/`. Detalle abajo."

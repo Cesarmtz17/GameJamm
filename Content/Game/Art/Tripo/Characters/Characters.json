@@ -1,5 +1,5 @@
 {
-  "_doc": "Figuras rigeadas (Rodin, esqueleto UE5). Lo edita Javier (arte) sin recompilar; el codigo lo lee como Loot.json. Contrato en docs/ARTE-TRIPO.md, seccion Personajes. Claves: Player = AJamCharacter, Minion = AJamMinion, BotHero = AJamBotHero, Guard / Thrower = AJamCampGuard. Sin entrada (o si la malla no carga) se queda el cilindro. Offset/Yaw/Scale van en GetMesh() relativo a la capsula. Speed = cm/s a los que el ciclo se ve sin patinar con este Scale (el codigo lo multiplica por la escala del actor). Rate = velocidad de reproduccion fija de las acciones.",
+  "_doc": "Figuras rigeadas (Rodin, esqueleto UE5). Lo edita Javier (arte) sin recompilar; el codigo lo lee como Loot.json. Contrato en docs/ARTE-TRIPO.md, seccion Personajes. Claves: Player = AJamCharacter, Minion = AJamMinion, BotHero = AJamBotHero, Guard / Thrower = AJamCampGuard. Sin entrada (o si la malla no carga) se queda el cilindro. Offset/Yaw/Scale van en GetMesh() relativo a la capsula. Speed = cm/s a los que el ciclo se ve sin patinar con este Scale (el codigo lo multiplica por la escala del actor). Rate = velocidad de reproduccion fija de las acciones. SitOffset (opcional) = se suma a Offset mientras esta montado (Sit). Weapon (opcional, jugador) = hueso de la mano y transform del arma (ARTE-TRIPO, Personajes 2).",
   "Player": {
     "Mesh": "/Game/Game/Art/Tripo/Characters/SK_CHAR_PLAYER.SK_CHAR_PLAYER",
     "Materials": {
@@ -14,6 +14,24 @@
     "Yaw": -90,
     "Scale": 0.92,
     "RunAbove": 250,
+    "SitOffset": [
+      0,
+      0,
+      -40
+    ],
+    "Weapon": {
+      "Socket": "hand_r",
+      "Offset": [
+        0,
+        0,
+        0
+      ],
+      "Rot": [
+        0,
+        0,
+        0
+      ]
+    },
     "Anims": {
       "Idle": {
         "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_PLAYER_Idle.A_CHAR_PLAYER_Idle"
@@ -108,6 +126,11 @@
     "Yaw": -90,
     "Scale": 0.97,
     "RunAbove": 250,
+    "SitOffset": [
+      0,
+      0,
+      -40
+    ],
     "Anims": {
       "Idle": {
         "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_BOTHERO_Idle.A_CHAR_BOTHERO_Idle"
