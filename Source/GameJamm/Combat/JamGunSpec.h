@@ -23,6 +23,7 @@ struct FJamGunSpec
 	FString Name;        // "Rifle de hielo"
 	FString BodyName;    // "Rifle"
 	FString MuzzleName;  // "Hielo" (efecto legible para el HUD)
+	TArray<FString> ExtraNames; // extras pedidos, sin los que el cuerpo trae de fabrica: "mira", "cargador"
 	FString Sound;       // nombre del SFX de disparo (aun no se toca; ver UJamWeaponComponent::FireGenerated)
 	FName Effect;        // material de Fusion.json (Fire, Ice, Shock, Rock, Bomb) o None
 	bool bArea = true;   // true = efecto de flecha (en area); false = efecto de golpe (Ice: ralentiza y congela a los N impactos)
@@ -76,6 +77,25 @@ namespace JamGun
 
 	/** Arma la especificacion a partir de la frase. false si no es frase de arma. */
 	GAMEJAMM_API bool Decide(const FString& Phrase, FJamGunSpec& Out);
+
+	/**
+	 * Igual que Decide, pero el cuerpo, la boca y los extras son los que ELIGIO el modelo de decision (ids de Weapons.json).
+	 * El codigo sigue decidiendo lo posible: un id vacio o que no existe cae a la palabra clave, y los numeros, limites y
+	 * piezas salen de Weapons.json. ExtraIds = extras que el modelo marco con si (los de fabrica del cuerpo van siempre).
+	 */
+	GAMEJAMM_API bool DecideWithIds(const FString& Phrase, const FString& BodyId, const FString& MuzzleId, const TArray<FString>& ExtraIds, FJamGunSpec& Out);
+
+	/**
+	 * Cuerpo JSON para la Decisions API de OpenAI: un choice sobre los id de bodies, un choice sobre los id de muzzles (mas
+	 * "Default" = no se nombro efecto) y un predicate por cada id de extras. Textos en el bloque "decision" de Weapons.json.
+	 */
+	GAMEJAMM_API FString BuildDecisionRequest(const FString& Phrase);
+
+	/**
+	 * Lee answers[] de esa peticion. Cuerpo o boca negados ("refusal"), con poca confianza o "Default" quedan vacios (decide la
+	 * palabra clave); un extra negado se decide por su palabra clave. false si no es JSON valido o todo viene negado.
+	 */
+	GAMEJAMM_API bool ParseDecisionResponse(const FString& ResponseJson, const FString& Phrase, FString& OutBodyId, FString& OutMuzzleId, TArray<FString>& OutExtraIds, FString& OutNote);
 
 	/** Transform local de la pieza para que la caja de la malla mida Size y su centro quede en Pos (mide la malla real). */
 	GAMEJAMM_API FTransform FitPiece(const UStaticMesh* Mesh, const FJamGunPiece& Piece);

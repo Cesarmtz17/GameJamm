@@ -2,13 +2,17 @@
 #include "Building/JamConnectionRules.h"
 
 #include "Building/JamBuildPart.h"
+#include "Combat/JamGunSpec.h"
 
 #include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
 #include "HAL/PlatformMisc.h"
+#include "HAL/PlatformTime.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -29,45 +33,100 @@ namespace
 	}
 
 	TSharedRef<FJsonObject> Obj() { return MakeShared<FJsonObject>(); }
+
+	// Decisions API de OpenAI (contrato verificado con llamadas reales el 15 nov): input [developer, user] + questions[]
+	// (predicate / choice) -> answers[] con predicate.probability, choice.choice/.confidence o refusal POR PREGUNTA.
+	const TCHAR* OpenAIEndpoint = TEXT("https://api.openai.com/v1/decisions");
+	const TCHAR* OpenAIModel = TEXT("gpt-6-luna");
+	const TCHAR* OpenAIBackend = TEXT("openai-decisions");
+	// El mensaje developer deja claro que es un juego de piezas de juguete con efectos de juego: sin esto el modelo se niega
+	// (refusal) a preguntas como la del lanzallamas. Cada pregunta repite "In this toy game" / "toy part".
+	const TCHAR* OpenAIDeveloper = TEXT("You are the decision layer of a family-friendly toy construction video game (a physics sandbox). The player types, in Spanish, ")
+		TEXT("what to build out of toy parts: boards, wheels, fans, balloons and toy gadgets. Everything is make-believe game content: fire, ice, ")
+		TEXT("lightning, bombs and cannons are harmless cartoon game effects of toy parts; nothing is real and nobody can be hurt. Answer every ")
+		TEXT("question about which toy parts the toy build should use. The game code assembles and validates the build; you only choose.");
+	const TCHAR* OpenAIUser = TEXT("Player request (toy build): ");
+
+	/** Clave de un proveedor: variable de entorno o [Jam] <IniKey> de Config/DefaultSecrets.ini (ignorado por git; en el paquete, <exe>/GameJamm/Config). */
+	FString JamSecret(const TCHAR* EnvName, const TCHAR* IniKey)
+	{
+		FString Key = FPlatformMisc::GetEnvironmentVariable(EnvName);
+		if (!Key.IsEmpty())
+		{
+			return Key;
+		}
+		FConfigFile Secrets;
+		Secrets.Read(FPaths::ProjectConfigDir() / TEXT("DefaultSecrets.ini"));
+		Secrets.GetString(TEXT("Jam"), IniKey, Key);
+		return Key;
+	}
+
+	/**
+	 * POST a la Decisions API de OpenAI con el corte del proveedor. Done(b200, codigo HTTP (0 = sin respuesta / corte), contenido, ms)
+	 * en el hilo del juego. Nunca escribe en el log la clave ni el cuerpo de un error.
+	 */
+	void JamPostOpenAI(const FString& Key, const FString& Body, TFunction<void(bool, int32, const FString&, int32)> Done)
+	{
+		const double T0 = FPlatformTime::Seconds();
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+		Req->SetURL(OpenAIEndpoint);
+		Req->SetVerb(TEXT("POST"));
+		Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+		Req->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *Key));
+		Req->SetContentAsString(Body);
+		Req->SetTimeout(FJamDecisionClient::GetTimeout(TEXT("openai"), 3.f));
+		Req->OnProcessRequestComplete().BindLambda([Done, T0](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+		{
+			const int32 Ms = int32((FPlatformTime::Seconds() - T0) * 1000.0 + 0.5);
+			const int32 Code = Resp.IsValid() ? Resp->GetResponseCode() : 0;
+			const bool b200 = bOk && Code == 200;
+			Done(b200, Code, b200 ? Resp->GetContentAsString() : FString(), Ms);
+		});
+		Req->ProcessRequest();
+	}
 }
 
 FString FJamDecisionClient::GetApiKey()
 {
-	FString Key = FPlatformMisc::GetEnvironmentVariable(TEXT("OPENROUTER_API_KEY"));
-	if (!Key.IsEmpty())
-	{
-		return Key;
-	}
-	FConfigFile Secrets;
-	Secrets.Read(FPaths::ProjectConfigDir() / TEXT("DefaultSecrets.ini"));
-	Secrets.GetString(TEXT("Jam"), TEXT("OpenRouterApiKey"), Key);
-	return Key;
+	return JamSecret(TEXT("OPENROUTER_API_KEY"), TEXT("OpenRouterApiKey"));
 }
 
 FString FJamDecisionClient::GetTypeSafeKey()
 {
-	FString Key = FPlatformMisc::GetEnvironmentVariable(TEXT("TYPESAFE_API_KEY"));
-	if (!Key.IsEmpty())
-	{
-		return Key;
-	}
-	FConfigFile Secrets;
-	Secrets.Read(FPaths::ProjectConfigDir() / TEXT("DefaultSecrets.ini"));
-	Secrets.GetString(TEXT("Jam"), TEXT("DecisionsApiKey"), Key);
-	return Key;
+	return JamSecret(TEXT("TYPESAFE_API_KEY"), TEXT("DecisionsApiKey"));
 }
 
 FString FJamDecisionClient::GetFalKey()
 {
-	FString Key = FPlatformMisc::GetEnvironmentVariable(TEXT("FAL_KEY"));
-	if (!Key.IsEmpty())
+	return JamSecret(TEXT("FAL_KEY"), TEXT("FalApiKey"));
+}
+
+FString FJamDecisionClient::GetOpenAIKey()
+{
+	return JamSecret(TEXT("OPENAI_API_KEY"), TEXT("OpenAIApiKey")).TrimStartAndEnd();
+}
+
+float FJamDecisionClient::GetTimeout(const TCHAR* Provider, float Default)
+{
+	// Cortes por proveedor como dato: BuildKnowledge.json, bloque "decision_timeouts" (segundos). Se lee una vez; si falta, el valor del codigo.
+	static TSharedPtr<FJsonObject> Timeouts;
+	static bool bLoaded = false;
+	if (!bLoaded)
 	{
-		return Key;
+		bLoaded = true;
+		FString Json;
+		TSharedPtr<FJsonObject> Root;
+		const TSharedPtr<FJsonObject>* Block = nullptr;
+		if (FFileHelper::LoadFileToString(Json, *(FPaths::ProjectContentDir() / TEXT("Game/Building/Data/BuildKnowledge.json")))
+			&& FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Json), Root) && Root.IsValid()
+			&& Root->TryGetObjectField(TEXT("decision_timeouts"), Block) && Block && Block->IsValid())
+		{
+			Timeouts = *Block;
+		}
 	}
-	FConfigFile Secrets;
-	Secrets.Read(FPaths::ProjectConfigDir() / TEXT("DefaultSecrets.ini"));
-	Secrets.GetString(TEXT("Jam"), TEXT("FalApiKey"), Key);
-	return Key;
+	double Seconds = Default;
+	if (Timeouts.IsValid()) { Timeouts->TryGetNumberField(FString(Provider), Seconds); }
+	return float(FMath::Clamp(Seconds, 0.5, 60.0));
 }
 
 bool FJamDecisionClient::ParseFalResponse(const FString& ResponseJson, FJamBuildChoice& OutChoice, FString& OutNote)
@@ -260,28 +319,92 @@ FString FJamDecisionClient::BuildRequestBody(const FString& Prompt, const TCHAR*
 	return Out;
 }
 
-bool FJamDecisionClient::ParseResponse(const FString& ResponseJson, FJamBuildChoice& OutChoice, FString& OutNote)
+FString FJamDecisionClient::BuildOpenAIRequestBody(const FString& Prompt)
 {
-	TSharedPtr<FJsonObject> Root;
-	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(ResponseJson), Root) || !Root.IsValid())
+	// Las MISMAS preguntas que se le hacen a Jev (se leen de BuildRequestBody para que los dos backends nunca se separen),
+	// traducidas al esquema de OpenAI: noul -> predicate (criterios true/false dentro de instructions), choice -> choice
+	// (cada criterio pasa a ser una opcion value + description). Hoy son 59: 45 use_<Tipo>, mode_lift, mode_launch, pattern,
+	// root y 10 mode_<Tipo>. No se manda la guia de conexiones: el modelo solo elige piezas y modos; el codigo las coloca.
+	TArray<TSharedPtr<FJsonValue>> Out;
+	TSharedPtr<FJsonObject> Jev;
+	const TSharedPtr<FJsonObject>* Questions = nullptr;
+	if (FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(BuildRequestBody(Prompt)), Jev) && Jev.IsValid()
+		&& Jev->TryGetObjectField(TEXT("questions"), Questions) && Questions && Questions->IsValid())
 	{
-		OutNote = TEXT("response is not JSON");
-		return false;
-	}
-	const TSharedPtr<FJsonObject>* Answers = nullptr;
-	if (!Root->TryGetObjectField(TEXT("answers"), Answers) || !Answers)
-	{
-		FString Err;
-		const TSharedPtr<FJsonObject>* ErrObj = nullptr;
-		if (Root->TryGetObjectField(TEXT("error"), ErrObj) && ErrObj) { (*ErrObj)->TryGetStringField(TEXT("message"), Err); }
-		OutNote = Err.IsEmpty() ? TEXT("response has no 'answers'") : Err;
-		return false;
+		for (const auto& KV : (*Questions)->Values)
+		{
+			const FString Name(KV.Key);
+			const TSharedPtr<FJsonObject>* Q = nullptr;
+			const TSharedPtr<FJsonObject>* Crit = nullptr;
+			FString Type, Instr;
+			if (!KV.Value.IsValid() || !KV.Value->TryGetObject(Q) || !Q || !Q->IsValid() || !(*Q)->TryGetStringField(TEXT("type"), Type)
+				|| !(*Q)->TryGetObjectField(TEXT("criteria"), Crit) || !Crit || !Crit->IsValid())
+			{
+				continue;
+			}
+			(*Q)->TryGetStringField(TEXT("instructions"), Instr);
+			Instr.ReplaceInline(TEXT(" using connection_rules"), TEXT(""));
+			TSharedRef<FJsonObject> O = Obj();
+			if (Type == TEXT("noul"))
+			{
+				FString True, False;
+				(*Crit)->TryGetStringField(TEXT("true"), True);
+				(*Crit)->TryGetStringField(TEXT("false"), False);
+				const FString Head = Name.StartsWith(TEXT("use_"))
+					? FString::Printf(TEXT("In this toy game, should the toy build include the toy part \"%s\"?"), *Name.RightChop(4))
+					: FString(TEXT("In this toy game: ")) + Instr;
+				O->SetStringField(TEXT("type"), TEXT("predicate"));
+				O->SetStringField(TEXT("name"), Name);
+				O->SetStringField(TEXT("instructions"), FString::Printf(TEXT("%s Yes if: %s No if: %s"), *Head, *True, *False));
+			}
+			else
+			{
+				TArray<TSharedPtr<FJsonValue>> Choices;
+				for (const auto& C : (*Crit)->Values)
+				{
+					FString Desc;
+					TSharedRef<FJsonObject> Opt = Obj();
+					Opt->SetStringField(TEXT("value"), FString(C.Key));
+					if (C.Value.IsValid() && C.Value->TryGetString(Desc)) { Opt->SetStringField(TEXT("description"), Desc); }
+					Choices.Add(MakeShared<FJsonValueObject>(Opt));
+				}
+				O->SetStringField(TEXT("type"), TEXT("choice"));
+				O->SetStringField(TEXT("name"), Name);
+				O->SetStringField(TEXT("instructions"), FString(TEXT("In this toy game: ")) + Instr);
+				O->SetArrayField(TEXT("choices"), Choices);
+			}
+			Out.Add(MakeShared<FJsonValueObject>(O));
+		}
 	}
 
-	OutChoice = FJamBuildChoice();
-	if ((*Answers)->HasField(TEXT("mode_lift")) || !(*Answers)->HasField(TEXT("archetype")))
+	auto Message = [](const TCHAR* Role, const FString& Content) -> TSharedPtr<FJsonValue>
 	{
-		// Formato por piezas: use_<Tipo> (noul), n_<Tipo> (choice), mode_lift / mode_launch (noul).
+		TSharedRef<FJsonObject> M = Obj();
+		M->SetStringField(TEXT("role"), Role);
+		M->SetStringField(TEXT("content"), Content);
+		return MakeShared<FJsonValueObject>(M);
+	};
+	TArray<TSharedPtr<FJsonValue>> Input;
+	Input.Add(Message(TEXT("developer"), OpenAIDeveloper));
+	Input.Add(Message(TEXT("user"), FString(OpenAIUser) + Prompt));
+
+	TSharedRef<FJsonObject> Root = Obj();
+	Root->SetStringField(TEXT("model"), OpenAIModel);
+	Root->SetArrayField(TEXT("input"), Input);
+	Root->SetArrayField(TEXT("questions"), Out);
+	FString Body;
+	FJsonSerializer::Serialize(Root, TJsonWriterFactory<>::Create(&Body));
+	return Body;
+}
+
+namespace
+{
+	/**
+	 * Lectura comun de las respuestas "por piezas" (formato de Jev: Answers.<pregunta>.noul / .choice / .confidence):
+	 * use_<Tipo>, n_<Tipo>, mode_lift / mode_launch, mode_<Tipo>, pattern y root. La usan Jev y OpenAI (que primero se pasa a este formato).
+	 */
+	bool JamParsePieceAnswers(const TSharedPtr<FJsonObject>* Answers, const TCHAR* Backend, FJamBuildChoice& OutChoice, FString& OutNote)
+	{
 		auto Noul = [&Answers](const FString& Key)
 		{
 			const TSharedPtr<FJsonObject>* A = nullptr;
@@ -346,8 +469,114 @@ bool FJamDecisionClient::ParseResponse(const FString& ResponseJson, FJamBuildCho
 		OutChoice.Root = Pick(TEXT("root"), 0.6);
 		if (OutChoice.Root.IsNone() && (OutChoice.Pattern == "stack" || OutChoice.Pattern == "emplacement")) { OutChoice.Root = "Block"; }
 		if (OutChoice.Root == "Wheel") { OutChoice.Root = NAME_None; }
-		OutNote = FString::Printf(TEXT("jev pieces=%d conf=1.00 pattern=%s root=%s [%s]"), OutChoice.Pieces.Num(), *OutChoice.Pattern.ToString(), *OutChoice.Root.ToString(), *FString::Join(Txt, TEXT(", ")));
+		OutNote = FString::Printf(TEXT("%s pieces=%d conf=1.00 pattern=%s root=%s [%s]"), Backend, OutChoice.Pieces.Num(), *OutChoice.Pattern.ToString(), *OutChoice.Root.ToString(), *FString::Join(Txt, TEXT(", ")));
 		return OutChoice.Pieces.Num() > 0;
+	}
+}
+
+bool FJamDecisionClient::ParseOpenAIResponse(const FString& ResponseJson, const FString& Prompt, FJamBuildChoice& OutChoice, FString& OutNote)
+{
+	OutChoice = FJamBuildChoice();
+	TSharedPtr<FJsonObject> Root;
+	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
+	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(ResponseJson), Root) || !Root.IsValid())
+	{
+		OutNote = FString(OpenAIBackend) + TEXT(" response is not JSON");
+		return false;
+	}
+	if (!Root->TryGetArrayField(TEXT("answers"), Arr) || !Arr)
+	{
+		OutNote = FString(OpenAIBackend) + TEXT(" response has no 'answers'");
+		return false;
+	}
+	// answers[] de OpenAI -> formato de Jev (por nombre de pregunta), para leerlo EXACTAMENTE igual: predicate.probability -> noul,
+	// choice.choice / .confidence igual. Una negativa ("refusal", o un tipo que no conocemos) deja esa pregunta sin respuesta.
+	TSharedRef<FJsonObject> Answers = Obj();
+	TArray<FString> Refused;
+	int32 Answered = 0;
+	for (const TSharedPtr<FJsonValue>& V : *Arr)
+	{
+		const TSharedPtr<FJsonObject>* A = nullptr;
+		FString Kind, Name, Picked;
+		if (!V.IsValid() || !V->TryGetObject(A) || !A || !A->IsValid() || !(*A)->TryGetStringField(TEXT("type"), Kind) || !(*A)->TryGetStringField(TEXT("name"), Name))
+		{
+			continue;
+		}
+		TSharedRef<FJsonObject> J = Obj();
+		double P = 0.0;
+		if (Kind == TEXT("predicate") && (*A)->TryGetNumberField(TEXT("probability"), P))
+		{
+			J->SetNumberField(TEXT("noul"), P);
+		}
+		else if (Kind == TEXT("choice") && (*A)->TryGetStringField(TEXT("choice"), Picked))
+		{
+			J->SetStringField(TEXT("choice"), Picked);
+			if ((*A)->TryGetNumberField(TEXT("confidence"), P)) { J->SetNumberField(TEXT("confidence"), P); }
+		}
+		else
+		{
+			Refused.Add(Name);
+			continue;
+		}
+		++Answered;
+		Answers->SetObjectField(Name, J);
+	}
+	if (Answered == 0)
+	{
+		OutNote = FString::Printf(TEXT("%s all refused (%d)"), OpenAIBackend, Refused.Num());
+		return false; // todo negado: entra el respaldo
+	}
+	// Negativa en un use_<Tipo>: nunca se descarta en silencio; para ESE tipo decide el respaldo por palabras clave.
+	TArray<FString> ByKeyword;
+	if (Refused.ContainsByPredicate([](const FString& N) { return N.StartsWith(TEXT("use_")); }))
+	{
+		TArray<FName> Negated;
+		TArray<FJamPieceCount> Seed;
+		UJamBuildGenerator::BagFromKeywords(UJamBuildGenerator::StripNegations(Prompt, Negated), Seed, false);
+		for (const FString& N : Refused)
+		{
+			if (!N.StartsWith(TEXT("use_"))) { continue; }
+			const FName PieceType(*N.RightChop(4));
+			if (Seed.ContainsByPredicate([PieceType](const FJamPieceCount& I) { return I.Type == PieceType; }))
+			{
+				TSharedRef<FJsonObject> J = Obj();
+				J->SetNumberField(TEXT("noul"), 1.0);
+				Answers->SetObjectField(N, J);
+				ByKeyword.Add(PieceType.ToString());
+			}
+		}
+	}
+	const TSharedPtr<FJsonObject> AnswersPtr = Answers;
+	const bool bOk = JamParsePieceAnswers(&AnswersPtr, OpenAIBackend, OutChoice, OutNote);
+	// refused = preguntas negadas; kw = tipos negados que puso el respaldo por palabras (el HUD no los muestra como elegidos por el modelo).
+	if (Refused.Num() > 0) { OutNote += FString::Printf(TEXT(" refused=%d"), Refused.Num()); }
+	if (ByKeyword.Num() > 0) { OutNote += TEXT(" kw=[") + FString::Join(ByKeyword, TEXT(",")) + TEXT("]"); }
+	return bOk;
+}
+
+bool FJamDecisionClient::ParseResponse(const FString& ResponseJson, FJamBuildChoice& OutChoice, FString& OutNote)
+{
+	TSharedPtr<FJsonObject> Root;
+	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(ResponseJson), Root) || !Root.IsValid())
+	{
+		OutNote = TEXT("response is not JSON");
+		return false;
+	}
+	const TSharedPtr<FJsonObject>* Answers = nullptr;
+	if (!Root->TryGetObjectField(TEXT("answers"), Answers) || !Answers)
+	{
+		FString Err;
+		const TSharedPtr<FJsonObject>* ErrObj = nullptr;
+		if (Root->TryGetObjectField(TEXT("error"), ErrObj) && ErrObj) { (*ErrObj)->TryGetStringField(TEXT("message"), Err); }
+		OutNote = Err.IsEmpty() ? TEXT("response has no 'answers'") : Err;
+		return false;
+	}
+
+	OutChoice = FJamBuildChoice();
+	if ((*Answers)->HasField(TEXT("mode_lift")) || !(*Answers)->HasField(TEXT("archetype")))
+	{
+		// Formato por piezas: use_<Tipo> (noul), n_<Tipo> (choice), mode_lift / mode_launch (noul). Misma lectura que usa OpenAI.
+		return JamParsePieceAnswers(Answers, TEXT("jev"), OutChoice, OutNote);
 	}
 	const TSharedPtr<FJsonObject>* Arch = nullptr;
 	FString Picked;
@@ -415,7 +644,7 @@ void FJamDecisionClient::RequestPlan(const FString& Prompt, TFunction<void(bool,
 	FReq->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
 	FReq->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Key %s"), *FalKey));
 	FReq->SetContentAsString(BodyStr);
-	FReq->SetTimeout(8.f);
+	FReq->SetTimeout(GetTimeout(TEXT("fal"), 8.f));
 	FReq->OnProcessRequestComplete().BindLambda([Done](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
 	{
 		FJamBuildChoice C;
@@ -432,21 +661,72 @@ void FJamDecisionClient::RequestPlan(const FString& Prompt, TFunction<void(bool,
 	FReq->ProcessRequest();
 }
 
+void FJamDecisionClient::RequestOpenAIChoice(const FString& Prompt, TFunction<void(bool, const FJamBuildChoice&, const FString&)> Done)
+{
+	const FString Key = GetOpenAIKey();
+	if (Key.IsEmpty())
+	{
+		Done(false, FJamBuildChoice(), FString(OpenAIBackend) + TEXT(" no OPENAI_API_KEY"));
+		return;
+	}
+	JamPostOpenAI(Key, BuildOpenAIRequestBody(Prompt), [Done, Prompt](bool bHttpOk, int32 Code, const FString& Content, int32 Ms)
+	{
+		FJamBuildChoice C;
+		FString Note;
+		bool bParsed = false;
+		if (bHttpOk) { bParsed = ParseOpenAIResponse(Content, Prompt, C, Note); }
+		else if (Code > 0) { Note = FString::Printf(TEXT("%s http %d"), OpenAIBackend, Code); } // solo el codigo: el cuerpo de un error no va al log
+		else { Note = FString(OpenAIBackend) + TEXT(" http failure/timeout"); }
+		// La nota empieza con "openai-decisions " (Finish separa el backend por el primer espacio); en el log no se repite.
+		FString LogNote = Note;
+		LogNote.RemoveFromStart(FString(OpenAIBackend) + TEXT(" "));
+		UE_LOG(LogJamDecision, Log, TEXT("backend=openai-decisions ok=%d ms=%d %s extras=[%s]"), bParsed ? 1 : 0, Ms, *LogNote, *ExtrasStr(C));
+		Done(bParsed, C, Note);
+	});
+}
+
+void FJamDecisionClient::RequestGunChoice(const FString& Phrase, TFunction<void(bool, const FString&, const FString&, const TArray<FString>&)> Done)
+{
+	const FString Key = GetOpenAIKey();
+	if (Key.IsEmpty())
+	{
+		Done(false, FString(), FString(), TArray<FString>());
+		return;
+	}
+	JamPostOpenAI(Key, JamGun::BuildDecisionRequest(Phrase), [Done, Phrase](bool bHttpOk, int32 Code, const FString& Content, int32 Ms)
+	{
+		FString BodyId, MuzzleId, Note;
+		TArray<FString> ExtraIds;
+		bool bParsed = false;
+		if (bHttpOk) { bParsed = JamGun::ParseDecisionResponse(Content, Phrase, BodyId, MuzzleId, ExtraIds, Note); }
+		else if (Code > 0) { Note = FString::Printf(TEXT("http %d"), Code); }
+		else { Note = TEXT("http failure/timeout"); }
+		UE_LOG(LogJamDecision, Log, TEXT("backend=openai-decisions gun ok=%d ms=%d body=%s muzzle=%s extras=[%s] %s"), bParsed ? 1 : 0, Ms, *BodyId, *MuzzleId, *FString::Join(ExtraIds, TEXT(",")), *Note);
+		Done(bParsed, BodyId, MuzzleId, ExtraIds);
+	});
+}
+
 void FJamDecisionClient::RequestChoice(const FString& Prompt, TFunction<void(bool, const FJamBuildChoice&, const FString&)> Done)
 {
-	// Prioridad: TypeSafe directo (Jev) > OpenRouter (Jev) > fal (LLM generico).
+	// Prioridad: TypeSafe directo (Jev) > OpenRouter (Jev) > OpenAI Decisions > fal (LLM generico).
 	const FString TsKey = GetTypeSafeKey();
 	const bool bDirect = !TsKey.IsEmpty();
 	const FString Key = bDirect ? TsKey : GetApiKey();
+	const bool bOpenAI = !GetOpenAIKey().IsEmpty();
 	if (Key.IsEmpty())
 	{
+		if (bOpenAI)
+		{
+			RequestOpenAIChoice(Prompt, Done); // sin Jev: la Decisions API de OpenAI contesta las mismas preguntas
+			return;
+		}
 		const FString FalKey = GetFalKey();
 		if (FalKey.IsEmpty())
 		{
-			Done(false, FJamBuildChoice(), TEXT("no OPENROUTER_API_KEY ni FAL_KEY"));
+			Done(false, FJamBuildChoice(), TEXT("no OPENROUTER_API_KEY, OPENAI_API_KEY ni FAL_KEY"));
 			return;
 		}
-		RequestPlan(Prompt, Done); // sin Jev: el planificador LLM decide la bolsa de piezas
+		RequestPlan(Prompt, Done); // sin Jev ni OpenAI: el planificador LLM decide la bolsa de piezas
 		return;
 	}
 
@@ -456,25 +736,41 @@ void FJamDecisionClient::RequestChoice(const FString& Prompt, TFunction<void(boo
 	Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
 	Req->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *Key));
 	Req->SetContentAsString(BuildRequestBody(Prompt, bDirect ? TEXT("jev-1.13.0") : nullptr));
-	Req->SetTimeout(8.f);
-	Req->OnProcessRequestComplete().BindLambda([Done, bDirect](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	Req->SetTimeout(bDirect ? GetTimeout(TEXT("typesafe"), 3.f) : GetTimeout(TEXT("openrouter"), 4.f));
+	Req->OnProcessRequestComplete().BindLambda([Done, bDirect, bOpenAI, Prompt](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
 	{
+		// Si Jev falla (red, corte, error o sin piezas) y hay clave de OpenAI, se le pregunta a OpenAI antes de rendirse.
+		auto Fail = [&Done, bDirect, bOpenAI, &Prompt](const FJamBuildChoice& FailChoice, const FString& FailNote)
+		{
+			if (bOpenAI)
+			{
+				UE_LOG(LogJamDecision, Log, TEXT("backend=%s ok=0 %s -> openai-decisions"), bDirect ? TEXT("typesafe-jev") : TEXT("openrouter-jev"), *FailNote.Left(200));
+				RequestOpenAIChoice(Prompt, Done);
+				return;
+			}
+			Done(false, FailChoice, FailNote);
+		};
 		FJamBuildChoice C;
 		FString Note;
 		if (!bOk || !Resp.IsValid())
 		{
-			Done(false, C, TEXT("http failure/timeout"));
+			Fail(C, TEXT("http failure/timeout"));
 			return;
 		}
 		if (Resp->GetResponseCode() != 200)
 		{
-			Done(false, C, FString::Printf(TEXT("http %d %s"), Resp->GetResponseCode(), *Resp->GetContentAsString().Left(200)));
+			Fail(C, FString::Printf(TEXT("http %d %s"), Resp->GetResponseCode(), *Resp->GetContentAsString().Left(200)));
 			return;
 		}
 		const bool bParsed = ParseResponse(Resp->GetContentAsString(), C, Note);
 		UE_LOG(LogJamDecision, Log, TEXT("backend=%s ok=%d %s extras=[%s]"), bDirect ? TEXT("typesafe-jev") : TEXT("openrouter-jev"), bParsed, *Note, *ExtrasStr(C));
-		if (!bParsed) { UE_LOG(LogJamDecision, Warning, TEXT("respuesta: %s"), *Resp->GetContentAsString().Left(400)); }
-		Done(bParsed, C, Note);
+		if (!bParsed)
+		{
+			UE_LOG(LogJamDecision, Warning, TEXT("respuesta: %s"), *Resp->GetContentAsString().Left(400));
+			Fail(C, Note);
+			return;
+		}
+		Done(true, C, Note);
 	});
 	Req->ProcessRequest();
 }

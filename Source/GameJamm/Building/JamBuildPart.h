@@ -10,6 +10,9 @@ class UStaticMeshComponent;
 class UPhysicsConstraintComponent;
 class UAudioComponent;
 class USoundBase;
+class UHealthComponent;
+class AController;
+struct FDamageEvent;
 
 UENUM(BlueprintType)
 enum class EJamPartKind : uint8
@@ -162,6 +165,28 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	int32 EffectHits = 0;
 
+	/**
+	 * Vida de la pieza (GDD 5.2 y pilar 4: el rival puede romper lo que armas). Se crea en InitFromDef con el valor de
+	 * Content/Game/Building/Data/PartHealth.json. Null si la pieza nacio con jam.Build.PartHealth 0: invulnerable, como antes.
+	 * Su equipo se copia del estado compartido de la construccion (Build->Team) en cada Tick.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	TObjectPtr<UHealthComponent> Health;
+
+	/** Rota: llego a 0 de vida (o se rompio la pieza de la que colgaba). Suelta, apagada y fuera de la construccion; desaparece sola. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	bool bBroken = false;
+
+	/** jam.Build.PartHealth: 1 = las piezas tienen vida y se rompen (por defecto); 0 = invulnerables. */
+	static bool PartHealthEnabled();
+
+	/** Rompe la pieza ya: se suelta de su construccion junto con lo que cuelga de ella (si es la raiz, se desarma todo). */
+	UFUNCTION(BlueprintCallable, Category = "Jam|Building")
+	void BreakPart(AActor* Killer);
+
+	/** Filtro antes de UHealthComponent: interruptor, pieza ya rota y daño propio (tus piezas, tu arma y tus aliados no la rompen). */
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
 	/** Malla real de la pieza (Content/Game/Building/Parts), o null si aun no esta importada: se usa la forma basica. */
 	static UStaticMesh* FindRealMesh(FName Type);
 
@@ -204,6 +229,24 @@ private:
 	UFUNCTION()
 	void OnPartHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 	float NextHitTime = 0.f;
+
+	// --- vida de la pieza ---
+	UFUNCTION()
+	void OnPartHealthChanged(UHealthComponent* HealthComponent, float NewHealth, float Delta);
+	UFUNCTION()
+	void OnPartDied(UHealthComponent* HealthComponent, AActor* Killer);
+	/** Suelta esta pieza (uniones, soldadura, estado compartido), la apaga y la deja como chatarra que no estorba. */
+	void ReleaseAsScrap();
+	/** Baja al jugador que vaya montado en esta pieza (lo mismo que hace Jam.Seat al bajar). Los bots se bajan solos. */
+	void EjectRiders();
+	/** Color y brillo segun el estado: destello de golpe, rota (oscura) o normal. */
+	void RefreshHitTint(bool bFlash);
+	float DefMassKg = 0.f;                          // masa de la definicion (la de Build->MassKg y la isla soldada)
+	FLinearColor BaseColor = FLinearColor::White;   // color de la forma basica, para volver tras el destello
+	float HitFlashUntil = 0.f;
+	float NextHitFeedback = 0.f;                    // el daño continuo (llama, rayo) no repite destello ni sonido cada cuadro
+	float ScrapUntil = 0.f;                         // hora a la que la chatarra desaparece (0 = se queda)
+	bool bRootHealthDone = false;                   // la raiz ya recibio su multiplicador de vida
 
 	bool IsMine(const AActor* Other) const;
 	/** Componentes fisicos/peones dentro de una esfera (sin esta pieza). */

@@ -168,6 +168,52 @@ namespace JamLoot
 		return Found ? *Found : Type;
 	}
 
+	FString ItemName(FName ItemId)
+	{
+		const FString Id = ItemId.ToString();
+		if (Id == TEXT("Energy")) { return TEXT("Energía"); }
+		if (Id == TEXT("Backpack")) { return TEXT("Mochila"); }
+		if (Id == TEXT("Mat.Fire")) { return TEXT("Fuego"); }
+		if (Id == TEXT("Mat.Ice")) { return TEXT("Hielo"); }
+		if (Id == TEXT("Mat.Shock")) { return TEXT("Rayo"); }
+		if (Id == TEXT("Mat.Rock")) { return TEXT("Roca"); }
+		if (Id == TEXT("Mat.Bomb")) { return TEXT("Bomba"); }
+		return Id.StartsWith(TEXT("Part.")) ? PartName(Id.RightChop(5)) : Id;
+	}
+
+	FString IconName(FName ItemId)
+	{
+		FString Id = ItemId.ToString();
+		Id.RemoveFromStart(TEXT("Part."));
+		return TEXT("T_Icon_") + Id.Replace(TEXT("."), TEXT("_"));
+	}
+
+	FString ItemTier(FName ItemId)
+	{
+		const FString Id = ItemId.ToString();
+		if (Id == TEXT("Energy") || Id == TEXT("Mat.Shock") || Id == TEXT("Mat.Bomb")) { return TEXT("device"); }
+		if (!Id.StartsWith(TEXT("Part."))) { return TEXT("common"); }
+		const FString Type = Id.RightChop(5);
+		return InList(TEXT("rare_types"), Type) ? TEXT("rare") : InList(TEXT("common_types"), Type) ? TEXT("common") : TEXT("device");
+	}
+
+	FLinearColor TierColor(const FString& Tier)
+	{
+		return FLinearColor(FColor::FromHex(Tier == TEXT("rare") ? TEXT("E7B65A") : Tier == TEXT("device") ? TEXT("8FE3FF") : TEXT("F6F4ED")));
+	}
+
+	FLinearColor ItemColor(FName ItemId)
+	{
+		if (ItemId == TEXT("Mat.Fire")) { return FLinearColor(FColor::FromHex(TEXT("FF7A1A"))); }
+		if (ItemId == TEXT("Mat.Ice")) { return FLinearColor(FColor::FromHex(TEXT("8FE3FF"))); }
+		if (ItemId == TEXT("Mat.Shock")) { return FLinearColor(FColor::FromHex(TEXT("F5F06A"))); }
+		if (ItemId == TEXT("Mat.Rock")) { return FLinearColor(FColor::FromHex(TEXT("C9A06B"))); }
+		if (ItemId == TEXT("Mat.Bomb")) { return FLinearColor(FColor::FromHex(TEXT("D8B989"))); }
+		if (ItemId == TEXT("Energy")) { return FLinearColor(FColor::FromHex(TEXT("408F94"))); }
+		if (ItemId == TEXT("Backpack")) { return FLinearColor(FColor::FromHex(TEXT("F2C230"))); }
+		return TierColor(ItemTier(ItemId));
+	}
+
 	FString Describe(const TMap<FName, int32>& Bundle)
 	{
 		TArray<FString> Parts;

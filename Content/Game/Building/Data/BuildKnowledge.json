@@ -3,6 +3,7 @@
  "version": 3,
  "max_parts": 60,
  "use_energy": true,
+ "decision_timeouts": {"_doc": "Corte en segundos de cada proveedor del modelo de decision (FJamDecisionClient::GetTimeout). Si vence, sigue el siguiente respaldo y al final las palabras clave.", "typesafe": 3, "openrouter": 4, "openai": 3, "fal": 8},
  "elements": [
   {
    "id": "PART_PLANK",

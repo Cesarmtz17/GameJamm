@@ -4,6 +4,17 @@
 #include "Building/JamPlayConsole.h"
 #include "JamHUD.generated.h"
 
+class UTexture2D;
+
+/** Una fila de loot: empieza sus cuatro segundos al entrar en la columna visible. */
+struct FJamHudLootNotice
+{
+	FName ItemId;
+	int32 Count = 0;
+	FString Tier;
+	double Started = -1.0;
+};
+
 /** Seguimiento de una creacion del jugador (agrupada por pedido) para la pantalla final "tu corte final". */
 struct FJamHudCreation
 {
@@ -29,7 +40,26 @@ class GAMEJAMM_API AJamHUD : public AJamTestHUD
 public:
 	virtual void DrawHUD() override;
 
+	/** Presenta solo lo recibido; false permite conservar el aviso de texto si se usa otro HUD. */
+	static bool ShowLoot(AActor* Taker, const TMap<FName, int32>& Offered, const TMap<FName, int32>& Leftover,
+		const FString& SourceTier, float EnergyBefore);
+
 private:
+	UTexture2D* GetLootIcon(FName ItemId);
+	void DrawLootIcon(FName ItemId, float X, float Y, float Size, float Alpha = 1.f);
+	void DrawLootNotices(float Bottom);
+	float DrawBackpack(const APawn* Pawn);
+	void DrawPickupLabels(const APawn* Pawn, float Bottom);
+	FString FitLootText(FString Text, UFont* Font, float Scale, float MaxWidth) const;
+
+	/** Incluye los intentos fallidos (nullptr): nunca vuelve a cargar por frame. */
+	UPROPERTY(Transient)
+	TMap<FName, TObjectPtr<UTexture2D>> LootIcons;
+
+	TArray<FJamHudLootNotice> LootNotices;
+	TSet<FName> BlockedLootItems;
+	double BackpackFlashUntil = 0.0;
+
 	void DrawCentered(const FString& Text, const FLinearColor& Color, float Y, float Scale, bool bBackground = true);
 
 	/** Avanza el paso del objetivo segun el estado del juego (nunca retrocede) y devuelve su texto ("" si no hay). */

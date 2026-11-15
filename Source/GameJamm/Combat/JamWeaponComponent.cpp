@@ -9,6 +9,7 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Building/JamPlayConsole.h"
+#include "Building/JamDecisionClient.h"
 #include "Core/HealthComponent.h"
 #include "Core/JamStatics.h"
 #include "GameJamm.h"
@@ -695,17 +696,64 @@ FString UJamWeaponComponent::GetGeneratedHudText() const
 
 bool UJamWeaponComponent::RequestGeneratedWeapon(const FString& Phrase)
 {
+	// 1) Respaldo por palabras clave, sincrono: dice si la frase es de arma (si no, el pedido va a construccion) y deja lista el arma de respaldo.
 	FJamGunSpec Spec;
 	if (!IsGeneratedEnabled() || !JamGun::Decide(Phrase, Spec))
 	{
 		return false;
 	}
-	Gun = MoveTemp(Spec);
+	const int32 Request = ++GunRequestId; // un pedido nuevo deja sin efecto la respuesta pendiente del anterior
+	// 2) Sin clave de OpenAI (o no es el jugador): se equipa ya, como siempre.
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	if (!Pawn || !Pawn->IsPlayerControlled() || FJamDecisionClient::GetOpenAIKey().IsEmpty())
+	{
+		EquipGenerated(Spec, FString());
+		return true;
+	}
+	// 3) Con clave: el modelo solo ELIGE cuerpo, boca y extras entre los ids de Weapons.json; el codigo pone numeros, limites y piezas
+	// (JamGun::DecideWithIds). Con error, corte (3 s) o todo negado se equipa la de palabras. El arma anterior sigue en la mano mientras.
+	Notify(TEXT("Pensando..."), JamMsg::Info, TEXT("JamGunMade"));
+	TWeakObjectPtr<UJamWeaponComponent> Weak(this);
+	FJamDecisionClient::RequestGunChoice(Phrase, [Weak, Request, Phrase, Spec](bool bOk, const FString& BodyId, const FString& MuzzleId, const TArray<FString>& ExtraIds)
+	{
+		UJamWeaponComponent* Self = Weak.Get();
+		if (!Self || Self->GunRequestId != Request)
+		{
+			return; // el jugador ya no existe o pidio otra arma: esta respuesta ya no vale
+		}
+		// Si el modelo no eligio nada con confianza (ni cuerpo, ni boca, ni extras), el arma es la de palabras y no se le atribuye.
+		const bool bChoseSomething = !BodyId.IsEmpty() || !MuzzleId.IsEmpty() || ExtraIds.Num() > 0;
+		FJamGunSpec Chosen;
+		if (bOk && bChoseSomething && JamGun::DecideWithIds(Phrase, BodyId, MuzzleId, ExtraIds, Chosen)) { Self->EquipGenerated(Chosen, TEXT("OpenAI")); }
+		else { Self->EquipGenerated(Spec, FString()); }
+	});
+	return true;
+}
+
+void UJamWeaponComponent::EquipGenerated(const FJamGunSpec& Spec, const FString& ChosenBy)
+{
+	Gun = Spec;
 	bHasGun = true;
 	BuildGunMesh();
 	SetWeapon(EJamWeapon::Generated);
 	Notify(FString::Printf(TEXT("Armaste: %s"), *GetGeneratedHudText()), JamMsg::Good, TEXT("JamGunMade"));
-	return true;
+	// Que se vea la IA: una linea aparte con lo que eligio el modelo ("OpenAI eligio: Rifle, boca de Hielo, Mira").
+	const FName AiKey(TEXT("JamGunAI"));
+	if (ChosenBy.IsEmpty())
+	{
+		const APawn* Pawn = Cast<APawn>(GetOwner());
+		if (Pawn && Pawn->IsPlayerControlled()) { JamMsg::Remove(AiKey); } // la del arma anterior ya no aplica
+		return;
+	}
+	FString Line = FString::Printf(TEXT("%s eligio: %s"), *ChosenBy, *Gun.BodyName);
+	if (!Gun.MuzzleName.IsEmpty()) { Line += TEXT(", boca de ") + Gun.MuzzleName; }
+	for (FString Extra : Gun.ExtraNames)
+	{
+		if (Extra.IsEmpty()) { continue; }
+		Extra[0] = FChar::ToUpper(Extra[0]);
+		Line += TEXT(", ") + Extra;
+	}
+	Notify(Line, JamMsg::Info, AiKey);
 }
 
 void UJamWeaponComponent::BuildGunMesh()

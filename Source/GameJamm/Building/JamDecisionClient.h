@@ -22,6 +22,33 @@ public:
 	/** Clave de fal (env FAL_KEY o [Jam] FalApiKey): respaldo de decisión vía fal.run/openrouter/router (LLM que elige en JSON). */
 	static FString GetFalKey();
 
+	/** Clave de OpenAI (env OPENAI_API_KEY o [Jam] OpenAIApiKey): Decisions API (gpt-6-luna) en api.openai.com/v1/decisions. */
+	static FString GetOpenAIKey();
+
+	/** Corte en segundos de un proveedor ("typesafe", "openrouter", "openai", "fal"): BuildKnowledge.json, bloque decision_timeouts. */
+	static float GetTimeout(const TCHAR* Provider, float Default);
+
+	/**
+	 * Cuerpo para la Decisions API de OpenAI: las MISMAS preguntas de BuildRequestBody traducidas a su esquema
+	 * (noul -> predicate, choice -> choice con choices[]). Los textos hablan de piezas de juguete para que el modelo no se niegue.
+	 */
+	static FString BuildOpenAIRequestBody(const FString& Prompt);
+
+	/**
+	 * Respuesta de OpenAI (answers[]) -> decisiones, con la misma lectura que la de Jev. Una negativa ("refusal") deja esa pregunta
+	 * sin respuesta: si era un use_<Tipo>, decide el respaldo por palabras para ese tipo. false si todo viene negado o sin piezas.
+	 */
+	static bool ParseOpenAIResponse(const FString& ResponseJson, const FString& Prompt, FJamBuildChoice& OutChoice, FString& OutNote);
+
+	/** Construccion por la Decisions API de OpenAI. Done en el hilo del juego; la nota empieza con "openai-decisions". */
+	static void RequestOpenAIChoice(const FString& Prompt, TFunction<void(bool bOk, const FJamBuildChoice& Choice, const FString& Note)> Done);
+
+	/**
+	 * Arma de mano pedida (GDD 5.1) por la Decisions API de OpenAI: el modelo solo ELIGE un id de bodies, uno de muzzles y los extras
+	 * de Weapons.json (preguntas y lectura en Combat/JamGunSpec). bOk false = sin clave, error, corte o todo negado: decide la palabra.
+	 */
+	static void RequestGunChoice(const FString& Phrase, TFunction<void(bool bOk, const FString& BodyId, const FString& MuzzleId, const TArray<FString>& ExtraIds)> Done);
+
 	/** Respuesta de fal -> decisiones (el texto del modelo trae un JSON, a veces con ```). */
 	static bool ParseFalResponse(const FString& ResponseJson, FJamBuildChoice& OutChoice, FString& OutNote);
 
@@ -40,6 +67,9 @@ public:
 	 */
 	static void RequestPlan(const FString& Prompt, TFunction<void(bool bOk, const FJamBuildChoice& Choice, const FString& Note)> Done);
 
-	/** Llamada asíncrona. Done se invoca en el hilo del juego. */
+	/**
+	 * Llamada asíncrona. Done se invoca en el hilo del juego. Orden: Jev directo (TypeSafe) > Jev por OpenRouter >
+	 * OpenAI Decisions (tambien si Jev falla) > planificador fal. Sin ninguna clave, bOk = false (respaldo por palabras).
+	 */
 	static void RequestChoice(const FString& Prompt, TFunction<void(bool bOk, const FJamBuildChoice& Choice, const FString& Note)> Done);
 };

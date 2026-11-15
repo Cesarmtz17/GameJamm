@@ -7,9 +7,23 @@
 #include "Components/SpotLightComponent.h"
 #include "Core/JamStatics.h"
 #include "Core/JamMessages.h"
+#include "Core/HealthComponent.h"
+#include "Core/JamAudio.h"
 #include "Components/StaticMeshComponent.h"
+#include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/DamageEvents.h"
 #include "Engine/Engine.h"
+#include "EngineUtils.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/PlayerController.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
@@ -41,6 +55,9 @@ static TAutoConsoleVariable<int32> CVarJamFx(TEXT("jam.Build.Fx"), 1, TEXT("1 = 
 
 static TAutoConsoleVariable<int32> CVarJamDebug(TEXT("jam.Build.Debug"), 0,
 	TEXT("1 = la pieza raiz de cada construccion escribe en el log su posicion, velocidad y energia cada segundo."));
+
+static TAutoConsoleVariable<int32> CVarJamPartHealth(TEXT("jam.Build.PartHealth"), 0,
+	TEXT("1 = las piezas tienen vida (Content/Game/Building/Data/PartHealth.json): a 0 se sueltan y se apagan. 0 = invulnerables como antes (por defecto hasta probarlo en PIE); las piezas creadas con 0 no llevan componente de vida: ponlo en 1 ANTES de pedir la construccion."));
 
 namespace
 {
@@ -253,8 +270,116 @@ namespace
 	}
 }
 
+namespace
+{
+	/** Vida por pieza (GDD 5.2): Content/Game/Building/Data/PartHealth.json, leido una vez. Si falta o esta mal, estos valores. */
+	struct FJamPartHealthTable
+	{
+		float Default = 60.f;
+		float RootMultiplier = 2.f;   // la raiz aguanta mas: al romperse se desarma todo
+		float ScrapSeconds = 8.f;     // lo que dura la pieza suelta antes de desaparecer (0 = se queda)
+		TMap<FName, float> ByType;    // tipo de receta ("Plank")
+		TMap<FName, float> ByKind;    // capacidad ("Structural")
+		TMap<FName, FString> Names;   // nombre para el aviso ("Te rompieron: Rueda")
+	};
+
+	void JamPartHealthReadMap(const TSharedPtr<FJsonObject>& Root, const TCHAR* Field, TMap<FName, float>& Out)
+	{
+		const TSharedPtr<FJsonObject>* Obj = nullptr;
+		if (Root->TryGetObjectField(Field, Obj) && Obj && Obj->IsValid())
+		{
+			for (const auto& Entry : (*Obj)->Values)
+			{
+				double Num = 0.0;
+				if (Entry.Value.IsValid() && Entry.Value->TryGetNumber(Num))
+				{
+					Out.Add(FName(*FString(Entry.Key)), FMath::Max(1.f, (float)Num));
+				}
+			}
+		}
+	}
+
+	const FJamPartHealthTable& JamPartHealthTable()
+	{
+		static FJamPartHealthTable Data;
+		static bool bLoaded = false;
+		if (bLoaded)
+		{
+			return Data;
+		}
+		bLoaded = true;
+		// Respaldo en codigo (los mismos numeros que el JSON): estructura 80, ruedas y uniones 50, dispositivos 40.
+		static const struct { const TCHAR* Kind; float Hp; } Fallback[] = {
+			{ TEXT("Structural"), 80.f }, { TEXT("Slide"), 70.f }, { TEXT("Spike"), 90.f }, { TEXT("Seat"), 80.f }, { TEXT("Wheel"), 50.f },
+			{ TEXT("Spring"), 50.f }, { TEXT("Hinge"), 50.f }, { TEXT("Turntable"), 50.f }, { TEXT("Stake"), 40.f }, { TEXT("Head"), 50.f },
+			{ TEXT("Cannon"), 50.f }, { TEXT("Fan"), 40.f }, { TEXT("Rocket"), 40.f }, { TEXT("Hover"), 45.f }, { TEXT("Stabilizer"), 40.f },
+			{ TEXT("Wing"), 40.f }, { TEXT("Sail"), 25.f }, { TEXT("Balloon"), 20.f }, { TEXT("Battery"), 40.f }, { TEXT("Flame"), 40.f },
+			{ TEXT("Frost"), 40.f }, { TEXT("Beam"), 40.f }, { TEXT("Shock"), 40.f }, { TEXT("Hydrant"), 40.f }, { TEXT("Bomb"), 30.f },
+			{ TEXT("Light"), 30.f },
+		};
+		for (const auto& Row : Fallback)
+		{
+			Data.ByKind.Add(FName(Row.Kind), Row.Hp);
+		}
+
+		FString Text;
+		TSharedPtr<FJsonObject> Root;
+		const FString Path = FPaths::ProjectContentDir() / TEXT("Game/Building/Data/PartHealth.json");
+		if (!FFileHelper::LoadFileToString(Text, *Path) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Root) || !Root.IsValid())
+		{
+			UE_LOG(LogJamPart, Warning, TEXT("PartHealth: no pude leer %s; uso la vida por defecto del codigo"), *Path);
+			return Data;
+		}
+		double Num = 0.0;
+		if (Root->TryGetNumberField(TEXT("default"), Num)) { Data.Default = FMath::Max(1.f, (float)Num); }
+		if (Root->TryGetNumberField(TEXT("root_multiplier"), Num)) { Data.RootMultiplier = FMath::Clamp((float)Num, 0.1f, 100.f); }
+		if (Root->TryGetNumberField(TEXT("scrap_seconds"), Num)) { Data.ScrapSeconds = FMath::Max(0.f, (float)Num); }
+		JamPartHealthReadMap(Root, TEXT("by_kind"), Data.ByKind);
+		JamPartHealthReadMap(Root, TEXT("by_type"), Data.ByType);
+		const TSharedPtr<FJsonObject>* NamesObj = nullptr;
+		if (Root->TryGetObjectField(TEXT("names_es"), NamesObj) && NamesObj && NamesObj->IsValid())
+		{
+			for (const auto& Entry : (*NamesObj)->Values)
+			{
+				FString Name;
+				if (Entry.Value.IsValid() && Entry.Value->TryGetString(Name) && !Name.IsEmpty())
+				{
+					Data.Names.Add(FName(*FString(Entry.Key)), Name);
+				}
+			}
+		}
+		UE_LOG(LogJamPart, Log, TEXT("PartHealth: %d tipos, %d capacidades, defecto %.0f, raiz x%.1f, chatarra %.0f s"),
+			Data.ByType.Num(), Data.ByKind.Num(), Data.Default, Data.RootMultiplier, Data.ScrapSeconds);
+		return Data;
+	}
+
+	float JamPartMaxHealth(FName Type, EJamPartKind Kind)
+	{
+		const FJamPartHealthTable& Data = JamPartHealthTable();
+		if (const float* TypeHp = Data.ByType.Find(Type))
+		{
+			return *TypeHp;
+		}
+		if (const float* KindHp = Data.ByKind.Find(FName(*StaticEnum<EJamPartKind>()->GetNameStringByValue((int64)Kind))))
+		{
+			return *KindHp;
+		}
+		return Data.Default;
+	}
+
+	FString JamPartDisplayName(FName Type)
+	{
+		const FString* Name = JamPartHealthTable().Names.Find(Type);
+		return Name ? *Name : Type.ToString();
+	}
+}
+
 FString AJamBuildPart::GetStatusText() const
 {
+	if (bBroken)
+	{
+		return TEXT("rota");
+	}
 	if (Build.IsValid() && Build->StunUntil > 0.f)
 	{
 		return TEXT("aturdida por descarga");
@@ -467,6 +592,21 @@ void AJamBuildPart::InitFromDef(const FJamPartDef& Def, const FVector& BoxSize, 
 	Mesh->SetEnableGravity(true);
 	// Si una pieza nace tocando el suelo u otra pieza, se separa despacio en vez de salir disparada.
 	if (FBodyInstance* BI = Mesh->GetBodyInstance()) { BI->SetMaxDepenetrationVelocity(150.f); }
+
+	// Vida (GDD 5.2): con el interruptor en 0 la pieza nace sin componente y todo queda como antes.
+	DefMassKg = Def.MassKg;
+	BaseColor = Def.Color;
+	if (PartHealthEnabled() && !Health)
+	{
+		Health = NewObject<UHealthComponent>(this, TEXT("PartHealth"));
+		// Antes de registrar: la pieza ya empezo a jugar, asi que RegisterComponent llama a BeginPlay y ahi Health = MaxHealth.
+		Health->MaxHealth = JamPartMaxHealth(Def.Type, Def.Kind);
+		Health->Team = Build.IsValid() ? Build->Team : EJamTeam::Neutral; // el equipo real llega despues de ensamblar: ver Tick
+		Health->bDestroyOwnerOnDeath = false;                             // a 0 no se destruye: se suelta (BreakPart)
+		Health->RegisterComponent();
+		Health->OnHealthChanged.AddDynamic(this, &AJamBuildPart::OnPartHealthChanged);
+		Health->OnDied.AddDynamic(this, &AJamBuildPart::OnPartDied);
+	}
 }
 
 void AJamBuildPart::OnPartHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
@@ -474,7 +614,7 @@ void AJamBuildPart::OnPartHit(UPrimitiveComponent* HitComp, AActor* Other, UPrim
 	// Embestida: daña a peones y cuerpos ajenos segun la velocidad relativa. Las puas pegan desde 100 cm/s; el resto desde 400.
 	// ponytail: umbrales y daño a ojo (BuildKnowledge.json: ram); afinar jugando.
 	UWorld* W = GetWorld();
-	if (!W || !Other || !OtherComp || W->GetTimeSeconds() < NextHitTime || IsMine(Other) || Other->ActorHasTag(ProjectileTag)) { return; }
+	if (bBroken || !W || !Other || !OtherComp || W->GetTimeSeconds() < NextHitTime || IsMine(Other) || Other->ActorHasTag(ProjectileTag)) { return; }
 	if (!Other->IsA<APawn>() && !OtherComp->IsSimulatingPhysics()) { return; } // el suelo y lo estatico no cuentan
 	const bool bSpike = Kind == EJamPartKind::Spike;
 	const float Speed = (Mesh->GetPhysicsLinearVelocity() - OtherComp->GetComponentVelocity()).Size();
@@ -489,9 +629,9 @@ bool AJamBuildPart::IsMine(const AActor* Other) const
 {
 	// "Mio" = de esta construccion o de mi equipo: fuego, hielo, rayo, agua y cabeza no afectan a aliados.
 	const AJamBuildPart* P = Cast<AJamBuildPart>(Other);
-	if (P && (P == this || (Build.IsValid() && P->Build == Build)))
+	if (P && (P == this || P->bBroken || (Build.IsValid() && P->Build == Build)))
 	{
-		return true;
+		return true; // la chatarra (pieza rota) cuenta como propia para todos: ningun efecto la toca ni la toma por objetivo
 	}
 	if (Other && Build.IsValid() && Build->Owner.Get() == Other)
 	{
@@ -591,6 +731,12 @@ void AJamBuildPart::Puff(const FVector& At, float SizeCm, const FLinearColor& Co
 
 void AJamBuildPart::SetActive(bool bNewActive)
 {
+	if (bBroken)
+	{
+		// Rota: no vuelve a encender (onda de una explosion, fin del aturdimiento, tecla C del constructor).
+		if (!bActive) { return; }
+		bNewActive = false;
+	}
 	const int32 Mode = EnergyMode();
 	if (bNewActive && Build.IsValid() && EnergyPerSecond > 0.f && Mode != 0 && Build->Energy <= 0.f && !(Mode == 2 && GetPlayerEnergy(GetWorld()) > 0.f))
 	{
@@ -769,6 +915,44 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			}
 			It.RemoveCurrent();
 		}
+	}
+
+	// Vida de la pieza (GDD 5.2).
+	if (bBroken)
+	{
+		// Chatarra: no hace nada mas. Si el jugador se le sube con E lo baja, y a los pocos segundos desaparece.
+		EjectRiders();
+		if (ScrapUntil > 0.f && Now >= ScrapUntil)
+		{
+			for (const auto& Ice : Frozen)
+			{
+				if (UPrimitiveComponent* C = Ice.Key.Get()) { C->SetLinearDamping(0.01f); C->SetAngularDamping(0.f); } // lo que congelo no se queda congelado
+			}
+			Frozen.Reset();
+			Destroy();
+		}
+		return;
+	}
+	if (Health && Build.IsValid())
+	{
+		// El equipo vive en el estado compartido: el constructor lo fija despues de ensamblar. Asi GetActorTeam(pieza) acierta.
+		Health->Team = Build->Team;
+		if (!bRootHealthDone)
+		{
+			bRootHealthDone = true;
+			const float Mul = JamPartHealthTable().RootMultiplier;
+			if (Build->Parts.Num() > 0 && Build->Parts[0].Get() == this && !Health->IsDead() && !FMath::IsNearlyEqual(Mul, 1.f))
+			{
+				// La raiz aguanta mas: al romperse se desarma la construccion entera.
+				Health->MaxHealth = FMath::Max(1.f, Health->MaxHealth * Mul);
+				Health->ResetHealth();
+			}
+		}
+	}
+	if (HitFlashUntil > 0.f && Now >= HitFlashUntil)
+	{
+		HitFlashUntil = 0.f;
+		RefreshHitTint(false);
 	}
 
 	// Arrastre del aire en toda pieza: frena con el cuadrado de la velocidad (da velocidad tope a cohetes y planeadores).
@@ -1352,4 +1536,329 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 	default:
 		break;
 	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// Vida de las piezas (GDD 5.2 y pilar 4: "el rival lo puede romper"). Interruptor: jam.Build.PartHealth.
+// Datos: Content/Game/Building/Data/PartHealth.json. El golpe entra por ApplyDamage -> TakeDamage -> UHealthComponent.
+// ---------------------------------------------------------------------------------------------
+
+bool AJamBuildPart::PartHealthEnabled()
+{
+	return CVarJamPartHealth.GetValueOnGameThread() != 0;
+}
+
+float AJamBuildPart::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	// Sin componente (nacio con el interruptor en 0), con el interruptor apagado o ya rota: invulnerable, como antes.
+	if (!Health || bBroken || DamageAmount <= 0.f || !PartHealthEnabled())
+	{
+		return 0.f;
+	}
+	if (Build.IsValid())
+	{
+		Health->Team = Build->Team;
+	}
+	// Golpe propio: ni tus piezas (llama, puas, bala, bomba, choque), ni tu arma de mano, ni tus aliados rompen tu construccion.
+	const APawn* ByPawn = EventInstigator ? EventInstigator->GetPawn() : nullptr;
+	if ((DamageCauser && IsMine(DamageCauser)) || (ByPawn && IsMine(ByPawn)))
+	{
+		return 0.f;
+	}
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+}
+
+void AJamBuildPart::OnPartHealthChanged(UHealthComponent* HealthComponent, float NewHealth, float Delta)
+{
+	UWorld* World = GetWorld();
+	if (Delta >= 0.f || bBroken || !World)
+	{
+		return;
+	}
+	// Llama y rayo pegan cada cuadro (Power * DeltaSeconds): destello y sonido salen como mucho cada 0.3 s.
+	const float Now = World->GetTimeSeconds();
+	if (Now < NextHitFeedback)
+	{
+		return;
+	}
+	NextHitFeedback = Now + 0.3f;
+	HitFlashUntil = Now + 0.12f;
+	RefreshHitTint(true);
+	if (-Delta >= 1.f)
+	{
+		JamAudio::PlayAt(this, TEXT("SFX_Hit"), GetActorLocation(), 0.4f); // golpe suelto; el continuo ya suena con su bucle
+	}
+}
+
+void AJamBuildPart::OnPartDied(UHealthComponent* HealthComponent, AActor* Killer)
+{
+	BreakPart(Killer);
+}
+
+void AJamBuildPart::RefreshHitTint(bool bFlash)
+{
+	// Malla de arte: parpadea su brillo (parametro Emissive de M_Part_Master). Forma basica: el color del material de depuracion.
+	SetGlow(this, bBroken ? false : (bFlash ? !bActive : bActive));
+	if (UMaterialInstanceDynamic* MID = Mesh ? Cast<UMaterialInstanceDynamic>(Mesh->GetMaterial(0)) : nullptr)
+	{
+		MID->SetVectorParameterValue(TEXT("Color"), bBroken ? BaseColor * 0.2f : (bFlash ? FLinearColor(1.f, 0.3f, 0.2f) : BaseColor));
+	}
+}
+
+void AJamBuildPart::EjectRiders()
+{
+	TArray<AActor*> Riders;
+	GetAttachedActors(Riders);
+	for (AActor* Rider : Riders)
+	{
+		// Solo el jugador. Un bot se baja solo en su siguiente Tick al ver que su asiento ya no tiene construccion
+		// (AJamBotHero::Tick -> Dismount); bajarlo tambien aqui lo desplazaria dos veces.
+		ACharacter* Ch = Cast<ACharacter>(Rider);
+		if (!Ch || !Ch->IsPlayerControlled())
+		{
+			continue;
+		}
+		// Lo mismo que Jam.Seat al bajar (JamPlayConsole.cpp): sin esto quedaria sin colision y sin movimiento.
+		const FVector Side = FVector(GetActorRightVector().X, GetActorRightVector().Y, 0).GetSafeNormal();
+		const FVector Vel = Mesh ? Mesh->GetPhysicsLinearVelocity() : FVector::ZeroVector;
+		Ch->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		Ch->SetActorRotation(FRotator(0, Ch->GetActorRotation().Yaw, 0));
+		Ch->AddActorWorldOffset(Side * 150.f + FVector(0, 0, 100));
+		Ch->SetActorEnableCollision(true);
+		if (UCharacterMovementComponent* Move = Ch->GetCharacterMovement())
+		{
+			Move->SetMovementMode(MOVE_Falling);
+			Move->Velocity = Vel;
+		}
+	}
+}
+
+void AJamBuildPart::ReleaseAsScrap()
+{
+	if (bBroken || !Mesh)
+	{
+		return;
+	}
+	UWorld* World = GetWorld();
+	EjectRiders();     // antes de tocar la fisica: sale con la velocidad del vehiculo
+	SetActive(false);  // deja de gastar energia, de disparar y de sonar; suelta la estaca
+	bBroken = true;
+	if (Health && !Health->IsDead())
+	{
+		Health->Kill(nullptr); // arrastrada por la rotura de otra pieza: tambien cuenta como muerta para armas y bots
+	}
+	const FVector Vel = Mesh->GetPhysicsLinearVelocity();
+
+	// 1) Uniones propias (con el cuerpo del padre) y, si iba soldada, la soldadura.
+	TArray<UPhysicsConstraintComponent*> Joints;
+	GetComponents<UPhysicsConstraintComponent>(Joints);
+	for (UPhysicsConstraintComponent* J : Joints)
+	{
+		if (J) { J->BreakConstraint(); }
+	}
+	DriveConstraint = nullptr;
+	if (bWelded)
+	{
+		// La raiz de la isla soldada lleva sumada la masa de esta pieza (UJamAssembler): se le descuenta.
+		AJamBuildPart* Island = ParentPart.Get();
+		for (int32 Guard = 0; Island && Island->bWelded && Guard < 200; ++Guard) { Island = Island->ParentPart.Get(); }
+		Mesh->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		bWelded = false;
+		Mesh->SetSimulatePhysics(true);
+		if (Island && Island != this && Island->Mesh)
+		{
+			if (const FBodyInstance* IslandBody = Island->Mesh->GetBodyInstance())
+			{
+				Island->Mesh->SetMassOverrideInKg(NAME_None, FMath::Max(1.f, IslandBody->GetMassOverride() - DefMassKg), true);
+			}
+		}
+	}
+
+	// 2) Estado compartido: deja de contar para la construccion (lista de piezas, energia, masa, mando, centro de masa).
+	if (Build.IsValid())
+	{
+		Build->Parts.RemoveAll([this](const TWeakObjectPtr<AJamBuildPart>& P) { return P.Get() == this; });
+		Build->Stunned.RemoveAll([this](const TWeakObjectPtr<AJamBuildPart>& P) { return P.Get() == this; });
+		Build->MassKg = FMath::Max(1.f, Build->MassKg - DefMassKg);
+		if (Kind == EJamPartKind::Battery) { Build->Energy = FMath::Max(0.f, Build->Energy - Power); } // se lleva la carga que aporto
+	}
+	Build.Reset(); // el Health conserva el equipo: para los suyos sigue siendo "propia" (IsMine)
+	ParentPart = nullptr;
+	for (const TWeakObjectPtr<AActor>& Ball : Balls)
+	{
+		if (Ball.IsValid()) { Ball->Destroy(); } // arma rota: sus balas en vuelo ya no explotan
+	}
+	Balls.Reset();
+	BallVel.Reset();
+
+	// 3) Chatarra: cae al suelo pero no choca con construcciones ni personajes (no atora ruedas ni empuja al separarse),
+	//    no tapa disparos y no cuenta para embestidas.
+	Mesh->SetNotifyRigidBodyCollision(false);
+	Mesh->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);
+	Mesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	Mesh->SetCollisionResponseToChannel(ECC_Vehicle, ECR_Ignore);
+	Mesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
+	Mesh->SetPhysicsLinearVelocity(Vel + FVector(FMath::FRandRange(-120.f, 120.f), FMath::FRandRange(-120.f, 120.f), 220.f)); // salta un poco: se ve que se solto
+	Mesh->WakeAllRigidBodies();
+	HitFlashUntil = 0.f;
+	RefreshHitTint(false);
+	const float Seconds = JamPartHealthTable().ScrapSeconds;
+	ScrapUntil = (World && Seconds > 0.f) ? World->GetTimeSeconds() + Seconds : 0.f;
+}
+
+void AJamBuildPart::BreakPart(AActor* Killer)
+{
+	if (bBroken)
+	{
+		return;
+	}
+	// Lo que se necesita del estado compartido se lee antes de soltar (ReleaseAsScrap desconecta la pieza de el).
+	const TSharedPtr<FJamBuildState> State = Build;
+	const APawn* OwnerPawn = State.IsValid() ? Cast<APawn>(State->Owner.Get()) : nullptr;
+	const APawn* KillerPawn = Cast<APawn>(Killer);
+	if (const AJamBuildPart* KillerPart = Cast<AJamBuildPart>(Killer))
+	{
+		// Lo que hace una pieza cuenta como de quien pidio su construccion (GDD 7).
+		KillerPawn = KillerPart->Build.IsValid() ? Cast<APawn>(KillerPart->Build->Owner.Get()) : nullptr;
+	}
+
+	// Se suelta esta pieza y lo que cuelga de ella (cadena ParentPart). Si es la raiz, la construccion entera se desarma.
+	// Una bomba con la mecha encendida ya va suelta: sigue su cuenta.
+	TArray<AJamBuildPart*> Loose;
+	Loose.Add(this);
+	bool bWholeBuild = false;
+	if (State.IsValid())
+	{
+		const TArray<TWeakObjectPtr<AJamBuildPart>> All = State->Parts; // copia: soltar modifica la lista
+		bWholeBuild = All.Num() > 0 && All[0].Get() == this;
+		for (int32 i = 0; i < Loose.Num(); ++i)
+		{
+			const AJamBuildPart* Parent = Loose[i];
+			for (const TWeakObjectPtr<AJamBuildPart>& P : All)
+			{
+				AJamBuildPart* Child = P.Get();
+				if (Child && !Child->bBroken && Child->ParentPart.Get() == Parent && !(Child->Kind == EJamPartKind::Bomb && Child->bActive))
+				{
+					Loose.AddUnique(Child);
+				}
+			}
+		}
+		if (bWholeBuild)
+		{
+			// Piezas sin padre (las que lanzo un resorte): sin raiz tampoco se quedan.
+			for (const TWeakObjectPtr<AJamBuildPart>& P : All)
+			{
+				AJamBuildPart* Other = P.Get();
+				if (Other && !Other->bBroken && !(Other->Kind == EJamPartKind::Bomb && Other->bActive))
+				{
+					Loose.AddUnique(Other);
+				}
+			}
+		}
+	}
+
+	const FString Name = JamPartDisplayName(PartType);
+	const FVector At = GetActorLocation();
+	const int32 Extra = Loose.Num() - 1;
+	for (int32 i = Loose.Num() - 1; i >= 0; --i) // primero lo mas profundo: cada pieza se suelta ya sin nada colgando
+	{
+		if (IsValid(Loose[i])) { Loose[i]->ReleaseAsScrap(); }
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		Puff(At, 60.f, FLinearColor(0.45f, 0.45f, 0.45f), 0.35f);
+		JamAudio::PlayAt(this, TEXT("SFX_Build_Attach"), At, 1.f);
+		AJamTestCharacter::AddTrauma(World, At, 0.2f, 300.f, 1500.f);
+	}
+	UE_LOG(LogJamPart, Log, TEXT("pieza rota: %s (%s) por %s; se soltaron %d mas%s"), *PartType.ToString(), *GetName(), *GetNameSafe(Killer), Extra,
+		bWholeBuild ? TEXT(" (era la raiz: construccion desarmada)") : TEXT(""));
+	// Avisos solo para el jugador: le rompieron algo suyo, o rompio algo de otro. Misma Key: no se apilan.
+	if (OwnerPawn && OwnerPawn->IsPlayerControlled())
+	{
+		const FString Msg = (bWholeBuild && Extra > 0) ? FString::Printf(TEXT("Te rompieron la base (%s): tu construccion se desarmo"), *Name)
+			: Extra > 0 ? FString::Printf(TEXT("Te rompieron: %s (se soltaron %d piezas mas)"), *Name, Extra)
+			: FString::Printf(TEXT("Te rompieron: %s"), *Name);
+		JamMsg::Post(Msg, JamMsg::Bad, 4.f, TEXT("partbroke"));
+	}
+	else if (KillerPawn && KillerPawn->IsPlayerControlled())
+	{
+		const FString Msg = (bWholeBuild && Extra > 0) ? FString::Printf(TEXT("Desarmaste la construccion rival (%s)"), *Name)
+			: FString::Printf(TEXT("Rompiste: %s rival"), *Name);
+		JamMsg::Post(Msg, JamMsg::Good, 3.f, TEXT("partkill"));
+	}
+}
+
+namespace
+{
+	/**
+	 * Jam.HurtBuild [puntos] [Tipo|root] [all]: golpea las piezas de TU construccion (con "all", las de todas) para probar la vida
+	 * de las piezas. Ejemplos: Jam.HurtBuild 30 | Jam.HurtBuild 999 Wheel | Jam.HurtBuild 999 Seat | Jam.HurtBuild 999 root | Jam.HurtBuild 999 Wheel all
+	 */
+	void JamHurtBuildCmd(const TArray<FString>& Args, UWorld* World)
+	{
+		if (!World)
+		{
+			return;
+		}
+		const float Damage = Args.Num() > 0 ? FCString::Atof(*Args[0]) : 50.f;
+		FString Filter = Args.Num() > 1 ? Args[1] : FString();
+		bool bAll = Args.Num() > 2 && Args[2].Equals(TEXT("all"), ESearchCase::IgnoreCase);
+		if (Filter.Equals(TEXT("all"), ESearchCase::IgnoreCase))
+		{
+			bAll = true;
+			Filter.Reset();
+		}
+		const bool bOnlyRoot = Filter.Equals(TEXT("root"), ESearchCase::IgnoreCase);
+		const APlayerController* PC = World->GetFirstPlayerController();
+		const AActor* Me = PC ? PC->GetPawn() : nullptr;
+		TArray<AJamBuildPart*> Targets;
+		for (TActorIterator<AJamBuildPart> It(World); It; ++It)
+		{
+			AJamBuildPart* P = *It;
+			if (!IsValid(P) || P->bBroken || !P->Build.IsValid())
+			{
+				continue;
+			}
+			if (!bAll && (!Me || P->Build->Owner.Get() != Me))
+			{
+				continue;
+			}
+			const bool bRoot = P->Build->Parts.Num() > 0 && P->Build->Parts[0].Get() == P;
+			if (!Filter.IsEmpty() && !(bOnlyRoot ? bRoot : P->PartType.ToString().Equals(Filter, ESearchCase::IgnoreCase)))
+			{
+				continue;
+			}
+			Targets.Add(P);
+		}
+		int32 Hurt = 0, NoHealth = 0, Broken = 0;
+		for (AJamBuildPart* P : Targets)
+		{
+			if (!IsValid(P) || P->bBroken)
+			{
+				continue; // se solto al romperse otra
+			}
+			if (!P->Health)
+			{
+				++NoHealth;
+				continue;
+			}
+			UGameplayStatics::ApplyDamage(P, Damage, nullptr, nullptr, nullptr); // sin causante: pasa el filtro de golpe propio
+			++Hurt;
+		}
+		for (const AJamBuildPart* P : Targets)
+		{
+			Broken += (IsValid(P) && P->bBroken) ? 1 : 0;
+		}
+		FString Msg = FString::Printf(TEXT("Jam.HurtBuild %.0f: %d piezas golpeadas, %d rotas"), Damage, Hurt, Broken);
+		if (Targets.Num() == 0) { Msg = TEXT("Jam.HurtBuild: no encontre piezas (pide una construccion con B, o agrega 'all')"); }
+		else if (NoHealth > 0) { Msg += FString::Printf(TEXT(" (%d sin vida: jam.Build.PartHealth estaba en 0 al crearlas)"), NoHealth); }
+		else if (!AJamBuildPart::PartHealthEnabled()) { Msg += TEXT(" (jam.Build.PartHealth 0: invulnerables)"); }
+		UE_LOG(LogJamPart, Log, TEXT("%s"), *Msg);
+		JamMsg::Post(Msg, JamMsg::Info, 5.f, TEXT("hurtbuild"));
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdJamHurtBuild(TEXT("Jam.HurtBuild"),
+		TEXT("Jam.HurtBuild [puntos] [Tipo|root] [all]: golpea las piezas de tu construccion (all = de todas). Prueba la vida de las piezas."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamHurtBuildCmd));
 }

@@ -3,11 +3,15 @@
 #include "Core/JamPickup.h"
 #include "Core/JamAudio.h"
 #include "Core/JamMessages.h"
+#include "Core/JamHUD.h"
+#include "Building/JamBuildPart.h"
 #include "Core/InventoryComponent.h"
 #include "Core/HealthComponent.h"
 #include "GameJamm.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -42,6 +46,23 @@ AJamLootChest::AJamLootChest()
 	Trigger->InitSphereRadius(220.f);
 	Trigger->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
 	Trigger->SetGenerateOverlapEvents(true);
+
+	BeaconLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("LootBeaconLight"));
+	BeaconLight->SetupAttachment(Base);
+	BeaconLight->SetRelativeLocation(FVector(0.f, 0.f, 140.f));
+	BeaconLight->SetCastShadows(false);
+	BeaconLight->SetVisibility(false);
+	BeaconColumn = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LootBeaconColumn"));
+	BeaconColumn->SetupAttachment(Base);
+	BeaconColumn->SetUsingAbsoluteScale(true);
+	BeaconColumn->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	BeaconColumn->SetCastShadow(false);
+	BeaconColumn->SetCanEverAffectNavigation(false);
+	BeaconColumn->SetVisibility(false);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Column(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Glow(TEXT("/Engine/EngineMaterials/EmissiveMeshMaterial.EmissiveMeshMaterial"));
+	if (Column.Succeeded()) { BeaconColumn->SetStaticMesh(Column.Object); }
+	if (Glow.Succeeded()) { BeaconColumn->SetMaterial(0, Glow.Object); }
 }
 
 void AJamLootChest::SetLook(bool bRare, bool bScrap)
@@ -67,6 +88,7 @@ void AJamLootChest::BeginPlay()
 	// El frente de la tapa (Y-) tiene que subir: se elige el signo del giro que lo levanta.
 	OpenRoll = FRotator(0.f, 0.f, 100.f).RotateVector(FVector(0.f, -72.f, 0.f)).Z > 0.f ? 100.f : -100.f;
 	Trigger->OnComponentBeginOverlap.AddDynamic(this, &AJamLootChest::HandleOverlap);
+	RefreshBeacon();
 	// Si el jugador ya esta adentro al aparecer (cofre del spawn), se abre en el siguiente overlap o con OpenFor.
 }
 
@@ -84,8 +106,10 @@ bool AJamLootChest::OpenFor(AActor* Taker)
 		return false;
 	}
 	bOpen = true;
+	RefreshBeacon();
 	const TMap<FName, int32> Bundle = FixedItems.Num() > 0 ? FixedItems : JamLoot::Roll(Table);
 	TMap<FName, int32> Leftover;
+	const float EnergyBefore = AJamBuildPart::GetPlayerEnergy(GetWorld());
 	const FString Got = JamLoot::GiveBundle(Taker, Bundle, &Leftover);
 	if (Leftover.Num() > 0)
 	{
@@ -103,14 +127,17 @@ bool AJamLootChest::OpenFor(AActor* Taker)
 	}
 	if (Pawn && Pawn->IsPlayerControlled())
 	{
-		// Aviso al jugador: lo que recibio ("Cofre: +2 Rueda, +1 Lanzallamas"); el cofre raro va como aviso grande.
+		// Filas con iconos y cantidades reales. Otro HUD conserva el aviso de texto como respaldo.
+		const bool bIconNotice = AJamHUD::ShowLoot(Taker, Bundle, Leftover, Table, EnergyBefore);
 		const bool bRareChest = !bScrapLook && FixedItems.Num() == 0 && Table == TEXT("rare");
-		if (!Got.IsEmpty() || Leftover.Num() == 0)
+		if (!bIconNotice && (!Got.IsEmpty() || Leftover.Num() == 0))
 		{
 			const FString Line = FString::Printf(TEXT("%s: %s"), *What, Got.IsEmpty() ? TEXT("vacio") : *Got);
 			if (bRareChest) { JamMsg::Big(Line, JamMsg::Loot, 5.f, TEXT("loot")); }
 			else { JamMsg::Post(Line, JamMsg::Loot, 5.f, TEXT("loot")); }
 		}
+		if (bIconNotice && bRareChest) { JamMsg::Big(TEXT("Cofre raro abierto"), JamLoot::TierColor(TEXT("rare")), 3.f, TEXT("loot")); }
+		if (bIconNotice && Got.IsEmpty() && Leftover.Num() == 0) { JamMsg::Post(What + TEXT(": vacío"), JamMsg::Loot, 3.f, TEXT("loot")); }
 		if (Leftover.Num() > 0) { JamMsg::Post(TEXT("Mochila llena: se quedo en el suelo"), JamMsg::Warn, 5.f, TEXT("bag")); }
 		if (!Message.IsEmpty()) { JamMsg::Post(Message, JamMsg::Info, 10.f, TEXT("tip")); }
 	}
@@ -126,9 +153,42 @@ bool AJamLootChest::OpenFor(AActor* Taker)
 	return true;
 }
 
+void AJamLootChest::RefreshBeacon()
+{
+	if (!BeaconLight || !BeaconColumn) { return; }
+	const bool bVisible = !bOpen && !bScrapLook;
+	BeaconLight->SetVisibility(bVisible);
+	BeaconColumn->SetVisibility(bVisible);
+	if (!bVisible) { return; }
+
+	double Height = 1800.0, Radius = 14.0, Intensity = 12000.0, LightRadius = 900.0, Glow = 1.8;
+	FLinearColor Color = JamLoot::TierColor(Table);
+	const TSharedPtr<FJsonObject>* Visuals = nullptr;
+	const TSharedPtr<FJsonObject>* Beacons = nullptr;
+	if (JamLoot::Config()->TryGetObjectField(TEXT("visuals"), Visuals) && (*Visuals)->TryGetObjectField(TEXT("beacons"), Beacons))
+	{
+		(*Beacons)->TryGetNumberField(TEXT("height_cm"), Height);
+		(*Beacons)->TryGetNumberField(TEXT("radius_cm"), Radius);
+		(*Beacons)->TryGetNumberField(TEXT("light_intensity"), Intensity);
+		(*Beacons)->TryGetNumberField(TEXT("light_radius_cm"), LightRadius);
+		(*Beacons)->TryGetNumberField(TEXT("emissive"), Glow);
+		const TSharedPtr<FJsonObject>* Colors = nullptr;
+		FString Hex;
+		if ((*Beacons)->TryGetObjectField(TEXT("colors"), Colors) && (*Colors)->TryGetStringField(Table, Hex)) { Color = FLinearColor(FColor::FromHex(Hex)); }
+	}
+	BeaconLight->SetIntensity(static_cast<float>(FMath::Max(0.0, Intensity)));
+	BeaconLight->SetAttenuationRadius(static_cast<float>(FMath::Max(1.0, LightRadius)));
+	BeaconLight->SetLightColor(Color);
+	BeaconColumn->SetWorldLocation(GetActorLocation() + FVector(0.f, 0.f, Height * 0.5 + 80.0));
+	BeaconColumn->SetRelativeScale3D(FVector(Radius / 50.0, Radius / 50.0, Height / 100.0));
+	if (!BeaconMaterial) { BeaconMaterial = BeaconColumn->CreateDynamicMaterialInstance(0); }
+	if (BeaconMaterial) { BeaconMaterial->SetVectorParameterValue(TEXT("Color"), Color * static_cast<float>(Glow)); }
+}
+
 void AJamLootChest::Refill()
 {
 	bOpen = false;
+	RefreshBeacon();
 	if (bScrapLook) { SetActorHiddenInGame(false); SetActorEnableCollision(true); }
 	// Quien se quedo parado encima lo abre otra vez al reaparecer.
 	TArray<AActor*> Inside;

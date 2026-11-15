@@ -34,6 +34,13 @@ namespace JamLoot
 	/** Nombre legible en espanol de un tipo de pieza ("Wheel" -> "Rueda", de names_es de BuildKnowledge.json); si no lo conoce, el tipo tal cual. */
 	FString PartName(const FString& Type);
 
+	/** Presentacion del loot: nombres, iconos y colores; no modifica inventario ni topes. */
+	FString ItemName(FName ItemId);
+	FString IconName(FName ItemId);
+	FString ItemTier(FName ItemId);
+	FLinearColor TierColor(const FString& Tier);
+	FLinearColor ItemColor(FName ItemId);
+
 	/** Z del suelo bajo (X, Y); false si abajo solo hay vacio. */
 	bool GroundAt(UWorld* World, float X, float Y, FVector& Out, const AActor* Ignore = nullptr);
 

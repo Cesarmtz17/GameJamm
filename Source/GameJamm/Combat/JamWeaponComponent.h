@@ -148,7 +148,9 @@ public:
 	static bool IsWeaponPhrase(const FString& Phrase);
 
 	/**
-	 * Decide el arma por palabras clave, la arma de piezas en la mano, cambia a ella y avisa ("Armaste: Rifle de hielo...").
+	 * Decide el arma, la arma de piezas en la mano, cambia a ella y avisa ("Armaste: Rifle de hielo...").
+	 * Sin clave de OpenAI decide por palabras clave y la equipa al momento. Con clave devuelve true, avisa "Pensando..." y el
+	 * modelo ELIGE cuerpo, boca y extras (el codigo pone los numeros); si no contesta en el corte (3 s), queda la de palabras.
 	 * No gasta piezas ni materiales del inventario. false si no es frase de arma o la variable esta apagada.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapon|Generated")
@@ -191,6 +193,8 @@ private:
 	void SwingSword();
 	void ShootArrow();
 	bool FireGenerated();
+	/** Pone en la mano el arma ya decidida y avisa. ChosenBy = quien eligio ("OpenAI"); vacio = respaldo por palabras clave. */
+	void EquipGenerated(const FJamGunSpec& Spec, const FString& ChosenBy);
 	void BuildGunMesh();
 	void PlaceGun();
 	FTransform MakeGunGrip(USceneComponent* Parent, FName Socket) const;
@@ -253,6 +257,8 @@ private:
 
 	FJamGunSpec Gun;
 	bool bHasGun = false;
+	/** Contador de pedidos de arma: si llega la respuesta del modelo de un pedido viejo (ya se pidio otra), se ignora. */
+	int32 GunRequestId = 0;
 	FName GunSocket;                 // hueso que la lleva (None si la figura no esta rigeada)
 	FTransform GunInHand;            // arma respecto a ese hueso
 	float FlashUntil = -1.f;

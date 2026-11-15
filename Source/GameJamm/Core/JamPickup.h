@@ -6,6 +6,7 @@
 
 class USphereComponent;
 class UStaticMeshComponent;
+class UPointLightComponent;
 
 /**
  * Pickup en el suelo (GDD 4 y 5): pieza, material, orbe de energia o bolsa de muerte. Se toma al pasar encima;
@@ -31,6 +32,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "Pickup")
 	TObjectPtr<USphereComponent> Trigger;
+
+	UPROPERTY(VisibleAnywhere, Category = "Pickup|Visual")
+	TObjectPtr<UPointLightComponent> LootLight;
 
 	/** Suelta un pickup con estas piezas y/o energia (bolsa de muerte, sobrantes de un cofre, orbes). */
 	static AJamPickup* SpawnBundle(UWorld* World, const FVector& At, const TMap<FName, int32>& Items, float Energy, float LifeSeconds);

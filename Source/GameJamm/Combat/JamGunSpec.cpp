@@ -10,6 +10,7 @@
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
 
 namespace
 {
@@ -264,39 +265,48 @@ bool JamGun::IsWeaponPhrase(const FString& Phrase)
 	return false;
 }
 
-bool JamGun::Decide(const FString& Phrase, FJamGunSpec& Out)
+namespace
 {
-	// ---- PUNTO DE ENCHUFE DEL MODELO DE DECISION (Jev / TypeSafe) ----
-	// Con clave, aqui el modelo solo ELIGE (CLAUDE.md 0.1): un "id" de bodies, un "id" de muzzles y los "id" de extras
-	// de Weapons.json, a partir de la frase. El resto de esta funcion (numeros, limites, piezas) no cambia: el codigo
-	// decide lo posible. Para conectarlo: pedir la eleccion antes de este punto y, si llega a tiempo, usar esos ids en
-	// lugar de las busquedas por palabra de los pasos 1 a 3. Sin clave o sin respuesta, queda este respaldo por palabras.
-	if (!IsWeaponPhrase(Phrase))
+	// ---- PUNTO DE ENCHUFE DEL MODELO DE DECISION (OpenAI Decisions; ver UJamWeaponComponent::RequestGeneratedWeapon) ----
+	// Con clave, el modelo solo ELIGE (CLAUDE.md 0.1): un "id" de bodies, un "id" de muzzles y los "id" de extras de
+	// Weapons.json, a partir de la frase (JamGun::BuildDecisionRequest / ParseDecisionResponse). Esos ids entran aqui en
+	// lugar de las busquedas por palabra de los pasos 1 a 3; el resto (numeros, limites, piezas) no cambia: el codigo
+	// decide lo posible. ExtraIds nulo = sin modelo: todo por palabras (JamGun::Decide), que tambien es el respaldo.
+	bool JamGunDecideImpl(const FString& Phrase, const FString& BodyId, const FString& MuzzleId, const TArray<FString>* ExtraIds, FJamGunSpec& Out)
+	{
+	if (!JamGun::IsWeaponPhrase(Phrase))
 	{
 		return false;
 	}
-	const FString P = Normalize(Phrase);
+	const FString P = JamGun::Normalize(Phrase);
 	const FJamGunJson Root = JamGunConfig();
 	const FJamGunJson Def = JamGunObj(Root, TEXT("defaults"));
 	const TArray<FJamGunJson> Bodies = JamGunList(Root, TEXT("bodies"));
 	const TArray<FJamGunJson> Muzzles = JamGunList(Root, TEXT("muzzles"));
 	const TArray<FJamGunJson> Extras = JamGunList(Root, TEXT("extras"));
 
-	// 1. Cuerpo: el primero cuya palabra aparece; si no, el de defaults.
-	FJamGunJson Body;
-	for (const FJamGunJson& B : Bodies)
+	// 1. Cuerpo: el id que eligio el modelo; si no hay (o no existe), el primero cuya palabra aparece; si no, el de defaults.
+	FJamGunJson Body = JamGunById(Bodies, BodyId);
+	if (!Body.IsValid())
 	{
-		if (JamGunAnyKey(B, TEXT("keywords"), P)) { Body = B; break; }
+		for (const FJamGunJson& B : Bodies)
+		{
+			if (JamGunAnyKey(B, TEXT("keywords"), P)) { Body = B; break; }
+		}
 	}
 	if (!Body.IsValid()) { Body = JamGunById(Bodies, JamGunStr(Def, TEXT("body"))); }
 	if (!Body.IsValid() && Bodies.Num() > 0) { Body = Bodies[0]; }
 
 	// 2. Boca (el efecto): la que se nombro; si no, la propia del cuerpo (lanzacohetes = bomba); si no, la de defaults.
-	FJamGunJson Muzzle;
-	bool bMuzzleNamed = false;
-	for (const FJamGunJson& M : Muzzles)
+	// Con modelo: la boca que eligio. Solo entra al nombre ("Rifle de hielo") si no es la propia del cuerpo ("Lanzacohetes", no "Lanzacohetes de bombas").
+	FJamGunJson Muzzle = JamGunById(Muzzles, MuzzleId);
+	bool bMuzzleNamed = Muzzle.IsValid() && !JamGunStr(Muzzle, TEXT("id")).Equals(JamGunStr(Body, TEXT("muzzle")), ESearchCase::IgnoreCase);
+	if (!Muzzle.IsValid())
 	{
-		if (JamGunAnyKey(M, TEXT("keywords"), P)) { Muzzle = M; bMuzzleNamed = true; break; }
+		for (const FJamGunJson& M : Muzzles)
+		{
+			if (JamGunAnyKey(M, TEXT("keywords"), P)) { Muzzle = M; bMuzzleNamed = true; break; }
+		}
 	}
 	if (!Muzzle.IsValid()) { Muzzle = JamGunById(Muzzles, JamGunStr(Body, TEXT("muzzle"))); }
 	if (!Muzzle.IsValid()) { Muzzle = JamGunById(Muzzles, JamGunStr(Def, TEXT("muzzle"))); }
@@ -324,7 +334,10 @@ bool JamGun::Decide(const FString& Phrase, FJamGunSpec& Out)
 	{
 		const FString Id = JamGunStr(E, TEXT("id"));
 		const bool bBuiltIn = BodyExtras.Contains(Id);
-		const bool bNamed = JamGunAnyKey(E, TEXT("keywords"), P);
+		// Con modelo: los extras que marco con si (ParseDecisionResponse ya resolvio los negados por palabra). Sin modelo: por palabra.
+		const bool bNamed = ExtraIds
+			? ExtraIds->ContainsByPredicate([&Id](const FString& X) { return X.Equals(Id, ESearchCase::IgnoreCase); })
+			: JamGunAnyKey(E, TEXT("keywords"), P);
 		if (!bBuiltIn && !bNamed)
 		{
 			continue;
@@ -365,6 +378,7 @@ bool JamGun::Decide(const FString& Phrase, FJamGunSpec& Out)
 	// Nombre: "Rifle" + "de hielo" (solo si la boca se nombro) + extras nombrados.
 	Out.BodyName = JamGunStr(Body, TEXT("name"), TEXT("Arma"));
 	Out.MuzzleName = JamGunStr(Muzzle, TEXT("name"));
+	Out.ExtraNames = NamedExtras;
 	Out.Name = Out.BodyName;
 	const FString Suffix = JamGunStr(Muzzle, TEXT("suffix"));
 	if (bMuzzleNamed && !Suffix.IsEmpty()) { Out.Name += TEXT(" ") + Suffix; }
@@ -431,6 +445,141 @@ bool JamGun::Decide(const FString& Phrase, FJamGunSpec& Out)
 	UE_LOG(LogJam, Log, TEXT("Arma pedida: \"%s\" -> %s (cuerpo %s, boca %s, efecto %s): dano %.1f x%d cada %.2f s, velocidad %.0f, gravedad %.2f, alcance %.0f, energia %.1f, %d piezas"),
 		*Phrase, *Out.Name, *Out.BodyName, *Out.MuzzleName, *Out.Effect.ToString(), Out.Damage, Out.Pellets, Out.Interval, Out.Speed, Out.Gravity, Out.Range, Out.Energy, Out.Pieces.Num());
 	return true;
+	}
+}
+
+bool JamGun::Decide(const FString& Phrase, FJamGunSpec& Out)
+{
+	return JamGunDecideImpl(Phrase, FString(), FString(), nullptr, Out);
+}
+
+bool JamGun::DecideWithIds(const FString& Phrase, const FString& BodyId, const FString& MuzzleId, const TArray<FString>& ExtraIds, FJamGunSpec& Out)
+{
+	return JamGunDecideImpl(Phrase, BodyId, MuzzleId, &ExtraIds, Out);
+}
+
+FString JamGun::BuildDecisionRequest(const FString& Phrase)
+{
+	// El modelo solo ELIGE entre los ids de Weapons.json. Los textos (bloque "decision", con estos por defecto) hablan de un
+	// juguete y de efectos de juego: sin eso el modelo se niega ("refusal") a preguntas de armas.
+	const FJamGunJson Root = JamGunConfig();
+	const FJamGunJson Dec = JamGunObj(Root, TEXT("decision"));
+	auto Describe = [](const FJamGunJson& O) -> FString
+	{
+		const FString D = JamGunStr(O, TEXT("ai"));
+		return D.IsEmpty() ? JamGunStr(O, TEXT("name"), JamGunStr(O, TEXT("id"))) : D;
+	};
+	auto Option = [](const FString& Value, const FString& Description) -> TSharedPtr<FJsonValue>
+	{
+		const TSharedRef<FJsonObject> O = MakeShared<FJsonObject>();
+		O->SetStringField(TEXT("value"), Value);
+		if (!Description.IsEmpty()) { O->SetStringField(TEXT("description"), Description); }
+		return MakeShared<FJsonValueObject>(O);
+	};
+	auto Question = [](const TCHAR* Type, const FString& Name, const FString& Instructions) -> TSharedRef<FJsonObject>
+	{
+		const TSharedRef<FJsonObject> Q = MakeShared<FJsonObject>();
+		Q->SetStringField(TEXT("type"), Type);
+		Q->SetStringField(TEXT("name"), Name);
+		Q->SetStringField(TEXT("instructions"), Instructions);
+		return Q;
+	};
+	auto Message = [](const TCHAR* Role, const FString& Content) -> TSharedPtr<FJsonValue>
+	{
+		const TSharedRef<FJsonObject> M = MakeShared<FJsonObject>();
+		M->SetStringField(TEXT("role"), Role);
+		M->SetStringField(TEXT("content"), Content);
+		return MakeShared<FJsonValueObject>(M);
+	};
+
+	TArray<TSharedPtr<FJsonValue>> Questions;
+	{
+		TArray<TSharedPtr<FJsonValue>> Choices;
+		for (const FJamGunJson& B : JamGunList(Root, TEXT("bodies"))) { Choices.Add(Option(JamGunStr(B, TEXT("id")), Describe(B))); }
+		const TSharedRef<FJsonObject> Q = Question(TEXT("choice"), TEXT("body"),
+			JamGunStr(Dec, TEXT("body"), TEXT("In this toy game, which toy body shape best matches the toy shooter the player asks for?")));
+		Q->SetArrayField(TEXT("choices"), Choices);
+		Questions.Add(MakeShared<FJsonValueObject>(Q));
+	}
+	{
+		TArray<TSharedPtr<FJsonValue>> Choices;
+		for (const FJamGunJson& M : JamGunList(Root, TEXT("muzzles"))) { Choices.Add(Option(JamGunStr(M, TEXT("id")), Describe(M))); }
+		Choices.Add(Option(TEXT("Default"), JamGunStr(Dec, TEXT("muzzle_default"), TEXT("The player names no special effect: use the standard one for that toy body."))));
+		const TSharedRef<FJsonObject> Q = Question(TEXT("choice"), TEXT("muzzle"),
+			JamGunStr(Dec, TEXT("muzzle"), TEXT("In this toy game, which game effect should the toy shooter shoot? Choose Default when the player names no effect.")));
+		Q->SetArrayField(TEXT("choices"), Choices);
+		Questions.Add(MakeShared<FJsonValueObject>(Q));
+	}
+	const FString ExtraText = JamGunStr(Dec, TEXT("extra"), TEXT("In this toy game, does the player ask for this toy add-on on the toy shooter: %s? Answer yes only if the request mentions it."));
+	for (const FJamGunJson& E : JamGunList(Root, TEXT("extras")))
+	{
+		Questions.Add(MakeShared<FJsonValueObject>(Question(TEXT("predicate"), TEXT("extra_") + JamGunStr(E, TEXT("id")), ExtraText.Replace(TEXT("%s"), *Describe(E)))));
+	}
+
+	TArray<TSharedPtr<FJsonValue>> Input;
+	Input.Add(Message(TEXT("developer"), JamGunStr(Dec, TEXT("developer"),
+		TEXT("You are the decision layer of a family-friendly toy video game. The player asks, in Spanish, for a toy shooter built from toy parts. It only shoots harmless cartoon game effects (game fire, game ice, game lightning, toy rockets); nothing is real and nobody can be hurt. Choose which toy parts the toy shooter uses. The game code sets every number and assembles it; you only choose."))));
+	Input.Add(Message(TEXT("user"), JamGunStr(Dec, TEXT("user"), TEXT("Player request (toy shooter): ")) + Phrase));
+
+	const TSharedRef<FJsonObject> Body = MakeShared<FJsonObject>();
+	Body->SetStringField(TEXT("model"), JamGunStr(Dec, TEXT("model"), TEXT("gpt-6-luna")));
+	Body->SetArrayField(TEXT("input"), Input);
+	Body->SetArrayField(TEXT("questions"), Questions);
+	FString Out;
+	FJsonSerializer::Serialize(Body, TJsonWriterFactory<>::Create(&Out));
+	return Out;
+}
+
+bool JamGun::ParseDecisionResponse(const FString& ResponseJson, const FString& Phrase, FString& OutBodyId, FString& OutMuzzleId, TArray<FString>& OutExtraIds, FString& OutNote)
+{
+	OutBodyId.Reset();
+	OutMuzzleId.Reset();
+	OutExtraIds.Reset();
+	FJamGunJson Response;
+	const TArray<TSharedPtr<FJsonValue>>* Answers = nullptr;
+	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(ResponseJson), Response) || !Response.IsValid() || !Response->TryGetArrayField(TEXT("answers"), Answers) || !Answers)
+	{
+		OutNote = TEXT("respuesta sin answers");
+		return false;
+	}
+	const FJamGunJson Root = JamGunConfig();
+	const double MinConf = JamGunNum(JamGunObj(Root, TEXT("decision")), TEXT("min_confidence"), 0.6);
+	const TArray<FJamGunJson> Extras = JamGunList(Root, TEXT("extras"));
+	const FString P = Normalize(Phrase);
+	int32 Answered = 0, Refused = 0;
+	for (const TSharedPtr<FJsonValue>& V : *Answers)
+	{
+		const TSharedPtr<FJsonObject>* Item = nullptr;
+		if (!V.IsValid() || !V->TryGetObject(Item) || !Item || !Item->IsValid())
+		{
+			continue;
+		}
+		const FJamGunJson A = *Item;
+		const FString Type = JamGunStr(A, TEXT("type"));
+		const FString Name = JamGunStr(A, TEXT("name"));
+		if (Type == TEXT("choice"))
+		{
+			++Answered;
+			// Con poca confianza, o "Default" en la boca, el id queda vacio: decide la palabra clave (o lo propio del cuerpo).
+			const FString Picked = JamGunStr(A, TEXT("choice"));
+			if (JamGunNum(A, TEXT("confidence"), 0.0) < MinConf) { continue; }
+			if (Name == TEXT("body")) { OutBodyId = Picked; }
+			else if (Name == TEXT("muzzle") && !Picked.Equals(TEXT("Default"), ESearchCase::IgnoreCase)) { OutMuzzleId = Picked; }
+		}
+		else if (Type == TEXT("predicate"))
+		{
+			++Answered;
+			if (Name.StartsWith(TEXT("extra_")) && JamGunNum(A, TEXT("probability"), 0.0) > 0.5) { OutExtraIds.AddUnique(Name.RightChop(6)); }
+		}
+		else
+		{
+			// Negativa del modelo en esta pregunta: sin respuesta. Un extra negado lo decide su palabra clave; cuerpo y boca quedan vacios.
+			++Refused;
+			if (Name.StartsWith(TEXT("extra_")) && JamGunAnyKey(JamGunById(Extras, Name.RightChop(6)), TEXT("keywords"), P)) { OutExtraIds.AddUnique(Name.RightChop(6)); }
+		}
+	}
+	OutNote = FString::Printf(TEXT("answered=%d refused=%d"), Answered, Refused);
+	return Answered > 0; // todo negado: decide la palabra clave
 }
 
 FTransform JamGun::FitPiece(const UStaticMesh* Mesh, const FJamGunPiece& Piece)

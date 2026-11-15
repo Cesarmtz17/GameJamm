@@ -20,6 +20,16 @@
   },
   "keywords": ["=un arma", "=una arma", "=el arma", "=mi arma", "=otra arma", "=arma de", "=arma que", "=arma con", "=armas", "dispar", "gun", "weapon", "firearm"],
   "exclude": ["carro", "carrito", "carreta", "coche", "=auto", "=autos", "automovil", "camion", "vehic", "buggy", "kart", "tanque", "torreta", "torre", "=moto", "=motos", "motocicleta", "bici", "monociclo", "patineta", "dron", "helicop", "avion", "planeador", "dirigible", "globo", "nave", "volador", "que vuele", "que ruede", "barco", "bote", "lancha", "velero", "balsa", "submarino", "canoa", "catapulta", "trebuchet", "robot", "mecha", "fortaleza", "castillo", "bunker", "barricada", "muralla", "muro", "pared", "puente", "rampa", "escalera", "plataforma", "trineo", "rueda", "llanta", "tren", "vagon", "trompo", "aspersor", "casa", "constru", "hover", "=car", "=tank", "turret", "truck", "=boat", "=plane", "vehicle"],
+  "decision": {
+    "_doc": "Capa de decision con modelo (OpenAI Decisions, gpt-6-luna). El modelo solo ELIGE: un id de bodies, un id de muzzles (o Default) y si/no por cada extra; el codigo pone los numeros y las piezas (JamGun::DecideWithIds). Los textos van en ingles y hablan de juguetes y efectos de juego para que el modelo no se niegue; 'ai' de cada body / muzzle / extra es su descripcion para el modelo. min_confidence = confianza minima para aceptar el cuerpo o la boca elegidos (por debajo decide la palabra clave). Sin clave, sin red o a los 3 s decide la palabra clave como siempre.",
+    "developer": "You are the decision layer of a family-friendly toy video game. The player asks, in Spanish, for a toy shooter built from toy parts. It only shoots harmless cartoon game effects (game fire, game ice, game lightning, toy rockets); nothing is real and nobody can be hurt. Choose which toy parts the toy shooter uses. The game code sets every number and assembles it; you only choose.",
+    "user": "Player request (toy shooter): ",
+    "body": "In this toy game, which toy body shape best matches the toy shooter the player asks for?",
+    "muzzle": "In this toy game, which game effect should the toy shooter shoot? Choose Default when the player names no effect.",
+    "muzzle_default": "The player names no special effect: use the standard one for that toy body.",
+    "extra": "In this toy game, does the player ask for this toy add-on on the toy shooter: %s? Answer yes only if the request mentions it.",
+    "min_confidence": 0.6
+  },
   "hand": {
     "socket": "hand_r",
     "auto": true,
@@ -37,6 +47,7 @@
   "muzzles": [
     {
       "id": "Laser",
+      "ai": "Game laser or plasma: a harmless beam of light.",
       "keywords": ["laser", "rayo laser", "plasma", "luz"],
       "name": "Laser",
       "suffix": "laser",
@@ -57,6 +68,7 @@
     },
     {
       "id": "Fire",
+      "ai": "Game fire: cartoon flames, burning, lava.",
       "keywords": ["fuego", "llama", "quem", "incendi", "lava", "fire", "flame"],
       "name": "Fuego",
       "suffix": "de fuego",
@@ -77,6 +89,7 @@
     },
     {
       "id": "Ice",
+      "ai": "Game ice: freezing, frost, snow, cold.",
       "keywords": ["hielo", "congel", "frio", "helad", "nieve", "escarcha", "ice", "frost", "freez"],
       "name": "Hielo",
       "suffix": "de hielo",
@@ -97,6 +110,7 @@
     },
     {
       "id": "Shock",
+      "ai": "Game lightning: electricity, electric shock, thunder, tesla.",
       "keywords": ["rayo", "electri", "choque", "descarga", "trueno", "relampago", "tesla", "shock", "lightning"],
       "name": "Rayo",
       "suffix": "de rayos",
@@ -117,6 +131,7 @@
     },
     {
       "id": "Bomb",
+      "ai": "Game explosions: toy rockets, missiles, grenades, bombs.",
       "keywords": ["bomba", "explosi", "explot", "cohete", "misil", "granada", "dinamita", "bomb", "rocket"],
       "name": "Bomba",
       "suffix": "de bombas",
@@ -138,6 +153,7 @@
     },
     {
       "id": "Rock",
+      "ai": "Plain toy pebbles or stones.",
       "keywords": ["roca", "piedra", "rock", "stone"],
       "name": "Roca",
       "suffix": "de roca",
@@ -160,6 +176,7 @@
   "bodies": [
     {
       "id": "Sniper",
+      "ai": "Long toy precision rifle for far targets (francotirador, sniper).",
       "keywords": ["francotirador", "sniper", "de precision", "largo alcance"],
       "name": "Francotirador",
       "extras": ["Stock", "Scope"],
@@ -186,6 +203,7 @@
     },
     {
       "id": "Launcher",
+      "ai": "Toy shoulder launcher that lobs toy rockets or grenades (lanzacohetes, bazuca, lanzagranadas).",
       "keywords": ["lanzacohetes", "lanzamisiles", "lanzagranadas", "bazuca", "bazooka", "canon de mano", "=rpg"],
       "name": "Lanzacohetes",
       "muzzle": "Bomb",
@@ -213,6 +231,7 @@
     },
     {
       "id": "Flamer",
+      "ai": "Toy flame sprayer (lanzallamas, soplete).",
       "keywords": ["lanzallamas", "flamethrower", "soplete"],
       "name": "Lanzallamas",
       "muzzle": "Fire",
@@ -241,6 +260,7 @@
     },
     {
       "id": "Shotgun",
+      "ai": "Toy shotgun that shoots several pellets at once (escopeta, recortada).",
       "keywords": ["escopeta", "shotgun", "recortada", "trabuco"],
       "name": "Escopeta",
       "extras": ["Stock"],
@@ -267,6 +287,7 @@
     },
     {
       "id": "Smg",
+      "ai": "Toy rapid-fire blaster (metralleta, ametralladora, subfusil).",
       "keywords": ["metralleta", "ametralladora", "subfusil", "=smg", "automatic", "rafaga"],
       "name": "Metralleta",
       "extras": [],
@@ -294,6 +315,7 @@
     },
     {
       "id": "Crossbow",
+      "ai": "Toy crossbow (ballesta).",
       "keywords": ["ballesta", "crossbow"],
       "name": "Ballesta",
       "extras": [],
@@ -320,6 +342,7 @@
     },
     {
       "id": "Blaster",
+      "ai": "Sci-fi ray toy, only when the player literally says blaster or desintegrador.",
       "keywords": ["blaster", "desintegrador"],
       "name": "Blaster",
       "muzzle": "Laser",
@@ -348,6 +371,7 @@
     },
     {
       "id": "Pistol",
+      "ai": "Small one-hand toy pistol or revolver (pistola, revolver).",
       "keywords": ["pistol", "revolver", "=arma corta", "handgun"],
       "name": "Pistola",
       "extras": [],
@@ -374,6 +398,7 @@
     },
     {
       "id": "Rifle",
+      "ai": "Standard toy rifle (rifle, fusil, carabina); also the choice when the player only says a weapon or a gun.",
       "keywords": ["rifle", "fusil", "carabina", "mosquete"],
       "name": "Rifle",
       "extras": ["Stock"],
@@ -402,6 +427,7 @@
   "extras": [
     {
       "id": "Scope",
+      "ai": "a toy scope or telescopic sight (mira, zoom)",
       "keywords": ["mira", "telescop", "scope", "zoom"],
       "name": "mira",
       "range_mult": 1.5,
@@ -412,6 +438,7 @@
     },
     {
       "id": "Stock",
+      "ai": "a toy shoulder stock (culata)",
       "keywords": ["culata", "stock"],
       "name": "culata",
       "spread_mult": 0.5,
@@ -421,6 +448,7 @@
     },
     {
       "id": "Mag",
+      "ai": "a toy extra magazine or battery for more shots (cargador, bateria, pila)",
       "keywords": ["cargador", "bateria", "pila", "municion extra", "magazine", "battery"],
       "name": "cargador",
       "energy_mult": 0.75,
@@ -430,6 +458,7 @@
     },
     {
       "id": "Double",
+      "ai": "a toy double barrel (doble canon, dos canones)",
       "keywords": ["doble canon", "dos canones", "doble", "double"],
       "name": "doble canon",
       "pellets_add": 1,

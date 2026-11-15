@@ -136,7 +136,7 @@ int32 AJamBuildSpawner::CountAliveParts() const
 	int32 Alive = 0;
 	for (const AJamBuildPart* P : Parts)
 	{
-		if (IsValid(P) && !P->IsActorBeingDestroyed()) { ++Alive; }
+		if (IsValid(P) && !P->IsActorBeingDestroyed() && !P->bBroken) { ++Alive; }
 	}
 	return Alive;
 }
@@ -149,7 +149,7 @@ TMap<FName, int32> AJamBuildSpawner::GetRefundableItems() const
 	TMap<FName, int32> Alive;
 	for (const AJamBuildPart* P : Parts)
 	{
-		if (IsValid(P) && !P->IsActorBeingDestroyed() && !P->PartType.IsNone())
+		if (IsValid(P) && !P->IsActorBeingDestroyed() && !P->bBroken && !P->PartType.IsNone())
 		{
 			Alive.FindOrAdd(FName(*(FString(TEXT("Part.")) + P->PartType.ToString()))) += 1;
 		}
@@ -209,7 +209,7 @@ void AJamBuildSpawner::BuildNow()
 	}
 	World->GetTimerManager().ClearTimer(ActivateTimer);
 	const uint64 Generation = ++RequestGeneration;
-	if (bAnnounceOnScreen) { JamMsg::Remove(FName(TEXT("build2"))); } // la linea "Falto: ..." del pedido anterior
+	if (bAnnounceOnScreen) { JamMsg::Remove(FName(TEXT("build2"))); JamMsg::Remove(FName(TEXT("buildai"))); } // las lineas "Falto: ..." y "... eligio: ..." del pedido anterior
 
 	FBuildRecipe Recipe;
 	FString Note, Err;
@@ -242,10 +242,11 @@ void AJamBuildSpawner::BuildNow()
 		JamBSFail(this, TEXT("no entendi el pedido"));
 		return;
 	}
-	if (bUseDecisionModel && (!FJamDecisionClient::GetTypeSafeKey().IsEmpty() || !FJamDecisionClient::GetApiKey().IsEmpty() || !FJamDecisionClient::GetFalKey().IsEmpty()))
+	if (bUseDecisionModel && (!FJamDecisionClient::GetTypeSafeKey().IsEmpty() || !FJamDecisionClient::GetApiKey().IsEmpty()
+		|| !FJamDecisionClient::GetOpenAIKey().IsEmpty() || !FJamDecisionClient::GetFalKey().IsEmpty()))
 	{
 		LastStatus = TEXT("waiting for decision model...");
-		Announce(FString::Printf(TEXT("Jam: \"%s\" -> preguntando al modelo de decision (Jev)..."), *Prompt), true);
+		Announce(FString::Printf(TEXT("Jam: \"%s\" -> preguntando al modelo de decision (Jev / OpenAI)..."), *Prompt), true);
 		JamBSPost(this, TEXT("Pensando..."), JamMsg::Info, TEXT("build"), 10.f);
 		const FString PromptCopy = Prompt;
 		TWeakObjectPtr<AJamBuildSpawner> Weak(this);
@@ -259,6 +260,7 @@ void AJamBuildSpawner::BuildNow()
 			}
 			FBuildRecipe R;
 			FString Note2 = N;
+			FString Picked; // lo que ELIGIO el modelo, con nombres del catalogo, para la linea "OpenAI eligio: ..."
 			bool bComposed = false;
 			if (bOk && C.Pieces.Num() > 0)
 			{
@@ -290,6 +292,22 @@ void AJamBuildSpawner::BuildNow()
 					if (!RootItem) { RootItem = &Bag.AddDefaulted_GetRef(); RootItem->Type = C.Root; RootItem->Count = 1; }
 					RootItem->Mode = "root";
 				}
+				// Que se vea la IA: los tipos que eligio el modelo (no los que agrego el codigo ni los que puso el respaldo por
+				// palabras tras una negativa: "kw=[...]" de la nota), con la cantidad final. El cuerpo va primero.
+				{
+					FString KwRaw;
+					TArray<FString> KwTypes, Shown;
+					JamBSBracket(N, TEXT("kw=["), KwRaw);
+					KwRaw.ParseIntoArray(KwTypes, TEXT(","), true);
+					for (const FJamPieceCount& I : Bag)
+					{
+						const bool bByModel = I.Type == C.Root || C.Pieces.ContainsByPredicate([&I](const FJamPieceCount& X) { return X.Type == I.Type; });
+						if (!bByModel || I.Count <= 0 || KwTypes.Contains(I.Type.ToString())) { continue; }
+						const FString Text = JamLoot::PartName(I.Type.ToString()) + (I.Count > 1 ? FString::Printf(TEXT(" x%d"), I.Count) : FString());
+						if (I.Mode == "root") { Shown.Insert(Text, 0); } else { Shown.Add(Text); }
+					}
+					Picked = FString::Join(Shown, TEXT(", "));
+				}
 				bComposed = UJamBuildGenerator::ComposeFromBag(Bag, R, Note2);
 			}
 			else if (bOk)
@@ -301,6 +319,11 @@ void AJamBuildSpawner::BuildNow()
 				// N = "jev ... conf=..." (o "fal-plan ..."): se conserva el backend delante de la nota de la receta.
 				FString Backend = N, Rest;
 				N.Split(TEXT(" "), &Backend, &Rest);
+				if (!Picked.IsEmpty())
+				{
+					const TCHAR* Who = Backend.StartsWith(TEXT("openai")) ? TEXT("OpenAI") : Backend.StartsWith(TEXT("jev")) ? TEXT("Jev") : TEXT("La IA");
+					JamBSPost(Self, FString::Printf(TEXT("%s eligio: %s"), Who, *Picked.Left(110)), JamMsg::Info, TEXT("buildai"));
+				}
 				Self->Realize(R, Backend + TEXT(" ") + Note2);
 				return;
 			}
@@ -313,7 +336,7 @@ void AJamBuildSpawner::BuildNow()
 		};
 		FJamDecisionClient::RequestChoice(PromptCopy, [Finish, PromptCopy](bool bOk, const FJamBuildChoice& C, const FString& N)
 		{
-			// Fuera de vocabulario: Jev no reconocio casi nada (menos de 2 piezas) -> planificador LLM, si hay clave.
+			// Fuera de vocabulario: el modelo (Jev u OpenAI) no reconocio casi nada (menos de 2 piezas) -> planificador LLM, si hay clave.
 			// Su bolsa pasa por la misma validacion; si falla o tampoco trae piezas, se sigue con lo de Jev y el respaldo.
 			if ((!bOk || C.Pieces.Num() < 2) && !N.StartsWith(TEXT("fal")) && !FJamDecisionClient::GetFalKey().IsEmpty())
 			{

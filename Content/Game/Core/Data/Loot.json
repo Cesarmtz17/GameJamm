@@ -49,7 +49,7 @@
   },
   "starter": {
     "x": -10450, "y": 380,
-    "items": { "Part.Plank": 1, "Part.Wheel": 4, "Part.Flamethrower": 1, "Part.Fan": 1, "Mat.Fire": 1 },
+    "items": { "Part.Plank": 1, "Part.Wheel": 4, "Part.Flamethrower": 1, "Part.Fan": 1, "Mat.Fire": 1, "Part.Balloon": 2, "Part.Wing": 2, "Part.Spring": 1 },
     "message": "Presiona B y escribe lo que quieras construir. Prueba: un carro que queme todo"
   },
   "dummies": [
@@ -76,5 +76,20 @@
   ],
   "camp_respawn": 90,
   "death_bag_seconds": 30,
-  "energy": { "min": 50, "max": 150 }
+  "energy": { "min": 50, "max": 150 },
+  "visuals": {
+    "beacons": {
+      "height_cm": 1800,
+      "radius_cm": 14,
+      "light_intensity": 12000,
+      "light_radius_cm": 900,
+      "emissive": 1.8,
+      "colors": {
+        "common": "F6F4ED",
+        "starter": "F6F4ED",
+        "device": "8FE3FF",
+        "rare": "E7B65A"
+      }
+    }
+  }
 }

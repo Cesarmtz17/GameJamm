@@ -2,11 +2,14 @@
 #include "Core/JamLoot.h"
 #include "Core/JamAudio.h"
 #include "Core/JamMessages.h"
+#include "Core/JamHUD.h"
+#include "Building/JamBuildPart.h"
 #include "Core/InventoryComponent.h"
 #include "Core/HealthComponent.h"
 #include "GameJamm.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -25,6 +28,12 @@ AJamPickup::AJamPickup()
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	Mesh->SetupAttachment(Trigger);
 	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	LootLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("LootLight"));
+	LootLight->SetupAttachment(Trigger);
+	LootLight->SetRelativeLocation(FVector(0.f, 0.f, 45.f));
+	LootLight->SetCastShadows(false);
+	LootLight->SetIntensity(300.f);
+	LootLight->SetAttenuationRadius(180.f);
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Part(TEXT("/Game/Game/Core/Loot/SM_PICKUP_PART.SM_PICKUP_PART"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Mat(TEXT("/Game/Game/Core/Loot/SM_PICKUP_MATERIAL.SM_PICKUP_MATERIAL"));
@@ -63,6 +72,13 @@ void AJamPickup::BeginPlay()
 
 void AJamPickup::RefreshLook()
 {
+	FString Tier = Items.Num() == 0 && Energy > 0.f ? TEXT("device") : TEXT("common");
+	for (const auto& Item : Items)
+	{
+		const FString ItemTier = JamLoot::ItemTier(Item.Key);
+		if (ItemTier == TEXT("rare") || (ItemTier == TEXT("device") && Tier != TEXT("rare"))) { Tier = ItemTier; }
+	}
+	LootLight->SetLightColor(JamLoot::TierColor(Tier));
 	bool bParts = false;
 	for (const auto& It : Items) { bParts |= It.Key.ToString().StartsWith(TEXT("Part.")); }
 	if (bParts || Items.Num() > 1) { Mesh->SetStaticMesh(PartMesh); Mesh->SetRelativeScale3D(FVector(Items.Num() > 1 ? 1.6f : 1.f)); }
@@ -90,13 +106,15 @@ void AJamPickup::HandleOverlap(UPrimitiveComponent*, AActor* OtherActor, UPrimit
 		Bundle.Add(TEXT("Energy"), FMath::RoundToInt(Energy));
 	}
 	TMap<FName, int32> Leftover;
+	const float EnergyBefore = AJamBuildPart::GetPlayerEnergy(GetWorld());
 	const FString Got = JamLoot::GiveBundle(OtherActor, Bundle, &Leftover);
 	UE_LOG(LogJam, Log, TEXT("Loot: %s recoge %s"), *OtherActor->GetName(), *Got);
 	if (Pawn->IsPlayerControlled())
 	{
+		const bool bIconNotice = AJamHUD::ShowLoot(OtherActor, Bundle, Leftover, FString(), EnergyBefore);
 		if (!Got.IsEmpty())
 		{
-			JamMsg::Post(TEXT("Recogiste: ") + Got, JamMsg::Loot, 3.f, TEXT("loot"));
+			if (!bIconNotice) { JamMsg::Post(TEXT("Recogiste: ") + Got, JamMsg::Loot, 3.f, TEXT("loot")); }
 			JamAudio::Play2D(this, TEXT("SFX_Loot_Pickup"), 0.7f);
 		}
 		if (Leftover.Num() > 0)

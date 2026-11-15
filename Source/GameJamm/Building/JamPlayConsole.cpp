@@ -36,6 +36,7 @@
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 #include "HAL/IConsoleManager.h"
 #include "InputCoreTypes.h"
 
@@ -923,7 +924,7 @@ namespace
 		{
 			for (AJamBuildPart* P : Mine->GetParts())
 			{
-				if (!IsValid(P)) { continue; }
+				if (!IsValid(P) || P->bBroken) { continue; }
 				const double D = FVector::DistSquared(P->GetActorLocation(), Me->GetActorLocation()) * (P->Kind == EJamPartKind::Seat ? 0.01 : 1.0);
 				if (D < BestD)
 				{
@@ -1718,7 +1719,7 @@ void AJamTestHUD::DrawHUD()
 		FString Pieces;
 		int32 A = St.Find(TEXT("pieces=["));
 		if (A != INDEX_NONE) { Pieces = St.Mid(A + 8); int32 End; if (Pieces.FindChar(TEXT(']'), End)) { Pieces = Pieces.Left(End); } }
-		const TCHAR* Backend = St.Contains(TEXT("fallback")) ? TEXT("respaldo por palabras clave (fallo el modelo)") : St.Contains(TEXT("(jev")) ? TEXT("Jev (modelo de decision)")
+		const TCHAR* Backend = St.Contains(TEXT("fallback")) ? TEXT("respaldo por palabras clave (fallo el modelo)") : St.Contains(TEXT("openai")) ? TEXT("OpenAI Decisions (gpt-6-luna)") : St.Contains(TEXT("(jev")) ? TEXT("Jev (modelo de decision)")
 			: St.Contains(TEXT("keywords")) ? TEXT("palabras clave (sin clave del modelo)") : St.Contains(TEXT("source=json")) ? TEXT("receta fija") : TEXT("...");
 		Lines.Add(TEXT("!\"") + S->Prompt.Left(52) + TEXT("\""));
 		if (!St.StartsWith(TEXT("OK")))
@@ -1808,6 +1809,34 @@ void AJamTestHUD::DrawHUD()
 			}
 		}
 		RY = Panel(RX, RY, RW, TEXT("CONSTRUCCION ACTUAL"), Lines, ColAccent);
+
+		// Indicador sobre tu construccion en el mundo (GDD 9): ENCENDIDA / APAGADA, encima de su pieza mas alta.
+		// Solo si ya esta armada, a menos de 60 m y delante de la camara.
+		if (St.StartsWith(TEXT("OK")) && PlayerOwner && PlayerOwner->PlayerCameraManager)
+		{
+			FBox Box(ForceInit);
+			for (const AJamBuildPart* P : S->GetParts())
+			{
+				if (IsValid(P)) { Box += P->GetActorLocation(); }
+			}
+			const FVector Cam = PlayerOwner->PlayerCameraManager->GetCameraLocation();
+			if (Box.IsValid && FVector::Dist(Cam, Box.GetCenter()) < 6000.f)
+			{
+				const FVector Top(Box.GetCenter().X, Box.GetCenter().Y, Box.Max.Z + 90.f);
+				const FVector Scr = Project(Top);
+				if (Scr.Z > 0.f && Scr.X > 0.f && Scr.X < SX && Scr.Y > 0.f && Scr.Y < SY)
+				{
+					const bool bOn = S->IsBuildActive();
+					const FString Tag = bOn ? TEXT("ENCENDIDA") : TEXT("APAGADA  -  C para encender");
+					float TW = 0.f, TH = 0.f;
+					GetTextSize(Tag, TW, TH, GEngine->GetSmallFont(), K);
+					const float X = Scr.X - TW * 0.5f, Y = Scr.Y - TH * 0.5f;
+					DrawRect(ColPanel, X - 8 * K, Y - 4 * K, TW + 16 * K, TH + 8 * K);
+					DrawRect(bOn ? ColGood : ColBad, X - 8 * K, Y - 4 * K, 4 * K, TH + 8 * K);
+					DrawText(Tag, bOn ? ColGood : ColDim, X, Y, GEngine->GetSmallFont(), K);
+				}
+			}
+		}
 	}
 
 	// 3) Depuracion (jam.Hud.Debug 1): elementos que el modelo puede usar (derecha, debajo): clave + palabra de ejemplo.
