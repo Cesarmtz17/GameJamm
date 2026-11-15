@@ -12,8 +12,8 @@ solo señala dónde está todo.
    ([docs/TEAM.md](docs/TEAM.md)), nunca nombrar el juego de referencia (repo público),
    nunca subir API keys / `Saved/` / `Binaries/`.
 2. [docs/TEAM.md](docs/TEAM.md) — dueño de cada carpeta; para tocar lo de otro, pregunta.
-3. [README.md](README.md) — stack (UE 5.8), deadline (15 nov 8:59 PM EST) y freeze
-   (15 nov 12:00 CDMX).
+3. [README.md](README.md) — stack (UE 5.8) y deadline (15 nov 8:59 PM EST); sin feature
+   freeze desde el 15 nov.
 4. [docs/GDD.md](docs/GDD.md) — diseño y contratos compartidos (receta JSON, etc.).
 
 ## Base de MD (formato de los documentos del repo)

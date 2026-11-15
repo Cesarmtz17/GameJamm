@@ -16,7 +16,7 @@
 5. Nunca subas `Saved/`, `Intermediate/`, `Binaries/`, claves ni la sección `AndroidFileServer` de `Config/DefaultEngine.ini`.
    `git lfs lock` antes de editar un `.uasset` que ya exista.
 6. Al terminar, marca `[x]`, pon el hash del commit y una línea de cómo probarlo. Si algo no se pudo hacer, pon `[!]` y el motivo.
-7. Freeze de features: **dom 15 nov, 12:00 CDMX**. Después de esa hora, solo arreglos.
+7. Sin feature freeze (lo quitó Javier el 15 nov): se trabaja hasta el paquete final; la entrega cierra el **dom 15 nov, 19:59 CDMX**.
 
 ## Tareas (en orden de prioridad)
 

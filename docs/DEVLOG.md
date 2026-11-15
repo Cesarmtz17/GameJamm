@@ -19,7 +19,7 @@ el repo vuelve a privado.
 
 - **Dónde:** posts de devlog en la página de itch.io del juego (la misma donde subimos el build) como link principal; el archivo en GitHub como respaldo. Cualquier página pública sirve si itch no alcanza.
 - **Cómo:** este archivo es la fuente. Al cerrar cada día, copiar las entradas nuevas al post. Sube también las capturas/GIFs de `docs/devlog/` al post, para no depender del repo.
-- **Cuándo:** 13 nov decidir dónde y quién; 14 nov crear la página y publicar lo que haya; **antes del feature freeze (15 nov, 12:00 CDMX) el link debe existir y abrir sin iniciar sesión**.
+- **Cuándo:** 13 nov decidir dónde y quién; 14 nov crear la página y publicar lo que haya; **antes de enviar la entrega (15 nov, 19:59 CDMX) el link debe existir y abrir sin iniciar sesión**.
 - **Responsable de publicar:** — (anotar nombre). **Decisión pendiente.**
 
 ## Qué registrar para que cuente

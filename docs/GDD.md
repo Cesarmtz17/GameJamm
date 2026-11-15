@@ -86,7 +86,7 @@ flowchart LR
 ```
 
 ## 5. Lo que pides
-### 5.1 Armas de mano (nuevo; obligatorio para el freeze)
+### 5.1 Armas de mano (nuevo; obligatorio)
 - **Pedido:** "un rifle que dispare hielo", "una escopeta de fuego", "un lanzacohetes", "una pistola de rayos".
 - **Se arma de piezas chicas de arma:** empuñadura + cuerpo + **boca** (el efecto) + extras. Cada pieza aporta una propiedad:
 
@@ -238,15 +238,15 @@ Una línea de objetivo arriba guía paso a paso; cada paso se cumple y aparece e
 | Fusionar material a espada o arco | F |
 | Cámara / ayuda | V / H |
 
-- **Mando:** hoy no se puede pedir con mando. Fuera del freeze.
+- **Mando:** hoy no se puede pedir con mando. Fuera de la entrega.
 
 ## 12. Cámara (decidido 14 nov)
 - **Tercera persona sobre el hombro**, como hoy: el arma pedida se ve en la mano, que es el gancho del video.
 - **V** pasa a primera persona. Un FPS completo pide un modelo del arma pegado a la cámara (hoy en V el arma no se ve) y
-  queda para después del freeze.
+  queda fuera de la entrega.
 
 ## 13. Alcance
-**Compuerta Freeze (dom 15 nov, 12:00 CDMX).** Pregunta: ¿un juez entiende el juego, se divierte 5 min contra bots y ve
+**Compuerta de entrega (dom 15 nov, 19:59 CDMX; sin feature freeze desde el 15 nov).** Pregunta: ¿un juez entiende el juego, se divierte 5 min contra bots y ve
 que lo que pide existe y funciona? En orden:
 1. **Legibilidad:** objetivo y pasos de §8, HUD limpio de §9, avisos en el HUD.
 2. **Errores que rompen el ciclo:** X solo la tuya, renacer con piezas, E solo la tuya, reembolso solo de lo que existe.
@@ -306,3 +306,7 @@ progresión, **audio**. El uso de IA no puntúa por sí mismo.
 - **v2 · 14 nov 2026 · Javier:** reescritura por decisión de Javier, único integrante activo esa noche, con el equipo
   avisado. Entran las armas de mano pedidas, el objetivo legible, los primeros 2 minutos guiados y los premios; quedan
   fuera el juego en red y el segundo modo. Formato nuevo: ✅/❓, números en datos, "En el código" y "Hecho cuando".
+- **v2.1 · 15 nov 2026 · Javier:** se quita el feature freeze de las 12:00 (metía fricción); se trabaja en completar
+  este GDD hasta el paquete final y lo único fijo es el deadline (19:59 CDMX). Misión del día: terminar el juego con o
+  sin el resto del equipo; si no llegan, Javier lo sube. Entran audio nuevo con Stable Audio 3 (local), UI de loot más
+  clara, mejoras del mapa y la capa de decisión con clave (Jev, o un modelo de OpenAI por fal si Jev no está).
