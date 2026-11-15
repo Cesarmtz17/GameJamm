@@ -38,6 +38,13 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 14 nov — Torres, espada/arco y loot (Cesar + Claude Code)
+- **Torres:** a jugadores y bots les hacen 10 por disparo (+10 % por disparo seguido al mismo, tope ×1.5); los minions siguen con 20. Medido con `Jam.Goto 3300 0`: parado debajo mueres en 16 s (antes 12).
+- **Armas (`Source/GameJamm/Combat/`):** espada 20 de daño con empuje y arco con flecha física; nunca dañan aliados. Se probaron con un muñeco (`Jam.Dummy`, `Jam.Attack`) leyendo el log, sin pantalla.
+- **Loot:** todo sale de `Content/Game/Core/Data/Loot.json`: cofre inicial con el kit del GDD, cofres por isla que reponen, chatarra en el carril, cofre raro central al minuto 5. Al morir sueltas una bolsa con la mitad de tus piezas y un orbe con energía.
+- **Qué falló:** los cofres iban a abrir con E, pero E ya monta la construcción más cercana, así que se abren por cercanía. La bolsa de muerte la recogía el mismo muerto en el mismo frame; ahora se suelta después de quitarle la colisión y los muertos no recogen nada. Dos montones de chatarra caían en huecos del mapa; ahora buscan suelo en anillos de 2-6 m.
+- **IA:** el agente compila, abre el juego con `-ExecCmds` y revisa el log en cada cambio. Cada número de arriba sale de esas corridas.
+
 ## 14 nov — Matas y flores 3D sobre el pasto (Javier + Claude Code) — provisional
 - Qué: 4 modelos de Rodin (2 matas de pasto, 2 racimos de flores) regados ~1,560 veces sobre el pasto de islas y pradera; es lo que más rompe la repetición de la textura.
 - Cómo con IA: Rodin por su MCP oficial (solo texto, 0.5 créditos c/u) → Blender headless (290–390 tris, pivote abajo) → importador de Python → un script del editor (`ue_scatter_foliage.py`) que traza rayos y solo coloca donde pega en el pasto (fuera caminos, árboles y bases).
