@@ -75,7 +75,7 @@ Combate de `TEAM.md`. Si ya existe código de Jesús ahí, no lo dupliques: avis
 4. Todo el daño va por `ApplyDamage` a `UHealthComponent`, y nunca a aliados (`UJamStatics::AreEnemies`).
 5. Prueba: pegarle a un dummy con cada material.
 
-### [~] (PC, 01:55 — PAUSADA 02:20, casi lista) 3. Minions y bots (GDD §3 y §11)
+### [x] (PC, 14 nov 18:55: lista) 3. Minions y bots (GDD §3 y §11)
 IA no tiene dueño: anota "Cesar" en la fila IA de `TEAM.md`. Por tiempo, nada de StateTree: máquina de estados en C++ en
 `Source/GameJamm/AI/`.
 1. `AJamMinion`, con el maniquí en el color de su equipo pero más apagado (ART.md §6):
@@ -129,6 +129,7 @@ Todo está en `main`. Lo que hizo la sesión de la Mac y lo que quedó abierto:
 ## Registro
 | Tarea | Estado | Commit | Cómo probar |
 |---|---|---|---|
+| 3 Minions (14 nov 18:55) | **Lista.** Partida de 5 min sin tocar: antes se caía 1 minion rojo por oleada en X≈-7030 (por eso la 2.ª oleada decía "0 vivos antes"). `Jam.Ground` mostró huecos de 0.5–1.5 m entre isla y puente en X≈±7250 y ±6950 (ambos lados). Ahora minions y bots saltan si no hay piso 90 cm adelante: 0 caídas en 5 min, oleadas parejas (4–5 vivos por lado), chocan en el centro y los bots matan minions (10 bajas). Los huecos siguen en la geometría (un jugador sí puede caer): avisar a quien lleve el mapa. | (este) | `Jam.Ground -8600 -6000 -400 400 50` |
 | 2 Fusión (14 nov 18:20) | **Hecha (MVP 5 materiales).** F (o cruceta arriba) pega a la espada un `Mat.*` del inventario: dura 20 golpes (Bomba 1), reemplaza al anterior; en el arco elige la punta y cada flecha gasta 1. Fuego quema 5/s por 3 s; Hielo ralentiza 50 % y 3 golpes seguidos congelan (flecha congela 1.5 s); Rayo aturde 0.5 s (flecha: área de 2 m); Roca +12, ×2 empuje, 30 % más lenta; Bomba explota 35 en 2.5 m. El `SM_FUSE_*` se ve en la punta. Valores en `Content/Game/Combat/Data/Fusion.json`; estados en `UJamStatusComponent` (reusable por construcciones). | (este) | `Jam.Give Mat.Fire 1` + `Jam.Dummy blue 150` + `Jam.Fuse Fire` + `Jam.Attack 3`; `Jam.Weapon bow` + `Jam.Fuse Ice` |
 | 4.4 Guardias (14 nov 18:35) | **Hecho.** `AJamCampGuard` (AI, hereda de `AJamMinion`, equipo Neutral): Guardia 80 HP (7 cada 1.2 s) y Lanzador 50 HP (5 cada 2 s desde 15 m, suelta un `Mat.*`); persiguen solo dentro de 20 m de su campamento, no se tiran de la orilla, vuelven y se curan; +10 de energía al jugador que los mata. 10 en las 4 islas (`camps` en Loot.json), reaparecen a los 90 s. Los minions del carril los ignoran. Parado en el campamento mueres en ~12 s. | (este) | `Jam.Goto -8600 -3000 400` |
 | 4 Loot | **Hecho 1–3, falta 4 (guardias).** `AJamLootDirector` (lo crea el GameMode) lee `Content/Game/Core/Data/Loot.json`: cofre inicial junto al spawn con el kit del GDD y el letrero, 2 cofres comunes y 2 de dispositivos (reponen a los 60/90 s), 4 montones de chatarra en el carril (45 s) y cofre raro central al min 5 y cada 3 min. Se abren por **cercanía** (la E ya es montar). Topes de mochila del §4; lo que no cabe queda en el suelo. Al morir: bolsa con 50 % de piezas + orbe con 50 % de la energía arriba de 50 (dura 30 s). El kit inicial fijo del personaje se quitó (ahora sale del cofre). | (este) | `Jam.Rare`, `Jam.Inv`, `Jam.Give Wheel 6`, `Jam.Energy 120` + `Jam.Hurt 200` |

@@ -121,6 +121,21 @@ void AJamMinion::Tick(float DeltaSeconds)
 		return;
 	}
 	AddMovementInput(Dir.GetSafeNormal());
+
+	// Huecos entre isla y puente (hasta ~1.5 m, Jam.Ground los muestra): si no hay piso justo adelante, salta para cruzarlo.
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (Move->IsMovingOnGround() && Now - LastHop > 0.7f)
+	{
+		const FVector Ahead = GetActorLocation() + Dir.GetSafeNormal() * 90.f;
+		FHitResult Hit;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(JamMinionGap), false, this);
+		if (!GetWorld()->LineTraceSingleByChannel(Hit, Ahead, Ahead - FVector(0, 0, 400.f), ECC_Visibility, Params))
+		{
+			LastHop = Now;
+			LaunchCharacter(Dir.GetSafeNormal() * 520.f + FVector(0, 0, 360.f), true, true);
+		}
+	}
 }
 
 FVector AJamMinion::LaneGoal() const

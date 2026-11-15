@@ -98,6 +98,7 @@ protected:
 	bool bHasGoal = false;
 	FVector Goal = FVector::ZeroVector;
 	float LastAttack = -100.f;
+	float LastHop = -100.f;
 	FTimerHandle ThinkTimer;
 	FTimerHandle BoltTimer;
 };
