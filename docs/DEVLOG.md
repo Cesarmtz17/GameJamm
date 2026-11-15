@@ -50,6 +50,7 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
   - El personaje voltea a donde apuntas mientras ataca y el torso gira con el tajo.
   - Al pegar, el jugador siente una pausa de 0.06 s.
   - **Qué falló:** con la cámara fija de pruebas (`Jam.Cam`), el personaje volteaba hacia donde miraba la cámara y no hacia donde apunta el control. En la primera prueba le pegó al muñeco de atrás. Se vio en el mosaico de capturas con `jam.Sword.Debug 1` (dibuja el arco y los impactos).
+- **Cuerpo natural (tercera vuelta):** sin Anim Blueprint, la misma instancia cruza los clips en 0.2 s (antes saltaba de quieto a correr o a recibir golpe), inclina el tronco al acelerar y hacia la curva, y voltea cuello y cabeza a donde mira el control. Aplica a todas las figuras (jugador, minions, bots, guardias); `jam.Figure.Natural 0` lo apaga.
 - **Trampa evitada:** `PlayAnimation` cambia la malla a modo de animación suelta y borra cualquier instancia propia. Ahora los clips se cambian directo en la instancia.
 
 ## 14 nov — Arco, asiento y muerte de las figuras afinados en PIE (Javier + Claude Code)

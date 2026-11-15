@@ -25,6 +25,16 @@ struct FJamFigureState
 	EJamFigureMove Move = EJamFigureMove::None;
 	float T = 1.f;     // avance del movimiento 0..1
 	float Pitch = 0.f; // mira vertical en grados (arco)
+
+	// Cuerpo natural (todas las figuras): cruce entre clips, inclinacion al correr/girar y cabeza hacia la mira.
+	bool bNatural = false;
+	FName LowSpineBone, NeckBone, HeadBone;
+	uint32 ClipSerial = 0;  // cambia cada vez que cambia el clip (Idle/Walk/Run/Hit...): arranca un cruce
+	float FadeTime = 0.2f;
+	float BodyLean = 0.f;   // grados al frente (aceleracion/velocidad)
+	float BodyRoll = 0.f;   // grados hacia el lado de la curva
+	float LookYaw = 0.f;    // cabeza: grados respecto al cuerpo
+	float LookPitch = 0.f;
 };
 
 /**
@@ -66,4 +76,14 @@ private:
 	EJamFigureMove Move = EJamFigureMove::None;
 	float Elapsed = 0.f;
 	float Duration = 0.5f;
+
+	void ResolveBodyBones();
+	bool bBodyBones = false;
+	FName LowSpineBone, NeckBone, HeadBone;
+	TWeakObjectPtr<const UAnimationAsset> LastAsset;
+	uint32 ClipSerial = 0;
+	FVector PrevVel = FVector::ZeroVector;
+	float PrevYaw = 0.f;
+	bool bHasPrev = false;
+	float BodyLean = 0.f, BodyRoll = 0.f, LookYaw = 0.f, LookPitch = 0.f;
 };

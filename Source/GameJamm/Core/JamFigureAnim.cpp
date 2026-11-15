@@ -5,6 +5,8 @@
 #include "Animation/AnimNodeBase.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "GameFramework/Controller.h"
 #include "HAL/IConsoleManager.h"
 
@@ -12,6 +14,8 @@ namespace
 {
 	TAutoConsoleVariable<int32> CVarJamFigureMoves(TEXT("jam.Figure.Moves"), 1,
 		TEXT("1 = espadazo/arco/espada cargada hechos por codigo sobre la figura; 0 = solo los clips de Characters.json."));
+	TAutoConsoleVariable<int32> CVarJamFigureNatural(TEXT("jam.Figure.Natural"), 1,
+		TEXT("1 = cuerpo natural en las figuras: cruce suave entre clips, inclinacion al correr y girar, cabeza hacia la mira."));
 	TAutoConsoleVariable<float> CVarJamFigureFreeze(TEXT("jam.Figure.Freeze"), -1.f,
 		TEXT("Pruebas: >= 0 congela el movimiento de arma en ese avance (0..1) para verlo en captura."));
 
@@ -112,15 +116,17 @@ namespace
 	}
 
 	// Torso: giro sobre el eje vertical y luego inclinacion al frente (direcciones del actor, se pasan al componente).
-	void Torso(FCompactPose& Pose, FName SpineName, const FQuat& ToMesh, float Twist, float Lean, float W)
+	void Torso(FCompactPose& Pose, FName SpineName, const FQuat& ToMesh, float Twist, float Lean, float W, float Roll = 0.f)
 	{
 		const FCompactPoseBoneIndex Spine = FindBone(Pose, SpineName);
-		if (!Spine.IsValid() || W <= 0.f || (FMath::IsNearlyZero(Twist) && FMath::IsNearlyZero(Lean))) { return; }
-		const float Yaw = FMath::DegreesToRadians(Twist * W), Tilt = FMath::DegreesToRadians(Lean * W);
-		// Sin ambiguedad de signo: el giro lleva el frente (X) hacia la derecha (Y); la inclinacion lleva arriba (Z) al frente.
+		if (!Spine.IsValid() || W <= 0.f || (FMath::IsNearlyZero(Twist) && FMath::IsNearlyZero(Lean) && FMath::IsNearlyZero(Roll))) { return; }
+		const float Yaw = FMath::DegreesToRadians(Twist * W), Tilt = FMath::DegreesToRadians(Lean * W), Side = FMath::DegreesToRadians(Roll * W);
+		// Sin ambiguedad de signo: el giro lleva el frente (X) hacia la derecha (Y); la inclinacion lleva arriba (Z) al frente;
+		// el ladeo lleva arriba (Z) hacia la derecha (Y).
 		const FQuat TwistQ = FQuat::FindBetweenNormals(FVector::ForwardVector, FVector(FMath::Cos(Yaw), FMath::Sin(Yaw), 0.f));
 		const FQuat LeanQ = FQuat::FindBetweenNormals(FVector::UpVector, FVector(FMath::Sin(Tilt), 0.f, FMath::Cos(Tilt)));
-		const FQuat D = ToMesh * (TwistQ * LeanQ) * ToMesh.Inverse();
+		const FQuat RollQ = FQuat::FindBetweenNormals(FVector::UpVector, FVector(0.f, FMath::Sin(Side), FMath::Cos(Side)));
+		const FQuat D = ToMesh * (TwistQ * LeanQ * RollQ) * ToMesh.Inverse();
 		const FCompactPoseBoneIndex P = Pose.GetParentBoneIndex(Spine);
 		const FQuat Qp = P.IsValid() ? ComponentSpace(Pose, P).GetRotation() : FQuat::Identity;
 		FTransform& L = Pose[Spine];
@@ -146,6 +152,17 @@ namespace
 		{
 			Turn(Pose, Hand, ComponentSpace(Pose, Hand).GetRotation().RotateVector(Axis), Blade, WBlade);
 		}
+	}
+
+	// Cuerpo natural: inclinacion del tronco (aceleracion y curvas) y cabeza hacia la mira (cuello 40 %, cabeza 60 %).
+	void ApplyNatural(FCompactPose& Pose, const FJamFigureState& S)
+	{
+		if (!S.bNatural || CVarJamFigureNatural.GetValueOnAnyThread() == 0) { return; }
+		const FQuat ToMesh = S.MeshQuat.Inverse();
+		Torso(Pose, S.LowSpineBone, ToMesh, 0.f, S.BodyLean, 1.f, S.BodyRoll);
+		const bool bNeck = !S.NeckBone.IsNone();
+		Torso(Pose, S.NeckBone, ToMesh, S.LookYaw * 0.4f, -S.LookPitch * 0.4f, 1.f);
+		Torso(Pose, S.HeadBone, ToMesh, S.LookYaw * (bNeck ? 0.6f : 1.f), -S.LookPitch * (bNeck ? 0.6f : 1.f), 1.f);
 	}
 
 	void ApplyMoves(FCompactPose& Pose, const FJamFigureState& S)
@@ -202,16 +219,47 @@ struct FJamFigureAnimProxy : public FAnimSingleNodeInstanceProxy
 	{
 		FAnimSingleNodeInstanceProxy::PreUpdate(InAnimInstance, DeltaSeconds);
 		if (const UJamFigureAnim* Anim = Cast<UJamFigureAnim>(InAnimInstance)) { Figure = Anim->GetFigureState(); }
+		FadeLeft -= DeltaSeconds;
 	}
 
 	virtual bool Evaluate(FPoseContext& Output) override
 	{
 		const bool bResult = FAnimSingleNodeInstanceProxy::Evaluate(Output);
-		ApplyMoves(Output.Pose, Figure);
+		FCompactPose& Pose = Output.Pose;
+		// Cruce: al cambiar de clip, mezcla desde la ultima pose vista hacia el clip nuevo (sin saltos Idle > Run > Hit).
+		const bool bNatural = Figure.bNatural && CVarJamFigureNatural.GetValueOnAnyThread() != 0;
+		if (Figure.ClipSerial != LastSerial)
+		{
+			LastSerial = Figure.ClipSerial;
+			if (bNatural && bHavePrev && Prev.GetNumBones() == Pose.GetNumBones())
+			{
+				Snapshot.CopyBonesFrom(Prev);
+				FadeTotal = FMath::Max(0.01f, Figure.FadeTime);
+				FadeLeft = FadeTotal;
+			}
+		}
+		if (bNatural && FadeLeft > 0.f && Snapshot.GetNumBones() == Pose.GetNumBones())
+		{
+			const float Alpha = FMath::SmoothStep(0.f, 1.f, 1.f - FadeLeft / FadeTotal);
+			for (const FCompactPoseBoneIndex I : Pose.ForEachBoneIndex())
+			{
+				FTransform B;
+				B.Blend(Snapshot[I], Pose[I], Alpha);
+				Pose[I] = B;
+			}
+		}
+		Prev.CopyBonesFrom(Pose);
+		bHavePrev = true;
+		ApplyNatural(Pose, Figure);
+		ApplyMoves(Pose, Figure);
 		return bResult;
 	}
 
 	FJamFigureState Figure;
+	FCompactHeapPose Prev, Snapshot;
+	bool bHavePrev = false;
+	uint32 LastSerial = 0;
+	float FadeLeft = 0.f, FadeTotal = 0.2f;
 };
 
 FAnimInstanceProxy* UJamFigureAnim::CreateAnimInstanceProxy()
@@ -239,6 +287,24 @@ void UJamFigureAnim::SetRig(FName InSwordBone, const FQuat& InSwordInBone, FName
 		UE_LOG(LogJam, Log, TEXT("Figura: espada en %s (codo %s, hombro %s), arco en %s, cuerda con %s, torso %s"),
 			*SwordBone.ToString(), *Fore.ToString(), *SK->GetParentBone(Fore).ToString(), *BowBone.ToString(), *DrawBone.ToString(), *SpineBone.ToString());
 	}
+}
+
+void UJamFigureAnim::ResolveBodyBones()
+{
+	bBodyBones = true;
+	const USkeletalMeshComponent* SK = GetSkelMeshComponent();
+	const USkeletalMesh* Mesh = SK ? SK->GetSkeletalMeshAsset() : nullptr;
+	if (!Mesh) { return; }
+	const FReferenceSkeleton& Ref = Mesh->GetRefSkeleton();
+	for (int32 I = 0; I < Ref.GetNum(); ++I)
+	{
+		const FName N = Ref.GetBoneName(I);
+		const FString S = N.ToString().ToLower();
+		if (LowSpineBone.IsNone() && S.Contains(TEXT("spine"))) { LowSpineBone = N; }
+		if (NeckBone.IsNone() && S.Contains(TEXT("neck"))) { NeckBone = N; }
+		if (HeadBone.IsNone() && S.StartsWith(TEXT("head")) && !S.Contains(TEXT("end"))) { HeadBone = N; }
+	}
+	UE_LOG(LogJam, Verbose, TEXT("Figura %s: tronco %s, cuello %s, cabeza %s"), *GetNameSafe(SK->GetOwner()), *LowSpineBone.ToString(), *NeckBone.ToString(), *HeadBone.ToString());
 }
 
 void UJamFigureAnim::StartMove(EJamFigureMove InMove, float InDuration)
@@ -276,4 +342,55 @@ void UJamFigureAnim::NativeUpdateAnimation(float DeltaSeconds)
 	{
 		State.Pitch = FMath::Clamp(FRotator::NormalizeAxis(Char->GetControlRotation().Pitch), -45.f, 45.f);
 	}
+
+	// ---- Cuerpo natural ----
+	if (!bBodyBones) { ResolveBodyBones(); }
+	const UAnimationAsset* Asset = const_cast<UJamFigureAnim*>(this)->GetCurrentAsset();
+	if (Asset != LastAsset.Get())
+	{
+		const bool bFirst = !LastAsset.IsValid();
+		LastAsset = Asset;
+		if (!bFirst) { ++ClipSerial; }
+	}
+	State.ClipSerial = ClipSerial;
+	State.FadeTime = 0.2f;
+	State.LowSpineBone = LowSpineBone;
+	State.NeckBone = NeckBone;
+	State.HeadBone = HeadBone;
+	State.bNatural = Char != nullptr && bMovesEnabled;
+	if (Char && DeltaSeconds > KINDA_SMALL_NUMBER)
+	{
+		const FVector Vel = Char->GetVelocity();
+		const FRotator Rot = Char->GetActorRotation();
+		if (!bHasPrev) { PrevVel = Vel; PrevYaw = Rot.Yaw; bHasPrev = true; }
+		const FVector Acc = Rot.UnrotateVector((Vel - PrevVel) / DeltaSeconds);
+		const float YawRate = FRotator::NormalizeAxis(Rot.Yaw - PrevYaw) / DeltaSeconds;
+		PrevVel = Vel;
+		PrevYaw = Rot.Yaw;
+		const float Speed = Vel.Size2D() / FMath::Max(0.1f, Char->GetActorScale3D().X);
+		const UCharacterMovementComponent* Move2 = Char->GetCharacterMovement();
+		const bool bAir = Move2 && Move2->IsFalling();
+		// Al frente: un poco con la velocidad y mas al acelerar (atras al frenar); al lado: hacia la curva, mas si va rapido.
+		const float WantLean = bAir ? 0.f : FMath::Clamp(Speed / 600.f * 5.f + Acc.X / 2000.f * 6.f, -6.f, 10.f);
+		const float WantRoll = bAir ? 0.f : FMath::Clamp(YawRate * FMath::Min(Speed, 700.f) / 600.f * 0.04f, -9.f, 9.f);
+		BodyLean = FMath::FInterpTo(BodyLean, WantLean, DeltaSeconds, 6.f);
+		BodyRoll = FMath::FInterpTo(BodyRoll, WantRoll, DeltaSeconds, 6.f);
+
+		// Cabeza: hacia donde mira el control (jugador: la camara; bots: su objetivo). Si mira hacia atras, la cabeza se queda.
+		float WantYaw = 0.f, WantPitch = 0.f;
+		if (Char->GetController())
+		{
+			const FRotator Ctrl = Char->GetControlRotation();
+			const float Diff = FRotator::NormalizeAxis(Ctrl.Yaw - Rot.Yaw);
+			const float Keep = 1.f - FMath::SmoothStep(90.f, 150.f, FMath::Abs(Diff));
+			WantYaw = FMath::Clamp(Diff, -60.f, 60.f) * Keep;
+			WantPitch = FMath::Clamp(FRotator::NormalizeAxis(Ctrl.Pitch) * 0.4f, -15.f, 20.f) * Keep;
+		}
+		LookYaw = FMath::FInterpTo(LookYaw, WantYaw, DeltaSeconds, 5.f);
+		LookPitch = FMath::FInterpTo(LookPitch, WantPitch, DeltaSeconds, 5.f);
+	}
+	State.BodyLean = BodyLean;
+	State.BodyRoll = BodyRoll;
+	State.LookYaw = LookYaw;
+	State.LookPitch = LookPitch;
 }
