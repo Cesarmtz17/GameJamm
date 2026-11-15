@@ -105,7 +105,7 @@
       },
       "Death": {
         "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Death.A_CHAR_MINION_Death",
-        "Rate": 1.5
+        "Rate": 2.0
       },
       "Sit": {
         "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Sit.A_CHAR_MINION_Sit"
@@ -157,7 +157,7 @@
       },
       "Death": {
         "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_BOTHERO_Death.A_CHAR_BOTHERO_Death",
-        "Rate": 1.5
+        "Rate": 2.0
       },
       "Sit": {
         "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_BOTHERO_Sit.A_CHAR_BOTHERO_Sit"
@@ -203,7 +203,7 @@
       },
       "Death": {
         "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Death.A_CHAR_GUARD_Death",
-        "Rate": 1.5
+        "Rate": 2.0
       },
       "Sit": {
         "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Sit.A_CHAR_GUARD_Sit"
@@ -249,7 +249,7 @@
       },
       "Death": {
         "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Death.A_CHAR_GUARD_Death",
-        "Rate": 1.5
+        "Rate": 2.0
       },
       "Sit": {
         "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_GUARD_Sit.A_CHAR_GUARD_Sit"
