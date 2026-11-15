@@ -15,6 +15,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "TimerManager.h"
 
 AJamCharacter::AJamCharacter()
 {
@@ -137,7 +138,20 @@ void AJamCharacter::HandleDied(UHealthComponent* HealthComponent, AActor* Killer
 	AJamPickup::SpawnBundle(GetWorld(), GetActorLocation(), Bag, OrbEnergy, float(BagLife));
 	UE_LOG(LogJam, Log, TEXT("%s suelta bolsa: %s (+%.0f energia)"), *GetName(), *JamLoot::Describe(Bag), OrbEnergy);
 
-	SetActorHiddenInGame(true);
+	if (Look && Look->IsApplied())
+	{
+		// Con figura rigeada: que se vea la animacion Death (como el minion) y se esconde despues. Respawn destruye este
+		// peon y crea otro, asi que el timer muere con el; IsDead por si acaso.
+		FTimerHandle HideTimer;
+		GetWorldTimerManager().SetTimer(HideTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			if (Health && Health->IsDead()) { SetActorHiddenInGame(true); }
+		}), 2.f, false);
+	}
+	else
+	{
+		SetActorHiddenInGame(true);
+	}
 
 	if (AJamGameMode* GameMode = GetWorld()->GetAuthGameMode<AJamGameMode>())
 	{

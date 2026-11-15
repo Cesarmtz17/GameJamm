@@ -303,7 +303,19 @@ void AJamBotHero::HandleDied(UHealthComponent* HealthComponent, AActor* Killer)
 	bRetreating = false;
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetCharacterMovement()->DisableMovement();
-	SetActorHiddenInGame(true);
+	if (Look && Look->IsApplied())
+	{
+		// Con figura rigeada: que se vea la animacion Death y se esconde despues (solo si sigue muerto: Respawn reusa este actor).
+		FTimerHandle HideTimer;
+		GetWorldTimerManager().SetTimer(HideTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			if (Health && Health->IsDead()) { SetActorHiddenInGame(true); }
+		}), 2.f, false);
+	}
+	else
+	{
+		SetActorHiddenInGame(true);
+	}
 	const AJamGameMode* GM = GetWorld()->GetAuthGameMode<AJamGameMode>();
 	GetWorldTimerManager().SetTimer(RespawnTimer, this, &AJamBotHero::Respawn, GM ? GM->GetRespawnDelay() : 5.f, false);
 }
