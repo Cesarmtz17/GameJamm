@@ -1,0 +1,24 @@
+{
+  "_doc": "Figuras rigeadas (Rodin, esqueleto UE5). Lo edita Javier (arte) sin recompilar; el codigo lo lee como Loot.json. Contrato en docs/ARTE-TRIPO.md, seccion Personajes. Claves: Player = AJamCharacter, Minion = AJamMinion, BotHero = AJamBotHero, Guard / Thrower = AJamCampGuard. Sin entrada (o si la malla no carga) se queda el cilindro. Offset/Yaw/Scale van en GetMesh() relativo a la capsula. Speed = cm/s a los que el ciclo se ve sin patinar con este Scale (el codigo lo multiplica por la escala del actor). Rate = velocidad de reproduccion fija de las acciones.",
+  "Minion": {
+    "Mesh": "/Game/Game/Art/Tripo/Characters/SK_CHAR_MINION.SK_CHAR_MINION",
+    "Materials": {
+      "Red": "/Game/Game/Art/Tripo/Characters/Materials/MI_CHAR_MINION_RED.MI_CHAR_MINION_RED",
+      "Blue": "/Game/Game/Art/Tripo/Characters/Materials/MI_CHAR_MINION_BLUE.MI_CHAR_MINION_BLUE"
+    },
+    "Offset": [0, 0, -80],
+    "Yaw": -90,
+    "Scale": 0.84,
+    "RunAbove": 220,
+    "Anims": {
+      "Idle": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Idle.A_CHAR_MINION_Idle"},
+      "Walk": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Walk.A_CHAR_MINION_Walk", "Speed": 111},
+      "Run": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Run.A_CHAR_MINION_Run", "Speed": 398},
+      "Attack": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Attack.A_CHAR_MINION_Attack", "Rate": 1.5},
+      "Shoot": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Throw.A_CHAR_MINION_Throw", "Rate": 2.0},
+      "Hit": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Hit.A_CHAR_MINION_Hit", "Rate": 1.5},
+      "Death": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Death.A_CHAR_MINION_Death", "Rate": 1.5},
+      "Sit": {"Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_MINION_Sit.A_CHAR_MINION_Sit"}
+    }
+  }
+}

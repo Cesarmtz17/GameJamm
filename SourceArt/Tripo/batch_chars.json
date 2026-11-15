@@ -1,0 +1,18 @@
+{
+  "dest": "/Game/Game/Art/Tripo/Characters",
+  "anim_ids": {
+    "human_000093": "Idle", "human_000089": "Walk", "human_000029": "Jog", "human_000067": "Run",
+    "human_000046": "RunComic", "human_000004": "Attack", "human_000064": "Throw", "human_000014": "Death",
+    "human_000085": "Sit", "human_000026": "Hit"
+  },
+  "chars": [
+    {
+      "name": "MINION",
+      "dir": "SourceArt/Tripo/raw/chars/minion",
+      "fbx": "rig_pbr.fbx",
+      "teams": {"RED": "T_diffuse.png", "BLUE": "T_diffuse_BLUE.png"},
+      "max_tex": 1024,
+      "rodin": {"model": "056597f3-8d72-4e5a-8456-0bfc34988dd3", "rig": "cc4e1c24-b7f0-4982-b3b4-c78e09650cce"}
+    }
+  ]
+}
