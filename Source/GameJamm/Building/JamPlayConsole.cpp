@@ -972,6 +972,18 @@ namespace
 		UInventoryComponent* Inv = PlayerInventory(World);
 		if (!Inv || Args.Num() == 0) { Screen(TEXT("Uso: Jam.Give <Tipo> [n]  (ej. Jam.Give Wheel 2; n negativo quita; Jam.Give clear)")); return; }
 		if (Args[0] == TEXT("clear")) { Inv->ClearInventory(); JamInv(Args, World); return; }
+		if (Args[0] == TEXT("all"))
+		{
+			// Para probar: n de cada pieza conocida (ponytail: lista fija; si se agrega pieza nueva, sumarla aqui).
+			static const TCHAR* All[] = { TEXT("Plank"), TEXT("Panel"), TEXT("Wall"), TEXT("Beam"), TEXT("Girder"), TEXT("Block"), TEXT("Cylinder"), TEXT("Ball"), TEXT("Ramp"), TEXT("Rod"), TEXT("Deck"), TEXT("UBlock"), TEXT("IceBlock"),
+				TEXT("Hinge"), TEXT("Turntable"), TEXT("BallJoint"), TEXT("Stake"), TEXT("Rope"), TEXT("Wheel"), TEXT("BigWheel"), TEXT("WagonWheel"), TEXT("Cart"), TEXT("Sled"), TEXT("RailSkid"), TEXT("Roller"), TEXT("Spring"),
+				TEXT("Fan"), TEXT("Propeller"), TEXT("Rocket"), TEXT("Jet"), TEXT("Turbine"), TEXT("Wing"), TEXT("Sail"), TEXT("Balloon"), TEXT("Hover"), TEXT("HoverStone"), TEXT("Stabilizer"), TEXT("Seat"), TEXT("Head"), TEXT("Bomb"),
+				TEXT("Battery"), TEXT("BigBattery"), TEXT("Flamethrower"), TEXT("Frost"), TEXT("Shock"), TEXT("Cannon"), TEXT("Hydrant"), TEXT("Light"), TEXT("Mirror"), TEXT("Launcher"), TEXT("Spikes") };
+			const int32 Each = Args.Num() > 1 ? FCString::Atoi(*Args[1]) : 10;
+			for (const TCHAR* P : All) { Inv->AddItem(FName(*(FString(TEXT("Part.")) + P)), Each); }
+			JamInv(Args, World);
+			return;
+		}
 		const FName Id(*(Args[0].StartsWith(TEXT("Part.")) || Args[0].StartsWith(TEXT("Mat.")) ? Args[0] : TEXT("Part.") + Args[0]));
 		const int32 N = Args.Num() > 1 ? FCString::Atoi(*Args[1]) : 1;
 		if (N >= 0) { Inv->AddItem(Id, N); }
