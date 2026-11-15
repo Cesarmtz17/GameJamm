@@ -3,14 +3,21 @@
 //   Jam.Weapon [sword|bow]   cambia de arma (sin argumento alterna, como la rueda o Q)
 //   Jam.Attack [veces]       ataca con el arma en mano (repite cada intervalo)
 //   Jam.Fuse [Material]      fusiona un material del inventario al arma (como F)
+//   Jam.Grip P Y R [GX GY GZ [hueso]] agarre en vivo: giro y punto del arma que va en la mano, para afinar Weapon de Characters.json
+//   Jam.Later <seg> <cmd...> corre un comando de consola despues (pruebas con -ExecCmds, que corre todo en el frame 0)
 #include "Combat/JamTrainingDummy.h"
 #include "Combat/JamWeaponComponent.h"
+#include "GameFramework/Character.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "TimerManager.h"
+#include "GameJamm.h"
 #include "Core/HealthComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "TimerManager.h"
+#include "GameJamm.h"
 
 namespace
 {
@@ -70,5 +77,35 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdDummy(TEXT("Jam.Dummy"), TEXT("Jam.Dummy [red|blue] [distancia cm]: muneco de practica enemigo al frente."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamDummy));
 	FAutoConsoleCommandWithWorldAndArgs CmdWeapon(TEXT("Jam.Weapon"), TEXT("Jam.Weapon [sword|bow]: cambia de arma (sin argumento alterna)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamWeapon));
+	void JamGrip(const TArray<FString>& Args, UWorld* World)
+	{
+		ACharacter* Char = Cast<ACharacter>(LocalPawn(World));
+		UJamWeaponComponent* W = Char ? Char->FindComponentByClass<UJamWeaponComponent>() : nullptr;
+		if (!W || Args.Num() < 3) { UE_LOG(LogJam, Log, TEXT("Jam.Grip P Y R [X Y Z]")); return; }
+		auto F = [&Args](int32 I) { return Args.Num() > I ? FCString::Atof(*Args[I]) : 0.f; };
+		// Los 3 ultimos: punto del arma (en su espacio local) que queda en la mano, p. ej. el mango.
+		const FRotator R(F(0), F(1), F(2));
+		const FTransform T(R, -R.RotateVector(FVector(F(3), F(4), F(5))));
+		const FName Socket = Args.Num() > 6 ? FName(*Args[6]) : FName(TEXT("hand_r"));
+		W->AttachToHand(Char->GetMesh(), Socket, T, Socket, T);
+		UE_LOG(LogJam, Log, TEXT("Jam.Grip rot (%s) pos (%s)"), *T.Rotator().ToCompactString(), *T.GetLocation().ToCompactString());
+	}
+
+	void JamLater(const TArray<FString>& Args, UWorld* World)
+	{
+		if (!World || Args.Num() < 2) { return; }
+		const float Delay = FMath::Max(0.05f, FCString::Atof(*Args[0]));
+		const FString Cmd = FString::Join(TArrayView<const FString>(Args).RightChop(1), TEXT(" "));
+		TWeakObjectPtr<UWorld> WeakWorld(World);
+		FTimerHandle H;
+		World->GetTimerManager().SetTimer(H, FTimerDelegate::CreateLambda([WeakWorld, Cmd]()
+		{
+			APlayerController* PC = WeakWorld.IsValid() ? WeakWorld->GetFirstPlayerController() : nullptr;
+			if (PC) { PC->ConsoleCommand(Cmd); }
+		}), Delay, false);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdGrip(TEXT("Jam.Grip"), TEXT("Jam.Grip P Y R [X Y Z]: agarre del arma en la mano."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamGrip));
+	FAutoConsoleCommandWithWorldAndArgs CmdLater(TEXT("Jam.Later"), TEXT("Jam.Later <seg> <comando>: corre un comando despues."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamLater));
 	FAutoConsoleCommandWithWorldAndArgs CmdAttack(TEXT("Jam.Attack"), TEXT("Jam.Attack [veces]: ataca con el arma en mano."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamAttack));
 }

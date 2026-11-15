@@ -104,10 +104,39 @@ void UJamWeaponComponent::BeginPlay()
 	RefreshHandMesh();
 }
 
+void UJamWeaponComponent::AttachToHand(USceneComponent* Skeleton, FName InSwordSocket, const FTransform& Sword, FName InBowSocket, const FTransform& Bow)
+{
+	if (!Skeleton)
+	{
+		return;
+	}
+	HandParent = Skeleton;
+	SwordSocket = InSwordSocket;
+	BowSocket = InBowSocket;
+	SwordInHand = Sword;
+	BowInHand = Bow;
+	SwingAlpha = 1.f;
+	RefreshHandMesh();
+}
+
 void UJamWeaponComponent::RefreshHandMesh()
 {
 	if (!HandMesh)
 	{
+		return;
+	}
+	if (USceneComponent* Parent = HandParent.Get())
+	{
+		// En la mano de la figura: sigue al hueso al caminar y al atacar.
+		const bool bSword = Current == EJamWeapon::Sword;
+		HandMesh->SetStaticMesh(bSword ? SwordMesh : BowMesh);
+		HandMesh->AttachToComponent(Parent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, bSword ? SwordSocket : BowSocket);
+		HandMesh->SetRelativeTransform(bSword ? SwordInHand : BowInHand);
+		if (const UStaticMesh* M = HandMesh->GetStaticMesh())
+		{
+			UE_LOG(LogJam, Verbose, TEXT("Arma en mano %s: caja %s"), *M->GetName(), *M->GetBoundingBox().ToString());
+		}
+		RefreshFuseMesh();
 		return;
 	}
 	if (Current == EJamWeapon::Sword)
@@ -467,9 +496,9 @@ void UJamWeaponComponent::ShootArrow()
 void UJamWeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	if (!HandMesh || Current != EJamWeapon::Sword || SwingAlpha >= 1.f)
+	if (!HandMesh || Current != EJamWeapon::Sword || SwingAlpha >= 1.f || HandParent.IsValid())
 	{
-		return;
+		return; // con figura rigeada el tajo viene en la animacion Attack
 	}
 	// Tajo de derecha a izquierda en 0.2 s y regreso.
 	SwingAlpha = FMath::Min(1.f, SwingAlpha + DeltaTime / 0.2f);

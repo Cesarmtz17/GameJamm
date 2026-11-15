@@ -105,7 +105,7 @@ basta agregar estas entradas a `RealMeshNames()` en `Source/GameJamm/Building/Ja
 
 `Spikes` lleva las púas hacia +X (cara frontal) y `Propeller` es un disco en YZ como `Fan`.
 
-### Personajes 2 (César): dos ajustes antes del freeze (dom 15, 12:00 CDMX) — PENDIENTE
+### Personajes 2 (César): dos ajustes antes del freeze (dom 15, 12:00 CDMX) — HECHO
 
 > [!important] Para César (el agente lo puede repetir tal cual)
 > "Javier pide dos ajustes chicos a las figuras (~30 min en total), ya probadas en PIE con tu `UJamCharacterLook`:
@@ -130,6 +130,16 @@ basta agregar estas entradas a `RealMeshNames()` en `Source/GameJamm/Building/Ja
 
 **Hecho cuando:** montado en un carro, la cadera queda en el asiento, y a pie la espada y el arco siguen la mano al
 caminar y al atacar. Sin figura, todo queda como hoy.
+
+> [!note] Respuesta de César (14 nov)
+> Hecho en `UJamCharacterLook` + `UJamWeaponComponent::AttachToHand`. Campos de `Weapon`: `Socket`, `Rot` [pitch,yaw,roll],
+> **`Grip`** [x,y,z] = punto de la malla del arma que queda en la mano (la espada mide 100 cm con pivote al centro: el mango
+> está en x = -40), `Offset` (en el hueso) y lo mismo con prefijo `Bow` para el arco (si faltan, usa los de la espada).
+> Puse la espada en **`hand_l`**: la animación `Attack` del jugador es un jab con la izquierda (la derecha se queda en el
+> pecho), así el golpe sale como estocada. Valores actuales en `Characters.json` (`Player.Weapon`): espada
+> `Rot [-75,180,-90]`, `Grip [-40,0,0]`; arco `BowRot [0,-90,90]` en `hand_l`. El arco se puede afinar más.
+> Para afinar en vivo: `Jam.Grip P Y R GX GY GZ hueso`, `Jam.Cam dist angulo alto` (cámara fija), `ShowHUD` y
+> `Jam.Later seg comando`. `SitOffset` ya se aplica al reproducir `Sit`.
 
 ### Personajes (César; aviso a Jesús): figuras rigeadas — HECHO (`08a1bdb`, empaquetado `a574410`)
 

@@ -38,6 +38,13 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 14 nov — Bots que manejan sus carros, trampas de lanzallamas y armas en la mano (Cesar + Claude Code)
+
+- **Bots:** el Constructor ya no deja su carro solo: se sube y lo maneja con las mismas reglas que el jugador (giro diferencial, par de guiñada, ayuda de estabilidad). El Peleador pone torretas de lanzallamas/hielo a un lado del carril que se encienden al pasar enemigos. Todo por APIs públicas de Construcción.
+- **Cómo se probó:** el agente corrió partidas de 2-4 min leyendo un log del piloto cada 3 s (posición, velocidad, inclinación, error de rumbo). Así salió por qué se volcaban (los carros se armaban en el aire y caían de cabeza; el piso fuera de la pradera central es angosto) y un escalón invisible en X=±500 que se resolvió con un brinco del carro.
+- **Armas en la mano:** espada y arco van pegados al hueso de la figura de Rodin. Para encontrar el agarre, el agente hizo comandos de prueba (`Jam.Grip`, `Jam.Cam`, `Jam.Later`) y comparó 6 ángulos por corrida en mosaicos de capturas, sin tocar la pantalla del usuario.
+- **Qué falló:** la animación `Attack` resultó ser un jab con la **izquierda**; con la espada en la derecha nunca golpeaba. Se pasó a la mano izquierda y quedó como estocada.
+
 ## 14 nov — Personajes rigeados con Rodin: jugador, minion, bot héroe y guardia (Javier + Claude Code)
 - Qué: los cilindros grises pasan a 4 personajes con esqueleto y 10 animaciones cada uno (quieto, caminar, correr, golpe, lanzar, recibir golpe, morir, sentado…), con variante roja y azul (el guardia neutral en amarillo). Siguen `docs/ART.md` §6: el jugador con gorro, bufanda y chaleco; el bot héroe con casco de gogles; el minion sin accesorios; el guardia con casco de chatarra.
 - Cómo con IA: Claude Code generó cada modelo en **Rodin por MCP** (solo texto, en pose A y sin armas para que el rig salga limpio) y luego lo rigeó también con Rodin (`rodin_generate_rigging`, esqueleto con los nombres de UE5 y animaciones "en el lugar" del catálogo). Midió en Blender la velocidad del pie apoyado de cada ciclo para que no patinen, y un importador de Python lo pasó al editor. El azul sale de recolorear solo la ropa roja de la textura (`team_recolor.py`).

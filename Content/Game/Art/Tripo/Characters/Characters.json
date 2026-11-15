@@ -20,13 +20,29 @@
       -40
     ],
     "Weapon": {
-      "Socket": "hand_r",
+      "Socket": "hand_l",
+      "Rot": [
+        -75,
+        180,
+        -90
+      ],
+      "Grip": [
+        -40,
+        0,
+        0
+      ],
       "Offset": [
         0,
         0,
         0
       ],
-      "Rot": [
+      "BowSocket": "hand_l",
+      "BowRot": [
+        0,
+        -90,
+        90
+      ],
+      "BowGrip": [
         0,
         0,
         0

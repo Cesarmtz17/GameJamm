@@ -111,6 +111,15 @@ public:
 	/** Efecto del material al pegar (Target puede ser nulo si la flecha dio en el suelo). Lo llaman la espada y AJamArrow. */
 	void ApplyFusionHit(FName MaterialId, AActor* Target, const FVector& Where, bool bArrow);
 
+	/**
+	 * Pega el arma en mano a un hueso de la figura rigeada (UJamCharacterLook, campo Weapon de Characters.json).
+	 * Con mano, el tajo lo hace la animacion Attack y no el balanceo por codigo. Sword/Bow = posicion local en el hueso.
+	 */
+	void AttachToHand(USceneComponent* Skeleton, FName SwordSocket, const FTransform& Sword, FName BowSocket, const FTransform& Bow);
+
+	/** true si el arma va pegada a un hueso (figura rigeada). */
+	bool IsInHand() const { return HandParent.IsValid(); }
+
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 protected:
@@ -148,4 +157,8 @@ private:
 
 	float LastAttackTime = -100.f;
 	float SwingAlpha = 1.f; // 0..1 durante el tajo
+
+	TWeakObjectPtr<USceneComponent> HandParent;
+	FName SwordSocket, BowSocket;
+	FTransform SwordInHand, BowInHand;
 };

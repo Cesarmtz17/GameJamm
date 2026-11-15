@@ -73,6 +73,9 @@ private:
 	bool bHasTeam = false;
 	EJamTeam LastTeam = EJamTeam::Neutral;
 	float RunAbove = 220.f;
+	FVector BaseOffset = FVector::ZeroVector;
+	FVector SitOffset = FVector::ZeroVector;
+	bool bSitting = false;
 	FName Current;
 	FName PendingAction;
 	float ActionUntil = -1.f;

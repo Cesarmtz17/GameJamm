@@ -4,12 +4,14 @@
 //   Jam.Time <segundos>    adelanta el reloj de la partida (720 = muerte subita, 899 = fin por vida)
 //   Jam.Hurt <dano>        se hace dano a uno mismo (probar muerte y respawn)
 //   Jam.ShotIn <seg>       en N s guarda una captura en Saved/Screenshots (pruebas sin pantalla)
+//   Jam.Cam [dist] [angulo] [alto] camara fija mirando al jugador (angulo 0 = de frente, 90 = su derecha); Jam.Cam off la quita
 //   Jam.Ground X0 X1 Y0 Y1 [paso]  mapa de suelo en el log (# = hay piso, . = hueco) para buscar donde se caen los agentes
 #include "Core/JamGameState.h"
 #include "Core/HealthComponent.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "Camera/CameraActor.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
@@ -113,6 +115,34 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs CmdGround(TEXT("Jam.Ground"), TEXT("Jam.Ground X0 X1 Y0 Y1 [paso]: mapa de suelo en el log (# piso, ^ alto, . hueco)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamGround));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdGoto(TEXT("Jam.Goto"), TEXT("Jam.Goto <X> <Y> [Z]: teletransporta al jugador."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamGoto));
+	TWeakObjectPtr<ACameraActor> GJamCam;
+
+	void JamCam(const TArray<FString>& Args, UWorld* World)
+	{
+		APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+		APawn* Pawn = PC ? PC->GetPawn() : nullptr;
+		if (!Pawn) { return; }
+		if (Args.Num() > 0 && Args[0] == TEXT("off"))
+		{
+			PC->SetViewTarget(Pawn);
+			if (GJamCam.IsValid()) { GJamCam->Destroy(); }
+			JamSay(TEXT("Jam.Cam off"));
+			return;
+		}
+		const float Dist = Args.Num() > 0 ? FCString::Atof(*Args[0]) : 300.f;
+		const float Ang = Args.Num() > 1 ? FCString::Atof(*Args[1]) : 0.f;
+		const float Up = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 40.f;
+		const FVector Target = Pawn->GetActorLocation() + FVector(0, 0, 20.f);
+		const FRotator Around(0.f, Pawn->GetActorRotation().Yaw + Ang, 0.f);
+		const FVector At = Target + Around.Vector() * Dist + FVector(0, 0, Up);
+		if (!GJamCam.IsValid()) { GJamCam = World->SpawnActor<ACameraActor>(At, FRotator::ZeroRotator); }
+		if (!GJamCam.IsValid()) { return; }
+		GJamCam->SetActorLocationAndRotation(At, (Target - At).Rotation());
+		PC->SetViewTarget(GJamCam.Get());
+		JamSay(FString::Printf(TEXT("Jam.Cam en %s"), *At.ToCompactString()));
+	}
+	FAutoConsoleCommandWithWorldAndArgs CmdCam(TEXT("Jam.Cam"), TEXT("Jam.Cam [dist] [angulo] [alto] | off: camara fija mirando al jugador (pruebas de figura)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamCam));
+
 	FAutoConsoleCommandWithWorldAndArgs CmdPos(TEXT("Jam.Pos"), TEXT("Posicion del jugador."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamPos));
 	FAutoConsoleCommandWithWorldAndArgs CmdTime(TEXT("Jam.Time"), TEXT("Jam.Time <segundos>: adelanta el reloj de la partida."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamTime));
 	FAutoConsoleCommandWithWorldAndArgs CmdHurt(TEXT("Jam.Hurt"), TEXT("Jam.Hurt <dano>: dano a uno mismo (muerte/respawn)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamHurt));

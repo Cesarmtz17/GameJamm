@@ -35,6 +35,16 @@ namespace
 		return Cached;
 	}
 
+	FVector Vec3(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Field)
+	{
+		const TArray<TSharedPtr<FJsonValue>>* A = nullptr;
+		if (Obj.IsValid() && Obj->TryGetArrayField(Field, A) && A->Num() == 3)
+		{
+			return FVector((*A)[0]->AsNumber(), (*A)[1]->AsNumber(), (*A)[2]->AsNumber());
+		}
+		return FVector::ZeroVector;
+	}
+
 	bool IsHidden(const UStaticMeshComponent* C)
 	{
 		const FName N = C->GetFName();
@@ -86,6 +96,8 @@ bool UJamCharacterLook::Apply()
 	{
 		Offset = FVector((*Off)[0]->AsNumber(), (*Off)[1]->AsNumber(), (*Off)[2]->AsNumber());
 	}
+	BaseOffset = Offset;
+	SitOffset = Vec3(*Entry, TEXT("SitOffset"));
 	double Yaw = 0.0, Scale = 1.0, Run = 220.0;
 	(*Entry)->TryGetNumberField(TEXT("Yaw"), Yaw);
 	(*Entry)->TryGetNumberField(TEXT("Scale"), Scale);
@@ -136,6 +148,36 @@ bool UJamCharacterLook::Apply()
 	TArray<UStaticMeshComponent*> Statics;
 	Char->GetComponents<UStaticMeshComponent>(Statics);
 	for (UStaticMeshComponent* C : Statics) { if (IsHidden(C)) { C->SetVisibility(false); } }
+
+	// Arma en la mano (campo Weapon): Socket/Offset/Rot de la espada; BowSocket/BowOffset/BowRot del arco (si faltan, los de la espada).
+	const TSharedPtr<FJsonObject>* WeaponCfg = nullptr;
+	UJamWeaponComponent* Weapon = Char->FindComponentByClass<UJamWeaponComponent>();
+	if (Weapon && (*Entry)->TryGetObjectField(TEXT("Weapon"), WeaponCfg))
+	{
+		FString Socket = TEXT("hand_r"), BowSocket;
+		(*WeaponCfg)->TryGetStringField(TEXT("Socket"), Socket);
+		if (!(*WeaponCfg)->TryGetStringField(TEXT("BowSocket"), BowSocket)) { BowSocket = Socket; }
+		// Rot = [pitch, yaw, roll] en el hueso; Grip = punto del arma (espacio local de la malla) que queda en la mano;
+		// Offset = corrimiento extra en el espacio del hueso. Bow* igual para el arco (si faltan, los de la espada).
+		auto Hold = [&WeaponCfg](const TCHAR* RotF, const TCHAR* GripF, const TCHAR* OffF, const FTransform* Fallback) -> FTransform
+		{
+			if (Fallback && !(*WeaponCfg)->HasField(RotF) && !(*WeaponCfg)->HasField(GripF) && !(*WeaponCfg)->HasField(OffF)) { return *Fallback; }
+			const FVector R = Vec3(*WeaponCfg, RotF);
+			const FRotator Rot(R.X, R.Y, R.Z);
+			return FTransform(Rot, Vec3(*WeaponCfg, OffF) - Rot.RotateVector(Vec3(*WeaponCfg, GripF)));
+		};
+		const FTransform SwordT = Hold(TEXT("Rot"), TEXT("Grip"), TEXT("Offset"), nullptr);
+		const FTransform BowT = Hold(TEXT("BowRot"), TEXT("BowGrip"), TEXT("BowOffset"), &SwordT);
+		if (SK->DoesSocketExist(FName(*Socket)) && SK->DoesSocketExist(FName(*BowSocket)))
+		{
+			Weapon->AttachToHand(SK, FName(*Socket), SwordT, FName(*BowSocket), BowT);
+			UE_LOG(LogJam, Log, TEXT("Look %s: arma en %s (arco en %s)"), *Key.ToString(), *Socket, *BowSocket);
+		}
+		else
+		{
+			UE_LOG(LogJam, Warning, TEXT("Look %s: no existe el hueso %s/%s, el arma queda como antes"), *Key.ToString(), *Socket, *BowSocket);
+		}
+	}
 
 	UE_LOG(LogJam, Log, TEXT("Look %s: %s con %d animaciones"), *Key.ToString(), *GetOwner()->GetName(), Anims.Num());
 	Play(TEXT("Idle"), true, 1.f);
@@ -225,7 +267,14 @@ void UJamCharacterLook::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 		return;
 	}
 	if (Current == TEXT("Death")) { Current = NAME_None; } // reaparecio
-	if (Char->GetAttachParentActor())
+	// Sentado (montado): la animacion Sit es de silla; SitOffset baja la cadera al asiento. Al bajarse vuelve a Offset.
+	const bool bSit = Char->GetAttachParentActor() != nullptr;
+	if (bSit != bSitting)
+	{
+		bSitting = bSit;
+		SK->SetRelativeLocation(bSit ? BaseOffset + SitOffset : BaseOffset);
+	}
+	if (bSit)
 	{
 		Play(TEXT("Sit"), true, 1.f);
 		return;
