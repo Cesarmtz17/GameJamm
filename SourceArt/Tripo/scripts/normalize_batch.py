@@ -73,8 +73,12 @@ def run_part(p, preview):
 
 def share_textures(name, mat, first):
     """T_<instancia>_* -> T_<mat>_* (la primera instancia de cada mat) o se borran (las demás: son idénticas)."""
-    for path in glob.glob(os.path.join(FBX_DIR, f"T_{base_of(name)}_*.png")):
-        role = path.rsplit("_", 1)[1]
+    prefix = f"T_{base_of(name)}_"
+    for path in glob.glob(os.path.join(FBX_DIR, prefix + "*.png")):
+        # Solo las de ESTA malla: "T_MAP_Dressed_P_*" también atrapa las de P_001…P_081 que se escriben en paralelo
+        role = os.path.basename(path)[len(prefix):]
+        if not re.fullmatch(r"[A-Z]{1,2}\d*(?:_\d+)?\.png", role):
+            continue
         if first and base_of(name) != mat:
             os.replace(path, os.path.join(FBX_DIR, f"T_{mat}_{role}"))
         elif base_of(name) != mat:

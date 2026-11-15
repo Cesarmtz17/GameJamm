@@ -72,11 +72,16 @@ siendo de su dueño: lo que el arte necesita de código se pide en la sección "
   modelo partido en dos (`"zclip"`).
 - **Molino:** `SM_MAP_Dressed_Windmill_Base` es ahora el molino completo, con las aspas hacia el camino. Las aspas viejas
   (`Windmill_Sail1/2`) flotaban sobre la torre: sus 2 actores de `L_Main` quedan **ocultos y sin colisión, no borrados**.
-- Costo: ~100k triángulos entre las 128 (antes 11k), sin LOD. **Falta medir FPS** en la GTX 1650.
+- Costo: ~100k triángulos entre las 128 (antes 11k), sin LOD. Medido en la GTX 1650 (14 nov): 60 FPS sostenidos con la
+  cámara en el spawn (GPU 11.5 ms, antes 9.8; p95 21.7 ms); en PIE la vista de los cerros cuesta ~24 % más GPU que el spawn,
+  así que ahí queda poco margen. Si baja de 60: primero `CLUSTER_M2` de las matas y los `tris` del lote.
 - Lote re-ejecutable: `SourceArt/Tripo/batch_props.json` → `normalize_batch.py -j 6` → importador. Si alguien regenera
   `MapDressed` con `gen_map_dressed.py`, hay que repetirlo.
 - **Para el dueño del mapa (César):** arbustos, hongos y flores chocan (`BlockAll`), igual que los conos de antes. Si frenan
   vehículos o bots, quitarles la colisión es decisión del mapa.
+- **Para César (loot):** los cofres de `Loot.json` (`chests`, ±8600/±3600 y ±4000/∓6000) caen justo en el cofre decorativo de
+  cada campamento (`CampXX_Chest` + `ChestLid`); `GroundAt` choca con su tapa y el cofre de loot queda encima. Ya pasaba con
+  el cofre viejo. Si se quiere uno solo, mover el de `Loot.json` o pedirme que oculte el decorativo.
 
 ## No pisar
 
