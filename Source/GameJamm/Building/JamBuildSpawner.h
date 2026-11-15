@@ -93,6 +93,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	void ClearBuild();
 
+	/** Piezas pagadas que se devolverian ahora: por tipo, min(pagado, vivas). Las destruidas no se devuelven. Solo cuenta si hay inventario pagador. */
+	TMap<FName, int32> GetRefundableItems() const;
+
+	/** Cuantas piezas de esta construccion siguen existiendo. */
+	int32 CountAliveParts() const;
+
+	/** El jugador renacio: la construccion pasa a su peon nuevo (dueno, inventario pagador y dueno del estado compartido). */
+	void RebindOwner(AActor* NewOwner);
+
 protected:
 	virtual void BeginPlay() override;
 

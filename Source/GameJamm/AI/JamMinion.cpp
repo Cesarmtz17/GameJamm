@@ -306,6 +306,11 @@ void AJamMinion::HandleDied(UHealthComponent* HealthComponent, AActor* Killer)
 		GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, *GetNameSafe(Killer));
 	// +3 de energia al jugador que lo mato (GDD 3).
 	const APawn* KillerPawn = Cast<APawn>(Killer);
+	// El dano de una pieza cuenta como de quien pidio la construccion (GDD 7): Build->Owner sigue al peon al renacer.
+	if (const AJamBuildPart* Part = Cast<AJamBuildPart>(Killer))
+	{
+		if (Part->Build.IsValid()) { KillerPawn = Cast<APawn>(Part->Build->Owner.Get()); }
+	}
 	if (EnergyReward > 0.f && KillerPawn && KillerPawn->IsPlayerControlled())
 	{
 		AJamBuildPart::SetPlayerEnergy(GetWorld(), FMath::Min(150.f, AJamBuildPart::GetPlayerEnergy(GetWorld()) + EnergyReward));

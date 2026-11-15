@@ -132,12 +132,39 @@ namespace
 		}
 	}
 
+	void JamSeat(const TArray<FString>&, UWorld* World);
+
+	/** X / Jam.Clear: desarma SOLO la construccion del jugador (GLastSay) y le devuelve las piezas que siguen vivas. */
 	void JamClear(const TArray<FString>&, UWorld* World)
+	{
+		if (!World) { return; }
+		AJamBuildSpawner* Mine = GLastSay.Get();
+		if (!Mine || Mine->CountAliveParts() == 0)
+		{
+			Screen(TEXT("No tienes construccion"), FColor::Orange);
+			return;
+		}
+		// Si estaba montado en ella, baja antes de que se destruya el asiento (si no, se quedaria sin colision y sin movimiento).
+		if (const APlayerController* PC = World->GetFirstPlayerController())
+		{
+			const APawn* Me = PC->GetPawn();
+			const AJamBuildPart* Seat = Me ? Cast<AJamBuildPart>(Me->GetAttachParentActor()) : nullptr;
+			if (Seat && Mine->GetParts().ContainsByPredicate([Seat](const TObjectPtr<AJamBuildPart>& P) { return P.Get() == Seat; })) { JamSeat(TArray<FString>(), World); }
+		}
+		int32 Back = 0;
+		for (const auto& Item : Mine->GetRefundableItems()) { Back += Item.Value; }
+		Mine->ClearBuild();
+		if (!Mine->bUseInventory) { Mine->Destroy(); } // construccion de pruebas (sin inventario): no deja el spawner suelto
+		Screen(Back > 0 ? FString::Printf(TEXT("Desarmaste tu construccion: +%d %s"), Back, Back == 1 ? TEXT("pieza") : TEXT("piezas")) : FString(TEXT("Desarmaste tu construccion")), FColor::Green);
+	}
+
+	/** Jam.ClearAll (solo pruebas): borra todas las construcciones y piezas del mapa, tambien las de los bots. */
+	void JamClearAll(const TArray<FString>&, UWorld* World)
 	{
 		if (World)
 		{
 			ClearAll(World);
-			Screen(TEXT("Construccion desarmada"));
+			Screen(TEXT("Todas las construcciones borradas"));
 		}
 	}
 
@@ -888,21 +915,25 @@ namespace
 			Screen(TEXT("Te bajaste"));
 			return;
 		}
-		// El asiento mas cercano; si no hay asiento, la pieza mas cercana.
+		// El asiento mas cercano de TU construccion (GLastSay); si no hay asiento, la pieza mas cercana de ella. Las de otros no cuentan.
 		AJamBuildPart* Best = nullptr;
 		double BestD = FMath::Square(1500.0);
-		for (TActorIterator<AJamBuildPart> It(World); It; ++It)
+		if (const AJamBuildSpawner* Mine = GLastSay.Get())
 		{
-			const double D = FVector::DistSquared(It->GetActorLocation(), Me->GetActorLocation()) * (It->Kind == EJamPartKind::Seat ? 0.01 : 1.0);
-			if (D < BestD)
+			for (AJamBuildPart* P : Mine->GetParts())
 			{
-				BestD = D;
-				Best = *It;
+				if (!IsValid(P)) { continue; }
+				const double D = FVector::DistSquared(P->GetActorLocation(), Me->GetActorLocation()) * (P->Kind == EJamPartKind::Seat ? 0.01 : 1.0);
+				if (D < BestD)
+				{
+					BestD = D;
+					Best = P;
+				}
 			}
 		}
 		if (!Best)
 		{
-			Screen(TEXT("No hay construccion cerca. Pulsa B y pide una"), FColor::Orange);
+			Screen(TEXT("No hay construccion tuya cerca. Pulsa B y pide una"), FColor::Orange);
 			return;
 		}
 		Me->GetCharacterMovement()->SetMovementMode(MOVE_None);
@@ -1020,7 +1051,8 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs CmdFire(TEXT("Jam.Fire"), TEXT("Jam.Fire [segundos] | Jam.Fire boost: simula el clic (armas) o Espacio (cohetes) estando montado."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamFire));
 	FAutoConsoleCommandWithWorldAndArgs CmdDrive(TEXT("Jam.Drive"), TEXT("Jam.Drive <acelerador -1..1> <giro -1..1> [segundos]: simula W/S y A/D estando montado."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamDrive));
 	FAutoConsoleCommandWithWorldAndArgs CmdSay(TEXT("Jam.Say"), TEXT("Jam.Say <texto libre>: construye lo que pidas delante del jugador (modelo de decision Jev; respaldo por palabras clave)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamSay));
-	FAutoConsoleCommandWithWorldAndArgs CmdClear(TEXT("Jam.Clear"), TEXT("Borra todas las construcciones."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamClear));
+	FAutoConsoleCommandWithWorldAndArgs CmdClear(TEXT("Jam.Clear"), TEXT("Desarma tu construccion (tecla X) y te devuelve las piezas que siguen vivas."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamClear));
+	FAutoConsoleCommandWithWorldAndArgs CmdClearAll(TEXT("Jam.ClearAll"), TEXT("Borra todas las construcciones y piezas del mapa, tambien las de los bots (pruebas)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamClearAll));
 	FAutoConsoleCommandWithWorldAndArgs CmdEnergy(TEXT("Jam.Energy"), TEXT("Jam.Energy [valor]: muestra (o fija) la barra de energia del jugador."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamEnergy));
 	FAutoConsoleCommandWithWorldAndArgs CmdTest(TEXT("Jam.Test"), TEXT("Jam.Test [segundos] [iso | frases | ruta.json [desde] [cuantas]]: bateria con coherencia y 'utilizable' (entrada simulada); escribe docs/building/REPORTE-POC.md (o REPORTE-BATERIA.md con JSON externo)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamTest));
 	FAutoConsoleCommandWithWorldAndArgs CmdCoh(TEXT("Jam.Coh"), TEXT("Imprime las ocho notas de coherencia (sentido) de la ultima construccion."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamCoh));
@@ -1156,6 +1188,11 @@ void AJamTestCharacter::PossessedBy(AController* NewController)
 		PC->SetInputMode(FInputModeGameOnly());
 		PC->bShowMouseCursor = false;
 		FJamVoice::Get().WarmUp(); // deja listo el reconocedor de voz local
+		// Al renacer (peon nuevo): la construccion del jugador pasa a ser de este peon, para volver a pedir y desarmar con reembolso.
+		if (AJamBuildSpawner* Mine = GLastSay.Get())
+		{
+			if (Mine->GetOwner() != this) { Mine->RebindOwner(this); }
+		}
 	}
 }
 

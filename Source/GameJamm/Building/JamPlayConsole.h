@@ -12,8 +12,8 @@ class UCameraComponent;
 /**
  * Banco de pruebas jugable de construccion (rol Building). Comandos de consola (tecla ~), en JamPlayConsole.cpp:
  *   Jam.Say <texto libre>  -> prompt -> modelo de decision (Jev) -> receta -> ensamblador, ~6 m delante del jugador
- *   Jam.Clear              -> borra todo lo construido
- *   Jam.Seat               -> se sube al asiento de la construccion mas cercana / se baja
+ *   Jam.Clear              -> desarma tu construccion y devuelve las piezas vivas (Jam.ClearAll borra todo, para pruebas)
+ *   Jam.Seat               -> se sube al asiento de tu construccion / se baja
  *   Jam.Energy [valor]     -> muestra o fija la barra de energia del jugador
  *   Jam.Test [seg]         -> bateria de frases; escribe docs/building/REPORTE-POC.md
  * En el juego: mantener G = hablar (voz -> texto -> construir); T, B o Enter = escribir la frase; 1..9 = ejemplos; C = encender/apagar; X = limpiar; E = subir/bajar (montado: WASD dirige);

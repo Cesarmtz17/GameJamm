@@ -3,6 +3,8 @@
 #include "Core/JamCharacter.h"
 #include "Core/JamGameState.h"
 #include "Core/JamHUD.h"
+#include "Core/InventoryComponent.h"
+#include "Core/JamMessages.h"
 #include "Core/JamLootDirector.h"
 #include "Core/JamStatics.h"
 #include "Core/HealthComponent.h"
@@ -164,12 +166,35 @@ void AJamGameMode::Respawn(AController* Controller)
 	{
 		return;
 	}
+	// Renacer con la mitad (GDD 4): el peon viejo ya solto la otra mitad en la bolsa al morir; lo que le quedo se guarda para el nuevo.
+	const bool bPlayer = Controller->IsPlayerController();
+	TMap<FName, int32> Carried;
 	if (APawn* Old = Controller->GetPawn())
 	{
+		if (const UInventoryComponent* OldInv = bPlayer ? Old->FindComponentByClass<UInventoryComponent>() : nullptr)
+		{
+			for (const auto& Item : OldInv->Items) { if (Item.Value > 0) { Carried.Add(Item.Key, Item.Value); } }
+		}
 		Controller->UnPossess();
 		Old->Destroy();
 	}
 	RestartPlayer(Controller);
+	if (bPlayer)
+	{
+		UInventoryComponent* NewInv = Controller->GetPawn() ? Controller->GetPawn()->FindComponentByClass<UInventoryComponent>() : nullptr;
+		if (NewInv)
+		{
+			// Reemplaza (no suma): el peon nuevo ya recibio sus StartingItems en BeginPlay. Si no traia nada, se queda con ellos.
+			if (Carried.Num() > 0)
+			{
+				NewInv->ClearInventory();
+				for (const auto& Item : Carried) { NewInv->AddItem(Item.Key, Item.Value); }
+			}
+			int32 Pieces = 0;
+			for (const auto& Item : NewInv->Items) { if (Item.Key.ToString().StartsWith(TEXT("Part."))) { Pieces += FMath::Max(Item.Value, 0); } }
+			JamMsg::Post(FString::Printf(TEXT("Reapareciste con %d %s"), Pieces, Pieces == 1 ? TEXT("pieza") : TEXT("piezas")), JamMsg::Info, 5.f, FName(TEXT("respawn")));
+		}
+	}
 }
 
 EJamTeam AJamGameMode::GetControllerTeam(const AController* Controller) const

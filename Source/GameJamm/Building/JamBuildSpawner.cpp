@@ -122,10 +122,52 @@ bool AJamBuildSpawner::IsBuildActive() const
 	return false;
 }
 
+int32 AJamBuildSpawner::CountAliveParts() const
+{
+	int32 Alive = 0;
+	for (const AJamBuildPart* P : Parts)
+	{
+		if (IsValid(P) && !P->IsActorBeingDestroyed()) { ++Alive; }
+	}
+	return Alive;
+}
+
+TMap<FName, int32> AJamBuildSpawner::GetRefundableItems() const
+{
+	TMap<FName, int32> Out;
+	if (!PaidInventory.IsValid() || PaidItems.Num() == 0) { return Out; }
+	// Piezas vivas por id de inventario ("Part.<Tipo>", el mismo que cobra GetRequiredItems): lo destruido no se devuelve.
+	TMap<FName, int32> Alive;
+	for (const AJamBuildPart* P : Parts)
+	{
+		if (IsValid(P) && !P->IsActorBeingDestroyed() && !P->PartType.IsNone())
+		{
+			Alive.FindOrAdd(FName(*(FString(TEXT("Part.")) + P->PartType.ToString()))) += 1;
+		}
+	}
+	for (const auto& Item : PaidItems)
+	{
+		const int32 N = FMath::Min(Item.Value, Alive.FindRef(Item.Key));
+		if (N > 0) { Out.Add(Item.Key, N); }
+	}
+	return Out;
+}
+
+void AJamBuildSpawner::RebindOwner(AActor* NewOwner)
+{
+	SetOwner(NewOwner);
+	UInventoryComponent* Inv = NewOwner ? NewOwner->FindComponentByClass<UInventoryComponent>() : nullptr;
+	if (Inv) { PaidInventory = Inv; } else { PaidInventory.Reset(); }
+	for (AJamBuildPart* P : Parts)
+	{
+		if (IsValid(P) && P->Build.IsValid()) { P->Build->Owner = NewOwner; break; } // el estado es compartido por todas las piezas
+	}
+}
+
 void AJamBuildSpawner::ClearBuild()
 {
 	++RequestGeneration; // una respuesta tardia no puede reconstruir lo que se desarmo
-	TMap<FName, int32> Refund = MoveTemp(PaidItems);
+	const TMap<FName, int32> Refund = GetRefundableItems(); // solo lo que sigue vivo
 	PaidItems.Reset();
 	if (UInventoryComponent* Inventory = PaidInventory.Get())
 	{
@@ -330,7 +372,7 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& InRecipe, const FString& InNo
 	{
 		if (!Inventory) { LastStatus = TEXT("FAIL inventory: no hay inventario del propietario"); Announce(LastStatus, false); JamBSFail(this, TEXT("no tienes mochila")); return; }
 		TMap<FName, int32> Available = Inventory->Items;
-		if (PaidInventory.Get() == Inventory) { for (const auto& Item : PaidItems) { Available.FindOrAdd(Item.Key) += Item.Value; } }
+		if (PaidInventory.Get() == Inventory) { for (const auto& Item : GetRefundableItems()) { Available.FindOrAdd(Item.Key) += Item.Value; } } // solo lo vivo: ClearBuild solo devuelve eso
 		FBuildRecipe Fitted;
 		FString InventoryNote;
 		if (!JamInventorySolver::Fit(Recipe, Available, Fitted, InventoryNote))
