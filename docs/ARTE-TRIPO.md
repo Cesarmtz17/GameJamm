@@ -157,6 +157,21 @@ caminar y al atacar. Sin figura, todo queda como hoy.
 >   y no corre `-ExecCmds`. El panel "Cómo jugar" todavía anuncia "~ consola" y "Consola: Jam.Say…" (es de UI: avisar
 >   si se quiere quitar).
 
+> [!note] César (14 nov, noche): espadazo y tiro con arco hechos por código; la espada vuelve a `hand_r`
+> - **Por qué:** con la espada en `hand_l` la hoja atravesaba el cuerpo al correr, y el jab de `Attack` no parecía un
+>   espadazo. Como Javier estaba con otra cosa, no se pidieron clips nuevos.
+> - **Qué hace:** la figura usa `UJamFigureAnim` (C++, sin Anim Blueprint). Reproduce los mismos clips de
+>   `Characters.json` y encima gira hombro, codo y mano por dirección:
+>   - **Espadazo** en diagonal (0.42 s): carga arriba a la derecha, golpe al frente y remate abajo a la izquierda.
+>   - **Arco** (0.6 s): brazo del arco extendido con el arco vertical; la otra mano tensa junto a la cara y suelta hacia
+>     atrás. Sigue la mira vertical.
+>   - **Espada cargada:** al caminar y correr la punta va al frente y hacia afuera, sin cruzar el cuerpo.
+> - Ya no se reproducen los clips `Attack` ni `Shoot` del jugador; siguen en el JSON por si `jam.Figure.Moves 0`.
+> - `Player.Weapon.Socket` pasa a `hand_r`; el resto de los valores (incluido el arco afinado) no cambió.
+> - Para ver una pose quieta: `jam.Figure.Freeze 0.48` (avance 0..1; `-1` lo apaga).
+> - Las poses están en `Source/GameJamm/Core/JamFigureAnim.cpp` (`SlashKeys`, `DrawArmKeys`…). Si luego hay clips de
+>   tajo o de tensar el arco, basta con apagar esto y ponerlos en `Attack`/`Shoot`.
+
 ### Personajes (César; aviso a Jesús): figuras rigeadas — HECHO (`08a1bdb`, empaquetado `a574410`)
 
 > [!success] Estado (14 nov, 19:45)

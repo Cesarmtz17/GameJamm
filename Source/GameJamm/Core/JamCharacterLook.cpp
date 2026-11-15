@@ -1,6 +1,7 @@
 #include "Core/JamCharacterLook.h"
 #include "Core/HealthComponent.h"
 #include "Combat/JamWeaponComponent.h"
+#include "Core/JamFigureAnim.h"
 #include "GameJamm.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -11,6 +12,8 @@
 #include "GameFramework/Character.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/FileHelper.h"
+#include "HAL/IConsoleManager.h"
+#include "Animation/AnimSingleNodeInstance.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -106,7 +109,8 @@ bool UJamCharacterLook::Apply()
 	SK->SetRelativeLocationAndRotation(Offset, FRotator(0.f, float(Yaw), 0.f));
 	SK->SetRelativeScale3D(FVector(float(Scale)));
 	SK->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	SK->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	// Animacion suelta + espadazo/arco por codigo (UJamFigureAnim); sin Anim Blueprint.
+	SK->SetAnimInstanceClass(UJamFigureAnim::StaticClass());
 	SK->SetVisibility(true);
 	SK->SetHiddenInGame(false);
 	if (!Char->IsPlayerControlled()) { SK->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered; }
@@ -171,6 +175,7 @@ bool UJamCharacterLook::Apply()
 		if (SK->DoesSocketExist(FName(*Socket)) && SK->DoesSocketExist(FName(*BowSocket)))
 		{
 			Weapon->AttachToHand(SK, FName(*Socket), SwordT, FName(*BowSocket), BowT);
+			if (UJamFigureAnim* Fig = Cast<UJamFigureAnim>(SK->GetAnimInstance())) { Fig->SetRig(FName(*Socket), SwordT.GetRotation(), FName(*BowSocket), BowT.GetRotation()); }
 			UE_LOG(LogJam, Log, TEXT("Look %s: arma en %s (arco en %s)"), *Key.ToString(), *Socket, *BowSocket);
 		}
 		else
@@ -200,7 +205,16 @@ void UJamCharacterLook::Play(FName State, bool bLoop, float Rate)
 	}
 	if (State != Current)
 	{
-		Char->GetMesh()->PlayAnimation(A->Asset, bLoop);
+		// Directo a la instancia: PlayAnimation cambiaria el modo y quitaria UJamFigureAnim.
+		if (UAnimSingleNodeInstance* Single = Char->GetMesh()->GetSingleNodeInstance())
+		{
+			Single->SetAnimationAsset(A->Asset, bLoop);
+			Single->SetPlaying(true);
+		}
+		else
+		{
+			Char->GetMesh()->PlayAnimation(A->Asset, bLoop);
+		}
 		Current = State;
 	}
 	Char->GetMesh()->SetPlayRate(Rate);
@@ -224,6 +238,18 @@ void UJamCharacterLook::PlayAction(FName Action)
 
 void UJamCharacterLook::HandleWeaponAttack(UJamWeaponComponent* InWeapon, EJamWeapon Kind)
 {
+	// Con arma en mano: espadazo / tensar y soltar por codigo, sin cortar el caminar. Si no, los clips Attack/Shoot.
+	ACharacter* Char = Cast<ACharacter>(GetOwner());
+	UJamFigureAnim* Fig = Char ? Cast<UJamFigureAnim>(Char->GetMesh()->GetAnimInstance()) : nullptr;
+	static const IConsoleVariable* MovesVar = IConsoleManager::Get().FindConsoleVariable(TEXT("jam.Figure.Moves"));
+	if (Fig && InWeapon && InWeapon->IsInHand() && (!MovesVar || MovesVar->GetInt() != 0))
+	{
+		const bool bBow = Kind == EJamWeapon::Bow;
+		const float Dur = bBow ? 0.6f : 0.42f;
+		Fig->StartMove(bBow ? EJamFigureMove::Shot : EJamFigureMove::Slash, Dur);
+		if (!Current.IsNone() && (Current == TEXT("Attack") || Current == TEXT("Shoot"))) { Current = NAME_None; ActionUntil = -1.f; }
+		return;
+	}
 	PlayAction(Kind == EJamWeapon::Bow ? TEXT("Shoot") : TEXT("Attack"));
 }
 
@@ -261,6 +287,10 @@ void UJamCharacterLook::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 	}
 
 	const float Now = GetWorld()->GetTimeSeconds();
+	if (UJamFigureAnim* Fig = Cast<UJamFigureAnim>(SK->GetAnimInstance()))
+	{
+		Fig->SetMovesEnabled(!(H && H->IsDead()) && Char->GetAttachParentActor() == nullptr);
+	}
 	if (H && H->IsDead())
 	{
 		if (Current != TEXT("Death")) { const FAnim* A = Anims.Find(TEXT("Death")); Play(TEXT("Death"), false, A ? A->Rate : 1.f); }
