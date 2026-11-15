@@ -38,12 +38,12 @@
       ],
       "BowSocket": "hand_l",
       "BowRot": [
-        0,
-        -90,
-        90
+        -84.3,
+        -25.2,
+        -122.6
       ],
       "BowGrip": [
-        0,
+        13,
         0,
         0
       ]
@@ -74,7 +74,7 @@
       },
       "Death": {
         "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_PLAYER_Death.A_CHAR_PLAYER_Death",
-        "Rate": 1.5
+        "Rate": 2.0
       },
       "Sit": {
         "Asset": "/Game/Game/Art/Tripo/Characters/Anims/A_CHAR_PLAYER_Sit.A_CHAR_PLAYER_Sit"
@@ -145,7 +145,7 @@
     "SitOffset": [
       0,
       0,
-      -40
+      -30
     ],
     "Anims": {
       "Idle": {
