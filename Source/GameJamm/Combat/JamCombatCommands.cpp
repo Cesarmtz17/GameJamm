@@ -2,6 +2,7 @@
 //   Jam.Dummy [red|blue]     pone un muneco de practica enemigo 3 m frente al jugador
 //   Jam.Weapon [sword|bow]   cambia de arma (sin argumento alterna, como la rueda o Q)
 //   Jam.Attack [veces]       ataca con el arma en mano (repite cada intervalo)
+//   Jam.Fuse [Material]      fusiona un material del inventario al arma (como F)
 #include "Combat/JamTrainingDummy.h"
 #include "Combat/JamWeaponComponent.h"
 #include "Core/HealthComponent.h"
@@ -48,7 +49,7 @@ namespace
 		UJamWeaponComponent* W = Pawn ? Pawn->FindComponentByClass<UJamWeaponComponent>() : nullptr;
 		if (!W) { return; }
 		const int32 Times = Args.Num() > 0 ? FMath::Clamp(FCString::Atoi(*Args[0]), 1, 50) : 1;
-		const float Step = (W->Current == EJamWeapon::Sword ? W->SwordInterval : W->BowInterval) * 1.05f;
+		const float Step = W->GetInterval() * 1.05f;
 		TWeakObjectPtr<UJamWeaponComponent> Weak(W);
 		for (int32 i = 0; i < Times; ++i)
 		{
@@ -56,6 +57,16 @@ namespace
 			World->GetTimerManager().SetTimer(H, FTimerDelegate::CreateLambda([Weak]() { if (Weak.IsValid()) { Weak->Attack(); } }), 0.05f + i * Step, false);
 		}
 	}
+
+	void JamFuse(const TArray<FString>& Args, UWorld* World)
+	{
+		APawn* Pawn = LocalPawn(World);
+		UJamWeaponComponent* W = Pawn ? Pawn->FindComponentByClass<UJamWeaponComponent>() : nullptr;
+		if (!W) { return; }
+		if (Args.Num() == 0) { W->FuseNext(); }
+		else { W->Fuse(FName(*Args[0])); }
+	}
+	FAutoConsoleCommandWithWorldAndArgs CmdFuse(TEXT("Jam.Fuse"), TEXT("Jam.Fuse [Fire|Ice|Shock|Rock|Bomb]: fusiona al arma en mano un material del inventario (sin argumento: el siguiente, como F)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamFuse));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdDummy(TEXT("Jam.Dummy"), TEXT("Jam.Dummy [red|blue] [distancia cm]: muneco de practica enemigo al frente."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamDummy));
 	FAutoConsoleCommandWithWorldAndArgs CmdWeapon(TEXT("Jam.Weapon"), TEXT("Jam.Weapon [sword|bow]: cambia de arma (sin argumento alterna)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamWeapon));

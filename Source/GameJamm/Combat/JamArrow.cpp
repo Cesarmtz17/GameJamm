@@ -67,16 +67,29 @@ void AJamArrow::Strike(AActor* Other)
 		return;
 	}
 	UJamWeaponComponent* W = Weapon.Get();
-	const bool bHurt = W && W->DealDamage(Other, Damage, Movement->Velocity.GetSafeNormal() * 150.f);
+	const bool bHurt = W && W->DealDamage(Other, Damage, Movement->Velocity.GetSafeNormal() * Push);
 	// Un aliado no la detiene: sigue de largo. Lo demas (enemigo, suelo, pared) la clava.
 	if (!bHurt && Other->IsA<APawn>() && W && W->GetOwner() && !Other->IsA<AJamArrow>())
 	{
 		return;
 	}
 	bDone = true;
+	if (W && !Fused.IsNone()) { W->ApplyFusionHit(Fused, bHurt ? Other : nullptr, GetActorLocation(), true); }
 	Movement->StopMovementImmediately();
 	Movement->Deactivate();
 	Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	if (USceneComponent* Root = Other->GetRootComponent()) { AttachToComponent(Root, FAttachmentTransformRules::KeepWorldTransform); }
 	SetLifeSpan(3.f);
+}
+
+void AJamArrow::ShowFuse(UStaticMesh* FuseMesh)
+{
+	if (!FuseMesh) { return; }
+	UStaticMeshComponent* Tip = NewObject<UStaticMeshComponent>(this, TEXT("FuseTip"));
+	Tip->SetupAttachment(RootComponent);
+	Tip->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Tip->SetStaticMesh(FuseMesh);
+	Tip->SetRelativeLocation(FVector(20.f, 0.f, 0.f));
+	Tip->SetRelativeScale3D(FVector(12.f / FMath::Max(1.f, FuseMesh->GetBoundingBox().GetSize().GetMax())));
+	Tip->RegisterComponent();
 }

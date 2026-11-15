@@ -64,6 +64,10 @@ void AJamCharacter::Tick(float DeltaSeconds)
 	{
 		Weapon->NextWeapon();
 	}
+	if (PC->WasInputKeyJustPressed(EKeys::F) || PC->WasInputKeyJustPressed(EKeys::Gamepad_DPad_Up))
+	{
+		Weapon->FuseNext(); // GDD 8.2: pega al arma un material del inventario
+	}
 	if (PC->IsInputKeyDown(EKeys::LeftMouseButton) || PC->GetInputAnalogKeyState(EKeys::Gamepad_RightTriggerAxis) > 0.5f)
 	{
 		Weapon->Attack();

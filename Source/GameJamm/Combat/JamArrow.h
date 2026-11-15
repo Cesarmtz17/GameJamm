@@ -8,6 +8,7 @@ class UJamWeaponComponent;
 class UProjectileMovementComponent;
 class USphereComponent;
 class UStaticMeshComponent;
+class UStaticMesh;
 
 /** Flecha fisica del arco: vuela con gravedad, pega una vez a un enemigo y se queda clavada unos segundos. */
 UCLASS()
@@ -28,6 +29,13 @@ public:
 	TObjectPtr<UProjectileMovementComponent> Movement;
 
 	void Launch(UJamWeaponComponent* InWeapon, const FVector& Velocity, float InDamage);
+
+	/** Material fusionado en la punta (None = flecha normal) y empuje al pegar. Se fijan antes de Launch. */
+	FName Fused;
+	float Push = 150.f;
+
+	/** Muestra el material en la punta. */
+	void ShowFuse(UStaticMesh* FuseMesh);
 
 private:
 	UFUNCTION()

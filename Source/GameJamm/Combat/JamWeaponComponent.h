@@ -20,7 +20,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FJamOnWeaponAttack, UJamWeaponCompo
 /**
  * Armas del jugador (GDD 8.1): espada (20 cada 0.6 s, 2 m) y arco (15 por flecha cada 0.8 s, 40 m, flecha fisica).
  * El dano va por ApplyDamage a UHealthComponent y nunca a aliados. Valores ajustables en BP sin recompilar.
- * Fusion (GDD 8.2) se engancha despues sobre OnWeaponHit / BonusDamage.
+ * Fusion (GDD 8.2): Fuse / FuseNext (tecla F) pegan un material; sus efectos viven en UJamStatusComponent.
  */
 UCLASS(ClassGroup = (Jam), meta = (BlueprintSpawnableComponent))
 class GAMEJAMM_API UJamWeaponComponent : public UActorComponent
@@ -85,6 +85,32 @@ public:
 	/** Lo llaman la espada y la flecha al pegar: aplica dano (sin aliados) y avisa. true si hubo dano. */
 	bool DealDamage(AActor* Target, float Damage, const FVector& Push);
 
+	/**
+	 * Fusion (GDD 8.2, valores en Content/Game/Combat/Data/Fusion.json): pega al arma en mano el material Mat.<Id> del
+	 * inventario. Espada: gasta 1 y dura 20 golpes (Bomba, 1); reemplaza al anterior. Arco: elige la punta y cada flecha gasta 1.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Fusion")
+	bool Fuse(FName MaterialId);
+
+	/** Tecla F: fusiona el siguiente material que tengas (Fuego, Hielo, Rayo, Roca, Bomba). */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Fusion")
+	bool FuseNext();
+
+	/** Material del arma en mano (None si va sola). */
+	UFUNCTION(BlueprintPure, Category = "Weapon|Fusion")
+	FName GetFused() const;
+
+	/** Golpes que le quedan a la espada (en el arco: materiales en la mochila). */
+	UFUNCTION(BlueprintPure, Category = "Weapon|Fusion")
+	int32 GetFusedUses() const;
+
+	/** Intervalo real del arma en mano (la Roca hace lenta la espada). */
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	float GetInterval() const;
+
+	/** Efecto del material al pegar (Target puede ser nulo si la flecha dio en el suelo). Lo llaman la espada y AJamArrow. */
+	void ApplyFusionHit(FName MaterialId, AActor* Target, const FVector& Where, bool bArrow);
+
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 protected:
@@ -95,6 +121,11 @@ private:
 	void ShootArrow();
 	void GetAim(FVector& OutFrom, FVector& OutDir) const;
 	void RefreshHandMesh();
+	void RefreshFuseMesh();
+	void Explode(const FVector& Where, float Damage, float Radius);
+	void Notify(const FString& Text) const;
+	float MatNumber(FName MaterialId, const TCHAR* Field, float Default) const;
+	TArray<AActor*> EnemiesNear(const FVector& Where, float Radius) const;
 
 	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> HandMesh;
@@ -104,6 +135,16 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UStaticMesh> BowMesh;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> FuseMesh;
+
+	UPROPERTY()
+	TMap<FName, TObjectPtr<UStaticMesh>> FuseMeshes;
+
+	FName FusedSword;
+	FName FusedBow;
+	int32 SwordUses = 0;
 
 	float LastAttackTime = -100.f;
 	float SwingAlpha = 1.f; // 0..1 durante el tajo
