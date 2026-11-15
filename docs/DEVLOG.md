@@ -38,6 +38,17 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 14 nov — Personajes rigeados con Rodin: jugador, minion, bot héroe y guardia (Javier + Claude Code)
+- Qué: los cilindros grises pasan a 4 personajes con esqueleto y 10 animaciones cada uno (quieto, caminar, correr, golpe, lanzar, recibir golpe, morir, sentado…), con variante roja y azul (el guardia neutral en amarillo). Siguen `docs/ART.md` §6: el jugador con gorro, bufanda y chaleco; el bot héroe con casco de gogles; el minion sin accesorios; el guardia con casco de chatarra.
+- Cómo con IA: Claude Code generó cada modelo en **Rodin por MCP** (solo texto, en pose A y sin armas para que el rig salga limpio) y luego lo rigeó también con Rodin (`rodin_generate_rigging`, esqueleto con los nombres de UE5 y animaciones "en el lugar" del catálogo). Midió en Blender la velocidad del pie apoyado de cada ciclo para que no patinen, y un importador de Python lo pasó al editor. El azul sale de recolorear solo la ropa roja de la textura (`team_recolor.py`).
+- Decisión de equipo: el arte es de Javier y el código de César. Para no frenarlo antes del freeze, todo lo ajustable (malla, material por equipo, escala, giro, velocidades) vive en `Characters.json`. El código solo lo lee y, si falta algo, deja el cilindro. El pedido está en `docs/ARTE-TRIPO.md`, y César ajustó el empaquetado en minutos.
+- Qué falló: el primer rig se rechazó ("el esqueleto debe tener un hueso Hips"). La plantilla con nombres de UE no acepta esas animaciones, así que se rigea con la plantilla humana genérica y la exportación renombra los huesos. El importador olvidó guardar el esqueleto y las animaciones quedaron huérfanas. La versión azul del jugador salió con manchas moradas, porque su rojo es más carmesí y caía en la zona de mezcla del recoloreo; ahora se mide el tono de cada personaje.
+- Captura: es una **vista previa**. Un script del editor les puso las figuras al jugador y a los minions en partida antes de que existiera el código del juego. César subió `UJamCharacterLook`, que lee el JSON, en menos de una hora tras el pedido.
+
+![Antes y después de los personajes](devlog/2026-11-14-personajes-rodin.png)
+
+---
+
 ## 14 nov — Props del mapa con Rodin: árboles, rocas, campamentos y molino (Javier + Claude Code) — provisional
 - Qué: las 128 mallas de decoración del mapa (árboles, matas de conos, hongos, flores, rocas, faroles, tiendas, letreros, los 4 campamentos y el molino) pasaron de primitivas de color plano a 25 modelos texturizados que se reusan, sin mover ningún actor del mapa.
 - Cómo con IA: Claude Code agrupó las mallas por su número de triángulos (las 82 `P_###` eran solo 9 formas), las renderizó en Blender para saber qué era cada una y generó los 25 modelos en **Rodin por MCP** (solo texto, con los hex de la paleta de `docs/ART.md` en el prompt; 12.5 créditos). Después, Blender headless encajó cada modelo en la caja de la malla vieja (6 en paralelo, 3.5 min para 115) y el importador las reemplazó en su lugar desde el editor.

@@ -90,3 +90,15 @@ los hex de la paleta de `docs/ART.md` (arenisca `#D8B989`, madera `#C9A06B`, fra
 aguja, letrero, 2 tiendas, arco, pilar, barril, cofre, caja, fogata, chatarra, molino) × 0.5 = **12.5 créditos** (14 nov;
 quedan ~410). Reemplazan 128 mallas de `MapDressed` en su lugar: lote `batch_props.json` (centro y caja de cada malla
 original), `normalize_batch.py -j 6` y `ue_import_tripo.py` con `"collision": "complex"`.
+
+### Personajes rigeados (Rodin por MCP)
+
+Rodin Gen-2.5 Medium, solo texto, pose A con brazos separados y sin armas ni capa (para que el rig salga limpio), estilo de
+`docs/ART.md` §6: jugador (gorro y bufanda de equipo, chaleco café, 6,000 polígonos), minion (túnica con capucha, 3,000),
+bot héroe (casco de hierro con gogles, 5,000) y guardia de campamento (casco de chatarra, túnica amarilla, 4,000). 4 modelos
+× 0.5 créditos + 4 rigs con `rodin_generate_rigging` (`bone_template: human`, `export_skeleton_type: ue5`, FBX,
+`in_place: true`, 10 animaciones del catálogo cada uno) (14 nov). `bone_template: human_UE` falla con estas animaciones
+("The skeleton must include a Hips bone"): se usa `human` y la exportación `ue5` renombra a los huesos de Manny.
+Azul = `scripts/team_recolor.py` (solo cambia el tono de la ropa roja). Importa `scripts/ue_import_chars.py` con
+`batch_chars.json` (IDs de Rodin de cada modelo y rig ahí); el código los toma de
+`Content/Game/Art/Tripo/Characters/Characters.json`.
