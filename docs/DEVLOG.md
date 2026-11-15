@@ -38,6 +38,16 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 14 nov — Props del mapa con Rodin: árboles, rocas, campamentos y molino (Javier + Claude Code) — provisional
+- Qué: las 128 mallas de decoración del mapa (árboles, matas de conos, hongos, flores, rocas, faroles, tiendas, letreros, los 4 campamentos y el molino) pasaron de primitivas de color plano a 25 modelos texturizados que se reusan, sin mover ningún actor del mapa.
+- Cómo con IA: Claude Code agrupó las mallas por su número de triángulos (las 82 `P_###` eran solo 9 formas), las renderizó en Blender para saber qué era cada una y generó los 25 modelos en **Rodin por MCP** (solo texto, con los hex de la paleta de `docs/ART.md` en el prompt; 12.5 créditos). Después, Blender headless encajó cada modelo en la caja de la malla vieja (6 en paralelo, 3.5 min para 115) y el importador las reemplazó en su lugar desde el editor.
+- Qué falló: encajar exacto en la caja vieja estiraba las copas de los árboles hasta 60 %; ahora cada modelo conserva su altura y sus proporciones (`fit: height`) y se gira 90° si así deforma menos. Las aspas viejas del molino flotaban sobre la torre: se usó un molino completo y se ocultaron (sin borrarlas). Una lista con finales de línea de Windows hizo que `git lfs lock` bloqueara rutas con un `\r` al final, que no existen: el editor no pudo guardar y hubo que liberar 115 bloqueos fantasma por ID.
+- Qué aprendimos: con `\r` el bloqueo sale "exitoso" pero no protege nada; siempre verificar con `git lfs locks` y que el archivo quede escribible. Costo: ~100k triángulos entre las 128 mallas; falta medir FPS en la GTX 1650.
+
+![Antes y después: pradera, cerros, molino y campamento](devlog/2026-11-14-props-rodin.png)
+
+---
+
 ## 14 nov — Torres, espada/arco y loot (Cesar + Claude Code)
 - **Torres:** a jugadores y bots les hacen 10 por disparo (+10 % por disparo seguido al mismo, tope ×1.5); los minions siguen con 20. Medido con `Jam.Goto 3300 0`: parado debajo mueres en 16 s (antes 12).
 - **Armas (`Source/GameJamm/Combat/`):** espada 20 de daño con empuje y arco con flecha física; nunca dañan aliados. Se probaron con un muñeco (`Jam.Dummy`, `Jam.Attack`) leyendo el log, sin pantalla.

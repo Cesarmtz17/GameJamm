@@ -59,6 +59,25 @@ siendo de su dueño: lo que el arte necesita de código se pide en la sección "
   coloca donde el rayo pega en el pasto, así quedan fuera caminos, árboles y bases). Densidad: `CLUSTER_M2`.
 - Si algo estorba (p. ej. tapa una mecánica), se puede borrar el actor `FOL_Scatter` sin tocar nada más.
 
+## Props del mapa (14 nov, Rodin) — PROVISIONAL
+
+- **128 mallas de `MapDressed` reemplazadas en su lugar** (mismo nombre y ruta; los actores de `L_Main` no cambiaron): 13
+  árboles, 33 matas de conos (ahora arbustos), 8 hongos, 13 flores, 16 rocas, 6 faroles, 2 agujas, 2 letreros de base, 2
+  tiendas (roja y azul), los 4 campamentos (arco, pilar, barril, cofre + tapa, caja, fogata, chatarra) y el molino.
+- 25 modelos compartidos (`SourceArt/Tripo/raw/SM_PROP_*`) con MI y texturas compartidas
+  (`Content/Game/Art/Tripo/Materials/MI_PROP_*`, `Textures/T_PROP_*`). Las flores reusan `MI_FOL_FLOWERS_A/B` de las matas.
+- **Misma base y casi la misma caja:** cada modelo conserva la altura de la malla vieja y sus propias proporciones
+  (`"fit": "height"`), así que el ancho puede variar unos cm. Colisión compleja `BlockAll` igual que antes.
+- **Cofres:** el cuerpo ahora toma la huella de su tapa (antes estaba girado respecto a ella); cuerpo y tapa salen del mismo
+  modelo partido en dos (`"zclip"`).
+- **Molino:** `SM_MAP_Dressed_Windmill_Base` es ahora el molino completo, con las aspas hacia el camino. Las aspas viejas
+  (`Windmill_Sail1/2`) flotaban sobre la torre: sus 2 actores de `L_Main` quedan **ocultos y sin colisión, no borrados**.
+- Costo: ~100k triángulos entre las 128 (antes 11k), sin LOD. **Falta medir FPS** en la GTX 1650.
+- Lote re-ejecutable: `SourceArt/Tripo/batch_props.json` → `normalize_batch.py -j 6` → importador. Si alguien regenera
+  `MapDressed` con `gen_map_dressed.py`, hay que repetirlo.
+- **Para el dueño del mapa (César):** arbustos, hongos y flores chocan (`BlockAll`), igual que los conos de antes. Si frenan
+  vehículos o bots, quitarles la colisión es decisión del mapa.
+
 ## No pisar
 
 - **No reimportar los FBX viejos** de `SourceArt/Building/FBX/` sobre `Content/Game/Building/Parts/`: reemplazaría el

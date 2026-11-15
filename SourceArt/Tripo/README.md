@@ -81,3 +81,12 @@ Saldo PBRgen al 14 nov ~17:00: 928 créditos.
 Rodin Gen-2.5 Medium, solo texto, `quality_override` 500; prompts en `batch_foliage.json` (prefijo "Stylized low-poly game
 asset, single object: …, chunky hand-painted toy-like style, matte finish"). Normalizadas a 290–390 tris y texturas 512.
 4 modelos × 0.5 = **2 créditos** (14 nov). Riego en el mapa: `scripts/ue_scatter_foliage.py`.
+
+### Props del mapa (Rodin por MCP)
+
+Rodin Gen-2.5 Medium, solo texto, `quality_override` 500–2,000 según el tamaño; mismo prefijo de estilo que las matas, más
+los hex de la paleta de `docs/ART.md` (arenisca `#D8B989`, madera `#C9A06B`, franjas neutrales `#F2C230`/`#1A1A1A`, rojo
+`#C94248`, azul `#355DC6`). 25 modelos `SM_PROP_*` (2 pinos, 2 árboles redondos, 2 arbustos, 2 hongos, 4 rocas, farol,
+aguja, letrero, 2 tiendas, arco, pilar, barril, cofre, caja, fogata, chatarra, molino) × 0.5 = **12.5 créditos** (14 nov;
+quedan ~410). Reemplazan 128 mallas de `MapDressed` en su lugar: lote `batch_props.json` (centro y caja de cada malla
+original), `normalize_batch.py -j 6` y `ue_import_tripo.py` con `"collision": "complex"`.
