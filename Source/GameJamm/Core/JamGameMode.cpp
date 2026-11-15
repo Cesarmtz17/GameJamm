@@ -67,6 +67,7 @@ void AJamGameMode::MatchTick()
 			It->AttackDamage *= 0.5f;
 		}
 		UE_LOG(LogJam, Log, TEXT("Muerte subita"));
+		JamMsg::Big(TEXT("MUERTE SUBITA: las torres pegan menos y reapareces mas tarde"), JamMsg::Warn, 5.f, TEXT("sudden"));
 		JamAudio::Music(this, TEXT("MUS_Match_Intense_Loop"), 0.45f);
 		OnSuddenDeath();
 	}

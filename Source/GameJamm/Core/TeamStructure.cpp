@@ -3,6 +3,7 @@
 #include "Core/JamStatics.h"
 #include "Core/JamGameMode.h"
 #include "Core/JamAudio.h"
+#include "Core/JamMessages.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
@@ -98,12 +99,17 @@ void ATeamStructure::HandleDied(UHealthComponent* HealthComponent, AActor* Kille
 	Mesh->SetHiddenInGame(true);
 	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	OnStructureDestroyed(Killer);
-	JamAudio::PlayAt(this, TEXT("SFX_Tower_Destroyed"), GetActorLocation(), 0.9f);
+	// Torre caida (GDD 9 y 10): evento de toda la partida, se oye y se avisa aunque el jugador este lejos.
+	JamAudio::Play2D(this, TEXT("SFX_Tower_Destroyed"), 0.7f);
 
 	if (AJamGameMode* GameMode = GetWorld()->GetAuthGameMode<AJamGameMode>())
 	{
+		const bool bEnemy = GetTeam() != GameMode->PlayerTeam;
+		JamMsg::Big(bIsBase ? (bEnemy ? TEXT("Cayo la base rival") : TEXT("Cayo tu base"))
+			: (bEnemy ? TEXT("Cayo una torre rival") : TEXT("Cayo una de tus torres")),
+			bEnemy ? JamMsg::Good : JamMsg::Bad, 4.f, TEXT("tower"));
 		// Fanfarria al caer una estructura enemiga (o la base de cualquiera); si cae una torre propia solo suena el derrumbe.
-		if (bIsBase || GetTeam() != GameMode->PlayerTeam)
+		if (bIsBase || bEnemy)
 		{
 			JamAudio::Play2D(this, TEXT("SFX_Fanfare"), 0.8f);
 		}
