@@ -2,6 +2,7 @@
 #include "Building/JamBuildPart.h"
 #include "Building/JamBuildSpawner.h"
 #include "Components/CapsuleComponent.h"
+#include "Core/JamCharacterLook.h"
 #include "Core/HealthComponent.h"
 #include "Core/JamGameMode.h"
 #include "Core/JamGameState.h"
@@ -21,6 +22,7 @@ AJamBotHero::AJamBotHero()
 	GetCharacterMovement()->MaxWalkSpeed = 520.f;
 	Health->MaxHealth = 150.f;
 	EnergyReward = 0.f;
+	Look->Key = TEXT("BotHero");
 	AggroRange = 1600.f;
 	BuildPrompts = { TEXT("un carro con lanzallamas"), TEXT("un tanque"), TEXT("una torreta con laser") };
 }

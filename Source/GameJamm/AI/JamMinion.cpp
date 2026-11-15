@@ -3,6 +3,7 @@
 #include "AIController.h"
 #include "Building/JamBuildPart.h"
 #include "Components/CapsuleComponent.h"
+#include "Core/JamCharacterLook.h"
 #include "Components/StaticMeshComponent.h"
 #include "Core/HealthComponent.h"
 #include "Core/JamGameState.h"
@@ -61,6 +62,8 @@ AJamMinion::AJamMinion()
 
 	Health = CreateDefaultSubobject<UHealthComponent>(TEXT("Health"));
 	Health->MaxHealth = 60.f;
+	Look = CreateDefaultSubobject<UJamCharacterLook>(TEXT("Look"));
+	Look->Key = TEXT("Minion");
 }
 
 void AJamMinion::InitAgent(EJamAgentKind InKind, EJamTeam InTeam)
@@ -243,6 +246,7 @@ bool AJamMinion::TryAttack(AActor* Target)
 	}
 	LastAttack = Now;
 	UGameplayStatics::ApplyDamage(Target, AttackDamage, GetController(), this, nullptr);
+	Look->PlayAction(AttackRange > 400.f ? TEXT("Shoot") : TEXT("Attack"));
 
 	if (AttackRange > 400.f)
 	{
@@ -307,6 +311,13 @@ void AJamMinion::HandleDied(UHealthComponent* HealthComponent, AActor* Killer)
 		AJamBuildPart::SetPlayerEnergy(GetWorld(), FMath::Min(150.f, AJamBuildPart::GetPlayerEnergy(GetWorld()) + EnergyReward));
 	}
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	SetActorHiddenInGame(true);
-	SetLifeSpan(0.2f);
+	if (Look->IsApplied())
+	{
+		SetLifeSpan(1.6f); // que se vea la animacion Death
+	}
+	else
+	{
+		SetActorHiddenInGame(true);
+		SetLifeSpan(0.2f);
+	}
 }

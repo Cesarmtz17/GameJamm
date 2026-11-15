@@ -3,6 +3,7 @@
 #include "Core/InventoryComponent.h"
 #include "Core/JamGameMode.h"
 #include "Core/JamLoot.h"
+#include "Core/JamCharacterLook.h"
 #include "GameJamm.h"
 #include "Core/JamPickup.h"
 #include "Building/JamBuildPart.h"
@@ -22,6 +23,8 @@ AJamCharacter::AJamCharacter()
 
 	Inventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("Inventory"));
 	Weapon = CreateDefaultSubobject<UJamWeaponComponent>(TEXT("Weapon"));
+	Look = CreateDefaultSubobject<UJamCharacterLook>(TEXT("Look"));
+	Look->Key = TEXT("Player");
 	// GDD 4: apareces casi sin nada; lo primero sale del cofre garantizado junto al spawn (Loot.json "starter").
 }
 

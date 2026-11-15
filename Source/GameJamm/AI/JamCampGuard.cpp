@@ -1,5 +1,6 @@
 #include "AI/JamCampGuard.h"
 #include "Core/HealthComponent.h"
+#include "Core/JamCharacterLook.h"
 #include "Core/JamPickup.h"
 #include "GameJamm.h"
 #include "Engine/OverlapResult.h"
@@ -14,6 +15,7 @@ AJamCampGuard::AJamCampGuard()
 void AJamCampGuard::InitGuard(bool bInThrower, const FVector& InHome)
 {
 	bThrower = bInThrower;
+	Look->Key = bThrower ? TEXT("Thrower") : TEXT("Guard");
 	Home = InHome;
 	Health->Team = EJamTeam::Neutral;
 	Kind = bThrower ? EJamAgentKind::Ranged : EJamAgentKind::Melee;

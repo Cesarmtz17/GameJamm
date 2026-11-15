@@ -7,6 +7,7 @@
 
 class UHealthComponent;
 class UStaticMeshComponent;
+class UJamCharacterLook;
 
 /** Tipo de agente: minions del carril (GDD 3) y roles de bot heroe (GDD 11). */
 UENUM(BlueprintType)
@@ -49,6 +50,10 @@ public:
 	/** Rayo visible del ataque a distancia. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Jam")
 	TObjectPtr<UStaticMeshComponent> Bolt;
+
+	/** Figura rigeada (Characters.json: Minion, BotHero, Guard o Thrower); sin ella queda el cilindro. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Jam")
+	TObjectPtr<UJamCharacterLook> Look;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Jam")
 	EJamAgentKind Kind = EJamAgentKind::Melee;

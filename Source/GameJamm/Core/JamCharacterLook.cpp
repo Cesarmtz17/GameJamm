@@ -1,0 +1,249 @@
+#include "Core/JamCharacterLook.h"
+#include "Core/HealthComponent.h"
+#include "Combat/JamWeaponComponent.h"
+#include "GameJamm.h"
+#include "Animation/AnimSequenceBase.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Dom/JsonObject.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/World.h"
+#include "GameFramework/Character.h"
+#include "Materials/MaterialInterface.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+
+namespace
+{
+	TSharedPtr<FJsonObject> CharactersConfig()
+	{
+		static TSharedPtr<FJsonObject> Cached;
+		static bool bTried = false;
+		if (!bTried)
+		{
+			bTried = true;
+			FString Text;
+			const FString Path = FPaths::ProjectContentDir() / TEXT("Game/Art/Tripo/Characters/Characters.json");
+			if (!FFileHelper::LoadFileToString(Text, *Path) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Cached))
+			{
+				Cached.Reset();
+				UE_LOG(LogJam, Log, TEXT("Look: sin %s, personajes con cilindro"), *Path);
+			}
+		}
+		return Cached;
+	}
+
+	bool IsHidden(const UStaticMeshComponent* C)
+	{
+		const FName N = C->GetFName();
+		return N == TEXT("Body") || N == TEXT("Nose") || N == TEXT("Head");
+	}
+}
+
+UJamCharacterLook::UJamCharacterLook()
+{
+	PrimaryComponentTick.bCanEverTick = true;
+}
+
+void UJamCharacterLook::BeginPlay()
+{
+	Super::BeginPlay();
+	bApplied = Apply();
+	if (!bApplied)
+	{
+		SetComponentTickEnabled(false);
+		return;
+	}
+	if (UJamWeaponComponent* W = GetOwner()->FindComponentByClass<UJamWeaponComponent>()) { W->OnWeaponAttack.AddDynamic(this, &UJamCharacterLook::HandleWeaponAttack); }
+	if (UHealthComponent* H = GetOwner()->FindComponentByClass<UHealthComponent>()) { H->OnHealthChanged.AddDynamic(this, &UJamCharacterLook::HandleHealthChanged); }
+}
+
+bool UJamCharacterLook::Apply()
+{
+	ACharacter* Char = Cast<ACharacter>(GetOwner());
+	const TSharedPtr<FJsonObject> Cfg = CharactersConfig();
+	const TSharedPtr<FJsonObject>* Entry = nullptr;
+	if (!Char || !Char->GetMesh() || !Cfg.IsValid() || !Cfg->TryGetObjectField(Key.ToString(), Entry))
+	{
+		return false;
+	}
+	FString MeshPath;
+	(*Entry)->TryGetStringField(TEXT("Mesh"), MeshPath);
+	USkeletalMesh* Mesh = MeshPath.IsEmpty() ? nullptr : LoadObject<USkeletalMesh>(nullptr, *MeshPath);
+	if (!Mesh)
+	{
+		UE_LOG(LogJam, Warning, TEXT("Look %s: no carga la malla '%s', queda el cilindro"), *Key.ToString(), *MeshPath);
+		return false;
+	}
+
+	USkeletalMeshComponent* SK = Char->GetMesh();
+	SK->SetSkeletalMesh(Mesh);
+	FVector Offset = FVector::ZeroVector;
+	const TArray<TSharedPtr<FJsonValue>>* Off = nullptr;
+	if ((*Entry)->TryGetArrayField(TEXT("Offset"), Off) && Off->Num() == 3)
+	{
+		Offset = FVector((*Off)[0]->AsNumber(), (*Off)[1]->AsNumber(), (*Off)[2]->AsNumber());
+	}
+	double Yaw = 0.0, Scale = 1.0, Run = 220.0;
+	(*Entry)->TryGetNumberField(TEXT("Yaw"), Yaw);
+	(*Entry)->TryGetNumberField(TEXT("Scale"), Scale);
+	(*Entry)->TryGetNumberField(TEXT("RunAbove"), Run);
+	RunAbove = float(Run);
+	SK->SetRelativeLocationAndRotation(Offset, FRotator(0.f, float(Yaw), 0.f));
+	SK->SetRelativeScale3D(FVector(float(Scale)));
+	SK->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SK->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	SK->SetVisibility(true);
+	SK->SetHiddenInGame(false);
+	if (!Char->IsPlayerControlled()) { SK->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered; }
+
+	const TSharedPtr<FJsonObject>* Mats = nullptr;
+	if ((*Entry)->TryGetObjectField(TEXT("Materials"), Mats))
+	{
+		const TPair<const TCHAR*, EJamTeam> Teams[] = { { TEXT("Red"), EJamTeam::Red }, { TEXT("Blue"), EJamTeam::Blue }, { TEXT("Neutral"), EJamTeam::Neutral } };
+		for (const auto& T : Teams)
+		{
+			FString P;
+			if ((*Mats)->TryGetStringField(T.Key, P))
+			{
+				if (UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, *P)) { TeamMaterials.Add(T.Value, M); }
+			}
+		}
+	}
+
+	const TSharedPtr<FJsonObject>* AnimObj = nullptr;
+	if ((*Entry)->TryGetObjectField(TEXT("Anims"), AnimObj))
+	{
+		for (const auto& It : (*AnimObj)->Values)
+		{
+			const TSharedPtr<FJsonObject> A = It.Value->AsObject();
+			FString P;
+			if (!A.IsValid() || !A->TryGetStringField(TEXT("Asset"), P)) { continue; }
+			UAnimSequenceBase* Seq = LoadObject<UAnimSequenceBase>(nullptr, *P);
+			if (!Seq) { UE_LOG(LogJam, Warning, TEXT("Look %s: no carga la animacion %s"), *Key.ToString(), *P); continue; }
+			FAnim& Out = Anims.Add(FName(*It.Key));
+			Out.Asset = Seq;
+			double V = 0.0;
+			if (A->TryGetNumberField(TEXT("Speed"), V)) { Out.Speed = float(V); }
+			if (A->TryGetNumberField(TEXT("Rate"), V)) { Out.Rate = float(V); }
+			Keep.Add(Seq);
+		}
+	}
+
+	// El cuerpo de cilindros se oculta; arma y demas piezas siguen visibles.
+	TArray<UStaticMeshComponent*> Statics;
+	Char->GetComponents<UStaticMeshComponent>(Statics);
+	for (UStaticMeshComponent* C : Statics) { if (IsHidden(C)) { C->SetVisibility(false); } }
+
+	UE_LOG(LogJam, Log, TEXT("Look %s: %s con %d animaciones"), *Key.ToString(), *GetOwner()->GetName(), Anims.Num());
+	Play(TEXT("Idle"), true, 1.f);
+	return true;
+}
+
+const UJamCharacterLook::FAnim* UJamCharacterLook::Find(FName State) const
+{
+	const FAnim* A = Anims.Find(State);
+	return A ? A : Anims.Find(TEXT("Idle"));
+}
+
+void UJamCharacterLook::Play(FName State, bool bLoop, float Rate)
+{
+	ACharacter* Char = Cast<ACharacter>(GetOwner());
+	const FAnim* A = Find(State);
+	if (!Char || !A || !A->Asset)
+	{
+		return;
+	}
+	if (State != Current)
+	{
+		Char->GetMesh()->PlayAnimation(A->Asset, bLoop);
+		Current = State;
+	}
+	Char->GetMesh()->SetPlayRate(Rate);
+}
+
+void UJamCharacterLook::PlayAction(FName Action)
+{
+	if (!bApplied)
+	{
+		return;
+	}
+	const FAnim* A = Anims.Find(Action);
+	if (!A || !A->Asset)
+	{
+		return;
+	}
+	Current = NAME_None; // la reinicia aunque sea la misma
+	Play(Action, false, A->Rate);
+	ActionUntil = GetWorld()->GetTimeSeconds() + A->Asset->GetPlayLength() / FMath::Max(0.1f, A->Rate);
+}
+
+void UJamCharacterLook::HandleWeaponAttack(UJamWeaponComponent* InWeapon, EJamWeapon Kind)
+{
+	PlayAction(Kind == EJamWeapon::Bow ? TEXT("Shoot") : TEXT("Attack"));
+}
+
+void UJamCharacterLook::HandleHealthChanged(UHealthComponent* HealthComponent, float NewHealth, float Delta)
+{
+	if (Delta < 0.f && NewHealth > 0.f && GetWorld()->GetTimeSeconds() >= ActionUntil) { PlayAction(TEXT("Hit")); }
+}
+
+void UJamCharacterLook::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	ACharacter* Char = Cast<ACharacter>(GetOwner());
+	const UHealthComponent* H = Char ? Char->FindComponentByClass<UHealthComponent>() : nullptr;
+	if (!Char)
+	{
+		return;
+	}
+	USkeletalMeshComponent* SK = Char->GetMesh();
+
+	// Equipo: el jugador lo recibe despues de BeginPlay (SetPlayerDefaults), por eso se compara aqui.
+	if (H && (!bHasTeam || H->Team != LastTeam))
+	{
+		bHasTeam = true;
+		LastTeam = H->Team;
+		if (const TObjectPtr<UMaterialInterface>* M = TeamMaterials.Find(LastTeam)) { SK->SetMaterial(0, *M); }
+	}
+
+	// Primera persona (V): el toggle solo cambia Body/Nose; se copia a la figura.
+	TArray<UStaticMeshComponent*> Statics;
+	Char->GetComponents<UStaticMeshComponent>(Statics);
+	for (UStaticMeshComponent* C : Statics)
+	{
+		if (C->GetFName() == TEXT("Body")) { SK->SetOwnerNoSee(C->bOwnerNoSee); }
+		if (IsHidden(C) && C->IsVisible()) { C->SetVisibility(false); } // por si alguien lo vuelve a prender
+	}
+
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (H && H->IsDead())
+	{
+		if (Current != TEXT("Death")) { const FAnim* A = Anims.Find(TEXT("Death")); Play(TEXT("Death"), false, A ? A->Rate : 1.f); }
+		return;
+	}
+	if (Current == TEXT("Death")) { Current = NAME_None; } // reaparecio
+	if (Char->GetAttachParentActor())
+	{
+		Play(TEXT("Sit"), true, 1.f);
+		return;
+	}
+	if (Now < ActionUntil)
+	{
+		return;
+	}
+	const float Speed = Char->GetVelocity().Size2D();
+	if (Speed > 20.f)
+	{
+		const FName State = Speed > RunAbove * Char->GetActorScale3D().X ? FName(TEXT("Run")) : FName(TEXT("Walk"));
+		const FAnim* A = Find(State);
+		const float Base = A && A->Speed > 0.f ? A->Speed * Char->GetActorScale3D().X : Speed;
+		Play(State, true, FMath::Clamp(Speed / Base, 0.5f, 2.f));
+	}
+	else
+	{
+		Play(TEXT("Idle"), true, 1.f);
+	}
+}

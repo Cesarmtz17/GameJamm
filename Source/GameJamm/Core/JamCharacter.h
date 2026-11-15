@@ -4,6 +4,7 @@
 #include "Building/JamPlayConsole.h"
 #include "JamCharacter.generated.h"
 
+class UJamCharacterLook;
 class UHealthComponent;
 class UInventoryComponent;
 class UJamWeaponComponent;
@@ -30,6 +31,10 @@ public:
 	/** Espada y arco (Combat): a pie, clic izq. ataca y rueda del mouse o Q cambia de arma. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Jam")
 	TObjectPtr<UJamWeaponComponent> Weapon;
+
+	/** Figura rigeada (Characters.json, clave Player); sin ella queda el cilindro. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Jam")
+	TObjectPtr<UJamCharacterLook> Look;
 
 	/** Piezas con las que se empieza (IDs Part.<Tipo>) hasta que exista loot; construir las consume y desarmar las devuelve. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Jam")

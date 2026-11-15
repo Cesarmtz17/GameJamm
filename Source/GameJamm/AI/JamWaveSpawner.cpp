@@ -1,5 +1,7 @@
 #include "AI/JamWaveSpawner.h"
 #include "AI/JamBotHero.h"
+#include "AI/JamCampGuard.h"
+#include "GameFramework/PlayerController.h"
 #include "Core/HealthComponent.h"
 #include "Core/JamGameState.h"
 #include "Engine/World.h"
@@ -147,6 +149,37 @@ namespace
 		}
 		UE_LOG(LogJam, Log, TEXT("Perfil carril: %s"), *Line);
 	}
+	// Jam.Minion [red|blue] [dist] [melee|ranged|heavy|guard|thrower|bot]: pone uno quieto-ish frente al jugador (pruebas de figura/animacion).
+	void JamMinionCmd(const TArray<FString>& Args, UWorld* World)
+	{
+		APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+		APawn* Pawn = PC ? PC->GetPawn() : nullptr;
+		if (!Pawn) { return; }
+		const FRotator Yaw(0.f, PC->GetControlRotation().Yaw, 0.f);
+		const float Dist = Args.Num() > 1 ? FCString::Atof(*Args[1]) : 400.f;
+		const FTransform T(Yaw + FRotator(0, 180, 0), Pawn->GetActorLocation() + Yaw.Vector() * Dist + FVector(0, 0, 60));
+		const EJamTeam Team = Args.Num() > 0 && Args[0].Equals(TEXT("red"), ESearchCase::IgnoreCase) ? EJamTeam::Red : EJamTeam::Blue;
+		const FString What = Args.Num() > 2 ? Args[2].ToLower() : TEXT("melee");
+		if (What == TEXT("guard") || What == TEXT("thrower"))
+		{
+			if (AJamCampGuard* G = World->SpawnActorDeferred<AJamCampGuard>(AJamCampGuard::StaticClass(), T, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn))
+			{
+				G->InitGuard(What == TEXT("thrower"), T.GetLocation());
+				G->FinishSpawning(T);
+				G->SpawnDefaultController();
+			}
+			return;
+		}
+		UClass* Class = What == TEXT("bot") ? AJamBotHero::StaticClass() : AJamMinion::StaticClass();
+		const EJamAgentKind Kind = What == TEXT("ranged") ? EJamAgentKind::Ranged : What == TEXT("heavy") ? EJamAgentKind::Heavy : What == TEXT("bot") ? EJamAgentKind::Fighter : EJamAgentKind::Melee;
+		if (AJamMinion* M = World->SpawnActorDeferred<AJamMinion>(Class, T, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn))
+		{
+			M->InitAgent(Kind, Team);
+			M->FinishSpawning(T);
+			M->SpawnDefaultController();
+		}
+	}
+	FAutoConsoleCommandWithWorldAndArgs CmdMinion(TEXT("Jam.Minion"), TEXT("Jam.Minion [red|blue] [dist] [melee|ranged|heavy|guard|thrower|bot]: pone un agente frente al jugador."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamMinionCmd));
 	FAutoConsoleCommandWithWorldAndArgs CmdProfile(TEXT("Jam.Profile"), TEXT("Altura del piso a lo largo del carril (log)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamProfile));
 	FAutoConsoleCommandWithWorldAndArgs CmdAgents(TEXT("Jam.Agents"), TEXT("Lista minions y bots vivos (posicion y vida) en el log."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamAgents));
 	FAutoConsoleCommandWithWorldAndArgs CmdWave(TEXT("Jam.Wave"), TEXT("Saca una oleada de minions ya."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamWave));

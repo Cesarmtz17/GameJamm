@@ -3,6 +3,7 @@
 //   Jam.Pos                escribe la posicion del jugador en el log y en pantalla
 //   Jam.Time <segundos>    adelanta el reloj de la partida (720 = muerte subita, 899 = fin por vida)
 //   Jam.Hurt <dano>        se hace dano a uno mismo (probar muerte y respawn)
+//   Jam.ShotIn <seg>       en N s guarda una captura en Saved/Screenshots (pruebas sin pantalla)
 //   Jam.Ground X0 X1 Y0 Y1 [paso]  mapa de suelo en el log (# = hay piso, . = hueco) para buscar donde se caen los agentes
 #include "Core/JamGameState.h"
 #include "Core/HealthComponent.h"
@@ -13,6 +14,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "GameJamm.h"
+#include "TimerManager.h"
 
 namespace
 {
@@ -94,6 +96,20 @@ namespace
 			UE_LOG(LogJam, Log, TEXT("Y=%6.0f %s"), Y, *Row);
 		}
 	}
+	void JamShotIn(const TArray<FString>& Args, UWorld* World)
+	{
+		if (!World || Args.Num() < 1) { return; }
+		const float Delay = FMath::Max(0.1f, FCString::Atof(*Args[0]));
+		FTimerHandle H;
+		World->GetTimerManager().SetTimer(H, FTimerDelegate::CreateLambda([World]()
+		{
+			APlayerController* PC = World->GetFirstPlayerController();
+			if (PC) { PC->ConsoleCommand(TEXT("HighResShot 1")); }
+			UE_LOG(LogJam, Log, TEXT("Jam.ShotIn: captura pedida"));
+		}), Delay, false);
+	}
+	FAutoConsoleCommandWithWorldAndArgs CmdShotIn(TEXT("Jam.ShotIn"), TEXT("Jam.ShotIn <seg>: en N s guarda una captura en Saved/Screenshots."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamShotIn));
+
 	FAutoConsoleCommandWithWorldAndArgs CmdGround(TEXT("Jam.Ground"), TEXT("Jam.Ground X0 X1 Y0 Y1 [paso]: mapa de suelo en el log (# piso, ^ alto, . hueco)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamGround));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdGoto(TEXT("Jam.Goto"), TEXT("Jam.Goto <X> <Y> [Z]: teletransporta al jugador."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&JamGoto));
