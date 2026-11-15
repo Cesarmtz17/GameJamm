@@ -141,6 +141,22 @@ caminar y al atacar. Sin figura, todo queda como hoy.
 > Para afinar en vivo: `Jam.Grip P Y R GX GY GZ hueso`, `Jam.Cam dist angulo alto` (cámara fija), `ShowHUD` y
 > `Jam.Later seg comando`. `SitOffset` ya se aplica al reproducir `Sit`.
 
+> [!success] Verificado por Javier en PIE (14 nov, ~21:20) y afinado en `Characters.json` (`319572c`)
+> - **Espada:** bien en `hand_l`, apunta al frente; sin cambios.
+> - **Arco:** con `BowRot [0,-90,90]` quedaba de canto y detrás del brazo; desde la cámara solo se veía la cuerda. Ahora
+>   va inclinado hacia afuera: `BowRot [-84.3,-25.2,-122.6]`, `BowGrip [13,0,0]`.
+> - **Sentado:** el jugador queda bien con `SitOffset -40` (pelvis a 17 cm sobre el asiento). El bot héroe tiene escala
+>   de actor 1.1 (`JamBotHero.cpp:77`): con −40 quedaba ~9 cm más hundido, así que va a `-30`.
+> - **Muerte:** jugador y bot héroe ya no se esconden al instante, sino 2 s después y solo si siguen muertos (`40eb197`,
+>   aviso a César). `Death.Rate` del jugador sube a 2.0: cae a ~1.1 s, queda en el suelo y se esconde a los 2 s.
+>   Minion y bot héroe también se ven caer.
+> - **Detalle menor para César (no bloquea):** en vista V el arma sigue pegada a la mano de la figura, que es invisible
+>   para el dueño. Mirando al frente no se ve el arma; mirando hacia abajo la espada flota sola. Antes de la figura
+>   pasaba algo parecido.
+> - **Build Shipping** de prueba OK (6 min 49 s, 0 errores; arranca, figuras y mapa cargan). En Shipping no hay consola
+>   y no corre `-ExecCmds`. El panel "Cómo jugar" todavía anuncia "~ consola" y "Consola: Jam.Say…" (es de UI: avisar
+>   si se quiere quitar).
+
 ### Personajes (César; aviso a Jesús): figuras rigeadas — HECHO (`08a1bdb`, empaquetado `a574410`)
 
 > [!success] Estado (14 nov, 19:45)

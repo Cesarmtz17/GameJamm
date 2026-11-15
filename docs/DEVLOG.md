@@ -38,6 +38,19 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 14 nov — Arco, asiento y muerte de las figuras afinados en PIE (Javier + Claude Code)
+
+![Arco antes y después, jugador sentado en el carro y muerte a 1.1, 1.6 y 2.3 s](devlog/2026-11-14-personajes2-arma-muerte.png)
+
+- **Qué:** después de que César pegó las armas a la mano, Claude Code revisó en PIE la espada, el arco, la vista V, el asiento y la muerte. Los valores se cambiaron en `Characters.json`, sin recompilar.
+- **Cómo, sin tocar la pantalla de Javier:** todo se hizo con scripts de Python del editor vía MCP. Uno calcula el giro del arco **en el hueso de la mano** a partir del giro deseado respecto al personaje y lo prueba con `Jam.Grip`. Otro mide en la pose `Sit` a qué altura queda la pelvis sobre la raíz de cada figura. Las capturas a tiempos exactos salen con `Jam.ShotIn` (0.6, 1.1, 1.6 y 2.3 s después de morir).
+- **Qué se arregló:**
+  - El arco iba de canto y detrás del brazo; desde la cámara normal solo se veía la cuerda. Ahora va inclinado hacia afuera.
+  - El bot héroe tiene escala de actor 1.1, así que con el mismo ajuste de asiento que el jugador se hundía ~9 cm. Ahora tiene su propio valor.
+  - La muerte del jugador y del bot héroe no se veía porque el código los escondía al instante. Ahora se esconden 2 s después (con aviso a César, dueño del código).
+- **Qué falló en las pruebas:** la primera medición de la pose sentada salió igual que de pie. Las figuras invocadas fuera de cámara no actualizan huesos (`OnlyTickPoseWhenRendered`); con `AlwaysTickPoseAndRefreshBones` coincidió con lo medido en el carro (49.8 contra 49.7 cm). La primera toma de la muerte la tapó el cofre de botín, grande porque el jugador llevaba 20 piezas de cada tipo.
+- **Build Shipping** (la del jurado) de prueba: compila y arranca a la partida con figuras y mapa. En Shipping `-ExecCmds` no corre, así que la prueba fue solo visual, con captura de la ventana desde fuera.
+
 ## 14 nov — Bots que manejan sus carros, trampas de lanzallamas y armas en la mano (Cesar + Claude Code)
 
 - **Bots:** el Constructor ya no deja su carro solo: se sube y lo maneja con las mismas reglas que el jugador (giro diferencial, par de guiñada, ayuda de estabilidad). El Peleador pone torretas de lanzallamas/hielo a un lado del carril que se encienden al pasar enemigos. Todo por APIs públicas de Construcción.
