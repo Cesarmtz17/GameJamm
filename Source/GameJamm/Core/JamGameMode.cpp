@@ -3,6 +3,7 @@
 #include "Core/JamCharacter.h"
 #include "Core/JamGameState.h"
 #include "Core/JamHUD.h"
+#include "Core/JamLootDirector.h"
 #include "Core/JamStatics.h"
 #include "Core/HealthComponent.h"
 #include "Core/TeamStructure.h"
@@ -38,6 +39,7 @@ void AJamGameMode::StartPlay()
 		{
 			GetWorld()->SpawnActor<AJamWaveSpawner>();
 		}
+		GetWorld()->SpawnActor<AJamLootDirector>(); // GDD 4: cofres, chatarra y cofre raro (Content/Game/Core/Data/Loot.json)
 	}
 }
 

@@ -1,0 +1,68 @@
+{
+  "_doc": "Loot de la partida (GDD 4, 5 y 12). Lo lee AJamLootDirector al empezar. Posiciones en cm del mapa L_Main (map_layout.json); la Z se busca sola con un rayo al suelo.",
+  "caps": {
+    "total_parts": 40,
+    "common": 8,
+    "device": 4,
+    "rare": 2,
+    "material": 10,
+    "common_types": ["Plank", "Block", "Cylinder", "Wheel", "Panel", "Wall", "Deck", "Rod"],
+    "rare_types": ["Jet", "Turbine", "Beam", "HoverStone", "Rocket", "BigWheel"]
+  },
+  "tables": {
+    "common": { "rolls": 3, "items": [
+      { "id": "Part.Plank", "weight": 4, "min": 1, "max": 2 },
+      { "id": "Part.Wheel", "weight": 4, "min": 2, "max": 4 },
+      { "id": "Part.Block", "weight": 3, "min": 1, "max": 2 },
+      { "id": "Part.Cylinder", "weight": 2, "min": 1, "max": 2 },
+      { "id": "Part.Panel", "weight": 1, "min": 1, "max": 1 },
+      { "id": "Mat.Rock", "weight": 2, "min": 1, "max": 2 },
+      { "id": "Mat.Fire", "weight": 2, "min": 1, "max": 1 },
+      { "id": "Mat.Ice", "weight": 1, "min": 1, "max": 1 }
+    ]},
+    "device": { "rolls": 2, "items": [
+      { "id": "Part.Fan", "weight": 3, "min": 1, "max": 2 },
+      { "id": "Part.Flamethrower", "weight": 3, "min": 1, "max": 1 },
+      { "id": "Part.Cannon", "weight": 2, "min": 1, "max": 1 },
+      { "id": "Part.Battery", "weight": 2, "min": 1, "max": 1 },
+      { "id": "Part.Spring", "weight": 1, "min": 1, "max": 1 },
+      { "id": "Part.Wing", "weight": 1, "min": 1, "max": 2 },
+      { "id": "Mat.Shock", "weight": 1, "min": 1, "max": 1 },
+      { "id": "Mat.Bomb", "weight": 1, "min": 1, "max": 1 },
+      { "id": "Energy", "weight": 2, "min": 15, "max": 15 }
+    ]},
+    "rare": { "rolls": 2, "items": [
+      { "id": "Part.Jet", "weight": 2, "min": 1, "max": 1 },
+      { "id": "Part.Turbine", "weight": 2, "min": 1, "max": 1 },
+      { "id": "Part.Beam", "weight": 1, "min": 1, "max": 1 },
+      { "id": "Part.HoverStone", "weight": 2, "min": 1, "max": 2 },
+      { "id": "Part.Rocket", "weight": 2, "min": 1, "max": 1 },
+      { "id": "Part.BigWheel", "weight": 2, "min": 2, "max": 2 },
+      { "id": "Energy", "weight": 2, "min": 40, "max": 40 }
+    ]},
+    "scrap": { "rolls": 1, "items": [
+      { "id": "Part.Plank", "weight": 3, "min": 1, "max": 2 },
+      { "id": "Part.Block", "weight": 2, "min": 1, "max": 2 },
+      { "id": "Part.Wheel", "weight": 2, "min": 1, "max": 2 },
+      { "id": "Part.Cylinder", "weight": 1, "min": 1, "max": 1 }
+    ]}
+  },
+  "starter": {
+    "x": -10450, "y": 380,
+    "items": { "Part.Plank": 1, "Part.Wheel": 4, "Part.Flamethrower": 1, "Part.Fan": 1, "Mat.Fire": 1 },
+    "message": "Presiona B y escribe lo que quieras construir. Prueba: un carro que queme todo"
+  },
+  "chests": [
+    { "tier": "common", "x": -8600, "y": -3600, "respawn": 60 },
+    { "tier": "common", "x": 8600, "y": 3600, "respawn": 60 },
+    { "tier": "device", "x": -4000, "y": 6000, "respawn": 90 },
+    { "tier": "device", "x": 4000, "y": -6000, "respawn": 90 }
+  ],
+  "rare_event": { "x": 0, "y": 600, "first": 300, "every": 180 },
+  "scrap": [
+    { "x": -5600, "y": 300 }, { "x": -2600, "y": -500 }, { "x": 2600, "y": 500 }, { "x": 5600, "y": 300 }
+  ],
+  "scrap_respawn": 45,
+  "death_bag_seconds": 30,
+  "energy": { "min": 50, "max": 150 }
+}

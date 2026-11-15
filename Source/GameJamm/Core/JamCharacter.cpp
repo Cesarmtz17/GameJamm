@@ -2,6 +2,9 @@
 #include "Core/HealthComponent.h"
 #include "Core/InventoryComponent.h"
 #include "Core/JamGameMode.h"
+#include "Core/JamLoot.h"
+#include "GameJamm.h"
+#include "Core/JamPickup.h"
 #include "Building/JamBuildPart.h"
 #include "Combat/JamWeaponComponent.h"
 #include "Blueprint/UserWidget.h"
@@ -19,10 +22,7 @@ AJamCharacter::AJamCharacter()
 
 	Inventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("Inventory"));
 	Weapon = CreateDefaultSubobject<UJamWeaponComponent>(TEXT("Weapon"));
-	StartingItems = {
-		{ "Part.Plank", 8 }, { "Part.Wheel", 4 }, { "Part.Block", 4 }, { "Part.Wall", 2 }, { "Part.Beam", 2 },
-		{ "Part.Rocket", 1 }, { "Part.Flamethrower", 1 }, { "Part.Cannon", 1 }, { "Part.Fan", 2 },
-		{ "Part.Balloon", 2 }, { "Part.Battery", 1 } };
+	// GDD 4: apareces casi sin nada; lo primero sale del cofre garantizado junto al spawn (Loot.json "starter").
 }
 
 void AJamCharacter::BeginPlay()
@@ -74,6 +74,29 @@ void AJamCharacter::HandleDied(UHealthComponent* HealthComponent, AActor* Killer
 {
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// GDD 4 (ya sin colision, para no recogerla uno mismo): bolsa con el 50 % de tus piezas y materiales (redondeado abajo) y orbe con el 50 % de la energia sobre el minimo.
+	TMap<FName, int32> Bag;
+	if (Inventory)
+	{
+		for (const auto& It : Inventory->Items) { if (It.Value / 2 > 0) { Bag.Add(It.Key, It.Value / 2); } }
+		for (const auto& It : Bag) { Inventory->RemoveItem(It.Key, It.Value); }
+	}
+	float OrbEnergy = 0.f;
+	if (IsPlayerControlled())
+	{
+		const float Have = AJamBuildPart::GetPlayerEnergy(GetWorld());
+		const float Min = JamLoot::EnergyMin();
+		if (Have > Min)
+		{
+			OrbEnergy = FMath::FloorToFloat((Have - Min) * 0.5f);
+			AJamBuildPart::SetPlayerEnergy(GetWorld(), Min);
+		}
+	}
+	double BagLife = 30.0;
+	JamLoot::Config()->TryGetNumberField(TEXT("death_bag_seconds"), BagLife);
+	AJamPickup::SpawnBundle(GetWorld(), GetActorLocation(), Bag, OrbEnergy, float(BagLife));
+	UE_LOG(LogJam, Log, TEXT("%s suelta bolsa: %s (+%.0f energia)"), *GetName(), *JamLoot::Describe(Bag), OrbEnergy);
+
 	SetActorHiddenInGame(true);
 
 	if (AJamGameMode* GameMode = GetWorld()->GetAuthGameMode<AJamGameMode>())
