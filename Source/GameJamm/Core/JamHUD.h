@@ -49,6 +49,8 @@ class GAMEJAMM_API AJamHUD : public AJamTestHUD
 
 public:
 	virtual void DrawHUD() override;
+	virtual void NotifyHitBoxClick(FName BoxName) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/** Presenta solo lo recibido; false permite conservar el aviso de texto si se usa otro HUD. */
 	static bool ShowLoot(AActor* Taker, const TMap<FName, int32>& Offered, const TMap<FName, int32>& Leftover,
@@ -58,6 +60,14 @@ public:
 	static void ShowDamage(AActor* Source, AActor* Target, float ActualDamage, FName Effect);
 
 private:
+	void UpdateBackpackInput(bool bEnabled);
+	void RestoreBackpackCursor(bool bReturnToGame);
+	bool bBackpackExpanded = true;
+	bool bBackpackCursorOwned = false;
+	bool bBackpackPreviousCursor = false;
+	bool bBackpackPreviousClickEvents = false;
+	TWeakObjectPtr<APlayerController> BackpackCursorController;
+
 	void DrawDamageNotices();
 	TArray<FJamHudDamageNotice> DamageNotices;
 

@@ -19,6 +19,8 @@ AJamArrow::AJamArrow()
 	Collision->SetCollisionResponseToAllChannels(ECR_Block);
 	Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	Collision->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	// Flight collision still uses object channels; aiming and hit feedback must not see the projectile as a wall.
+	Collision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
 	Collision->SetGenerateOverlapEvents(true);
 	RootComponent = Collision;
 

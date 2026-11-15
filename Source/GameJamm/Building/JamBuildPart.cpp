@@ -57,8 +57,8 @@ static TAutoConsoleVariable<int32> CVarJamFx(TEXT("jam.Build.Fx"), 1, TEXT("1 = 
 static TAutoConsoleVariable<int32> CVarJamDebug(TEXT("jam.Build.Debug"), 0,
 	TEXT("1 = la pieza raiz de cada construccion escribe en el log su posicion, velocidad y energia cada segundo."));
 
-static TAutoConsoleVariable<int32> CVarJamPartHealth(TEXT("jam.Build.PartHealth"), 0,
-	TEXT("1 = las piezas tienen vida (Content/Game/Building/Data/PartHealth.json): a 0 se sueltan y se apagan. 0 = invulnerables como antes (por defecto hasta probarlo en PIE); las piezas creadas con 0 no llevan componente de vida: ponlo en 1 ANTES de pedir la construccion."));
+static TAutoConsoleVariable<int32> CVarJamPartHealth(TEXT("jam.Build.PartHealth"), 1,
+	TEXT("1 = build parts have health (Content/Game/Building/Data/PartHealth.json); destroyed parts detach and switch off. 0 = disable part damage for newly created builds. Set before requesting a build."));
 
 namespace
 {

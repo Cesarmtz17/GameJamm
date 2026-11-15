@@ -1,4 +1,5 @@
 #include "Core/JamHUD.h"
+#include "GameJamm.h"
 #include "Combat/JamWeaponComponent.h"
 #include "Building/JamBuildPart.h"
 #include "Building/JamBuildSpawner.h"
@@ -30,6 +31,9 @@ namespace
 	const FLinearColor JamPanel(0.04f, 0.05f, 0.07f, 0.72f);
 	const FLinearColor JamText(0.95f, 0.95f, 0.92f, 1.f);
 	const FLinearColor JamGold(1.f, 0.82f, 0.35f, 1.f);
+	const FName JamBackpackToggle(TEXT("JamBackpackToggle"));
+	TAutoConsoleVariable<int32> CVarJamDamageDebug(TEXT("jam.Hud.DamageDebug"), 0,
+		TEXT("Log damage notice creation and projection for visual verification. 0 = off."));
 
 	FLinearColor TeamColor(EJamTeam Team) { return Team == EJamTeam::Blue ? JamBlue : (Team == EJamTeam::Red ? JamRed : JamText); }
 }
@@ -123,6 +127,70 @@ namespace
 		}
 		return false;
 	}
+}
+
+void AJamHUD::RestoreBackpackCursor(bool bReturnToGame)
+{
+	if (!bBackpackCursorOwned) { return; }
+	if (APlayerController* PC = BackpackCursorController.Get())
+	{
+		PC->bShowMouseCursor = bBackpackPreviousCursor;
+		PC->bEnableClickEvents = bBackpackPreviousClickEvents;
+		if (bReturnToGame) { PC->SetInputMode(FInputModeGameOnly()); }
+	}
+	bBackpackCursorOwned = false;
+	BackpackCursorController.Reset();
+}
+
+void AJamHUD::UpdateBackpackInput(bool bEnabled)
+{
+	APlayerController* PC = GetOwningPlayerController();
+	const bool bTyping = JamHudEndTyping(GetWorld());
+	const bool bPaused = UGameplayStatics::IsGamePaused(this);
+	if (!PC || !bEnabled || bTyping || bPaused)
+	{
+		// A text box or the title owns its input mode. Never replace it or flush its keys.
+		RestoreBackpackCursor(PC && !bTyping && !bPaused);
+		return;
+	}
+	if (PC->WasInputKeyJustPressed(EKeys::I)) { bBackpackExpanded = !bBackpackExpanded; }
+	const bool bAlt = PC->IsInputKeyDown(EKeys::LeftAlt) || PC->IsInputKeyDown(EKeys::RightAlt);
+	if (bAlt && !bBackpackCursorOwned && !PC->bShowMouseCursor)
+	{
+		bBackpackPreviousCursor = PC->bShowMouseCursor;
+		bBackpackPreviousClickEvents = PC->bEnableClickEvents;
+		BackpackCursorController = PC;
+		bBackpackCursorOwned = true;
+		PC->bShowMouseCursor = true;
+		PC->bEnableClickEvents = true;
+		FInputModeGameAndUI Mode;
+		Mode.SetHideCursorDuringCapture(false);
+		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		PC->SetInputMode(Mode);
+	}
+	else if (!bAlt) { RestoreBackpackCursor(true); }
+}
+
+void AJamHUD::NotifyHitBoxClick(FName BoxName)
+{
+	if (BoxName != JamBackpackToggle) { Super::NotifyHitBoxClick(BoxName); return; }
+	APlayerController* PC = GetOwningPlayerController();
+	const APawn* Pawn = PC ? PC->GetPawn() : nullptr;
+	const UHealthComponent* Health = Pawn ? Pawn->FindComponentByClass<UHealthComponent>() : nullptr;
+	const AJamGameState* GS = GetWorld() ? GetWorld()->GetGameState<AJamGameState>() : nullptr;
+	if (!PC || !Pawn || JamHudEndTyping(GetWorld()) || UGameplayStatics::IsGamePaused(this)
+		|| (Health && Health->IsDead()) || (GS && GS->IsMatchOver())) { return; }
+	bBackpackExpanded = !bBackpackExpanded;
+	// PlayerController dispatches this after receiving the mouse event, before the character
+	// polls held buttons. Clear this UI click so it cannot also become a weapon attack.
+	PC->FlushPressedKeys();
+	RestoreBackpackCursor(true);
+}
+
+void AJamHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	RestoreBackpackCursor(false);
+	Super::EndPlay(EndPlayReason);
 }
 
 void AJamHUD::TrackCreations(UWorld* World, const APawn* Pawn, float DeltaSeconds)
@@ -455,6 +523,7 @@ void AJamHUD::ShowDamage(AActor* Source, AActor* Target, float ActualDamage, FNa
 		|| FVector::DistSquared(Pawn->GetActorLocation(), Target->GetActorLocation()) > FMath::Square(6000.f)
 		|| !PC->LineOfSightTo(Target))
 	{
+		if (CVarJamDamageDebug.GetValueOnGameThread()) { UE_LOG(LogJam, Log, TEXT("JamDamage rejected source=%s target=%s damage=%.2f"), *GetNameSafe(Source), *GetNameSafe(Target), ActualDamage); }
 		return;
 	}
 	FVector Origin, Extent;
@@ -466,6 +535,7 @@ void AJamHUD::ShowDamage(AActor* Source, AActor* Target, float ActualDamage, FNa
 	if (!PC->ProjectWorldLocationToScreen(Position, Screen) || Screen.X < 0.f || Screen.Y < 0.f
 		|| Screen.X >= Width || Screen.Y >= Height)
 	{
+		if (CVarJamDamageDebug.GetValueOnGameThread()) { UE_LOG(LogJam, Log, TEXT("JamDamage outside viewport target=%s"), *Target->GetName()); }
 		return;
 	}
 	const double Now = FPlatformTime::Seconds();
@@ -486,6 +556,7 @@ void AJamHUD::ShowDamage(AActor* Source, AActor* Target, float ActualDamage, FNa
 	Notice.Position = Position;
 	Notice.Damage = ActualDamage;
 	Notice.Started = Now;
+	if (CVarJamDamageDebug.GetValueOnGameThread()) { UE_LOG(LogJam, Log, TEXT("JamDamage queued target=%s damage=%.2f effect=%s"), *Target->GetName(), ActualDamage, *Effect.ToString()); }
 }
 
 void AJamHUD::DrawDamageNotices()
@@ -497,6 +568,7 @@ void AJamHUD::DrawDamageNotices()
 	{
 		const float Age = float(Now - N.Started);
 		const FVector P = Project(N.Position + FVector(0.f, 0.f, Age * 60.f));
+		if (CVarJamDamageDebug.GetValueOnGameThread()) { UE_LOG(LogJam, Log, TEXT("JamDamage draw age=%.3f project=(%.1f,%.1f,%.5f) canvas=%dx%d"), Age, P.X, P.Y, P.Z, Canvas->SizeX, Canvas->SizeY); }
 		if (P.Z <= 0.f || P.X < 0.f || P.X >= Canvas->SizeX || P.Y < 0.f || P.Y >= Canvas->SizeY) { continue; }
 		const float Alpha = FMath::Clamp((0.8f - Age) / 0.25f, 0.f, 1.f);
 		FLinearColor Color = N.Effect.IsNone() ? JamText : JamLoot::ItemColor(FName(*(TEXT("Mat.") + N.Effect.ToString())));
@@ -646,7 +718,7 @@ float AJamHUD::DrawBackpack(const APawn* Pawn)
 	const bool bFull = PartCount >= Cap;
 	const bool bBlink = FMath::Fmod(Now, 0.5) < 0.25;
 	const float MaxWidth = FMath::Min(Canvas->SizeX - 28.f * K, 1060.f * K);
-	const float Width = FMath::Min(MaxWidth, FMath::Max(560.f * K, (74.f + Ids.Num() * 48.f) * K));
+	const float Width = FMath::Min(MaxWidth, bBackpackExpanded ? FMath::Max(560.f * K, (74.f + Ids.Num() * 48.f) * K) : 430.f * K);
 	const float X = (Canvas->SizeX - Width) * 0.5f;
 	const float SlotW = 48.f * K;
 	const int32 Columns = FMath::Max(1, FMath::FloorToInt((Width - 74.f * K) / SlotW));
@@ -654,22 +726,41 @@ float AJamHUD::DrawBackpack(const APawn* Pawn)
 	const int32 PerPage = Columns * Rows;
 	const int32 Pages = FMath::Max(1, FMath::DivideAndRoundUp(Ids.Num(), PerPage));
 	const int32 Page = FMath::FloorToInt(GetWorld()->GetTimeSeconds() / 5.f) % Pages;
-	const float Height = (24.f + Rows * 48.f) * K;
+	const float Height = bBackpackExpanded ? (24.f + Rows * 48.f) * K : 32.f * K;
 	const float Bottom = FMath::Min(Canvas->SizeY - 120.f * K, MsgBaseY - 8.f * K);
 	const float Top = Bottom - Height;
 	DrawRect(FLinearColor(JamPanel.R, JamPanel.G, JamPanel.B, 0.86f), X, Top, Width, Height);
 	DrawRect((bRejected || bFull) && bBlink ? JamRed : JamGold, X, Top, Width, 2.f * K);
-	DrawLootIcon(TEXT("Backpack"), X + 10.f * K, Top + 25.f * K, 42.f * K, (bRejected || bFull) && bBlink ? 0.3f : 1.f);
-	const FString PageText = Pages > 1 ? FString::Printf(TEXT("   page %d/%d (auto)"), Page + 1, Pages) : FString();
-	const FString Header = FString::Printf(TEXT("BACKPACK  %d / %d parts%s%s"), PartCount, Cap,
+	if (bBackpackExpanded) { DrawLootIcon(TEXT("Backpack"), X + 10.f * K, Top + 25.f * K, 42.f * K, (bRejected || bFull) && bBlink ? 0.3f : 1.f); }
+	const FString PageText = bBackpackExpanded && Pages > 1 ? FString::Printf(TEXT("   page %d/%d (auto)"), Page + 1, Pages) : FString();
+	const FString Header = !bBackpackExpanded ? FString::Printf(TEXT("BACKPACK  %d/%d%s"), PartCount, Cap, bRejected || bFull ? TEXT("  FULL") : TEXT(""))
+		: FString::Printf(TEXT("BACKPACK  %d / %d parts%s%s"), PartCount, Cap,
 		bRejected ? TEXT("   NO ROOM: leftovers stay on the ground") : bFull ? TEXT("   FULL") : TEXT(""),
 		*PageText);
 	UFont* Font = GEngine->GetSmallFont();
-	DrawText(FitLootText(Header, Font, K, Width - 24.f * K), bRejected || bFull ? JamGold : JamText, X + 10.f * K, Top + 5.f * K, Font, K);
-	if (Ids.Num() == 0) { DrawText(TEXT("Walk over parts and materials to collect them"), JamText, X + 74.f * K, Top + 38.f * K, Font, K); }
+	const float ButtonW = FMath::Min(176.f * K, Width * 0.47f), ButtonH = bBackpackExpanded ? 19.f * K : 24.f * K;
+	const float ButtonX = X + Width - ButtonW - 5.f * K, ButtonY = Top + 4.f * K;
 	APlayerController* PC = GetOwningPlayerController();
 	float MouseX = -1.f, MouseY = -1.f;
-	if (PC) { PC->GetMousePosition(MouseX, MouseY); }
+	if (PC && PC->bShowMouseCursor) { PC->GetMousePosition(MouseX, MouseY); }
+	const bool bHoverButton = MouseX >= ButtonX && MouseX < ButtonX + ButtonW && MouseY >= ButtonY && MouseY < ButtonY + ButtonH;
+	DrawText(FitLootText(Header, Font, K, Width - ButtonW - 24.f * K), bRejected || bFull ? JamGold : JamText,
+		X + 10.f * K, Top + (bBackpackExpanded ? 5.f : 9.f) * K, Font, K);
+	DrawRect(bHoverButton ? FLinearColor(0.25f, 0.31f, 0.37f, 0.96f) : FLinearColor(0.12f, 0.17f, 0.22f, 0.96f), ButtonX, ButtonY, ButtonW, ButtonH);
+	const FString ButtonText = bBackpackExpanded ? TEXT("[I] HIDE / ALT+CLICK") : TEXT("[I] SHOW / ALT+CLICK");
+	float BW = 0.f, BH = 0.f;
+	GetTextSize(ButtonText, BW, BH, Font, 0.85f * K);
+	DrawText(ButtonText, JamGold, ButtonX + (ButtonW - BW) * 0.5f, ButtonY + (ButtonH - BH) * 0.5f, Font, 0.85f * K);
+	if (PC && !JamHudEndTyping(GetWorld()) && !UGameplayStatics::IsGamePaused(this))
+	{
+		AddHitBox(FVector2D(ButtonX, ButtonY), FVector2D(ButtonW, ButtonH), JamBackpackToggle, true, 100);
+	}
+	if (!bBackpackExpanded)
+	{
+		DrawLootIcon(TEXT("Energy"), (Canvas->SizeX - 360.f * K) * 0.5f - 38.f * K, Canvas->SizeY - 106.f * K, 30.f * K);
+		return Top - 10.f * K;
+	}
+	if (Ids.Num() == 0) { DrawText(TEXT("Walk over parts and materials to collect them"), JamText, X + 74.f * K, Top + 38.f * K, Font, K); }
 	for (int32 n = 0; n < PerPage && Page * PerPage + n < Ids.Num(); ++n)
 	{
 		const FName Id = Ids[Page * PerPage + n];
@@ -765,6 +856,7 @@ void AJamHUD::DrawHUD()
 	APlayerController* PC = GetOwningPlayerController();
 	APawn* Pawn = PC ? PC->GetPawn() : nullptr;
 	const UHealthComponent* MyHealth = Pawn ? Pawn->FindComponentByClass<UHealthComponent>() : nullptr;
+	UpdateBackpackInput(Pawn && (!MyHealth || !MyHealth->IsDead()) && !(GS && GS->IsMatchOver()));
 	const EJamTeam MyTeam = MyHealth ? MyHealth->Team : EJamTeam::Red;
 	const float SX = Canvas->SizeX, SY = Canvas->SizeY;
 	UFont* Small = GEngine->GetSmallFont();

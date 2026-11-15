@@ -38,6 +38,15 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 15 nov (tarde) — Mochila plegable, daño visible y piezas destructibles (Javier + Codex)
+
+- **Pedido de Javier:** «un botón para ocultar el inventario». Codex añadió **I** y un botón de mostrar/ocultar (Alt+clic): plegado queda una barra pequeña con la cantidad. Se probó la tecla I y que no altere el estado mientras se escribe con B. [Captura de la mochila plegada](devlog/inventory-collapsed-15nov.png).
+- **Cómo usamos la IA para depurar:** el encargo fue observar la visibilidad dentro del impacto real, sin llamar al HUD desde el test. Un observador privado de `OnHealthChanged` registró ocho impactos: el propio proyectil bloqueaba `Visibility` durante el daño; al ignorar flechas, la línea quedaba libre. La corrección hace que la flecha ignore solo ese canal, manteniendo colisiones de vuelo e impactos. Tras recompilar, los disparos reales produjeron avisos en cola y su dibujo en el HUD; el diagnóstico queda apagado por defecto.
+- **Piezas con vida activadas:** antes de cambiar el valor por defecto se probaron minions enemigos rompiendo piezas. Después se verificaron por separado daño propio/aliado bloqueado, salida del asiento roto y de la raíz rota con colisión, movimiento y 150 de vida intactos. X devolvió solo las piezas vivas: con cuatro ruedas rotas devolvió una tabla y un lanzallamas, ninguna rueda; con raíz rota no devolvió piezas. Se conserva `jam.Build.PartHealth 0` para construcciones nuevas.
+- **Física y límites:** la pasada de controles reales registró movimiento de carro, tanque, hovercraft y rueda única, y separación de la bola de catapulta de más de cinco metros respecto a su raíz. El avión subió y después cayó; eso no acredita vuelo controlado. El respaldo por palabras clave se comprobó por separado; las pruebas rechazan inventarios que ya no coinciden con el cofre inicial, sin rellenarlos con comandos.
+- **Entrega y medios:** a petición de Javier se delegó un tráiler con gameplay real y voz local inglesa Microsoft David Desktop (Windows SAPI). Se descartó una captura de escritorio que mostraba otra ventana; después se usaron fotogramas reales y una captura de escena de Unreal para fotos limpias. La cadencia de exportación es limitada y queda documentada; no se generaron imágenes falsas de gameplay.
+- **Integración:** cambios en Core, Combat y Building con la autorización de Javier para todas las áreas. El editor compiló correctamente; el cambio de header del HUD requiere recompilar.
+
 ## 15 nov (tarde) — Pedidos de una sola rueda y pruebas con inventario real (Javier + Codex)
 
 - **Cómo usamos la IA:** Codex revisó las nueve frases rápidas con el cofre inicial real de 39 piezas, sin rellenar el inventario entre pedidos. El encargo fue conservar las capacidades y cantidades pedidas, y separar evidencia de receta de funcionamiento físico.

@@ -119,13 +119,13 @@ flowchart LR
 
 ### 5.2 Vehículos y construcciones
 - 49 tipos de pieza y 21 conceptos (carro, tanque, catapulta, dron o helicóptero, barco, torreta, robot…). Sale apagada a
-  unos 6 m frente a ti; **C** la enciende, **E** te sube al asiento, **W/S A/D** manejan, clic dispara sus armas.
+  a unos 3–6 m frente a ti según el suelo libre; **C** la enciende, **E** te sube al asiento, **W/S A/D** manejan, clic dispara sus armas.
 - **Lo que hoy la limita no son las mallas:** sin clave decide el respaldo por palabras clave, y con pocas piezas el
   solver la reduce a un carro. Mejoras: vocabulario en datos y suficiente loot al empezar.
 - **Solo tuya:** X desarma **tu** construcción y te devuelve las piezas que siguen existiendo; E solo sube a la tuya.
 - **En el código (15 nov):** X desarma solo tu construcción y devuelve piezas no rotas; E solo permite tu asiento.
-  Las piezas con vida están implementadas con `UHealthComponent` y datos en `PartHealth.json`; siguen desactivadas
-  por defecto mientras se prueba daño rival, rotura y salida segura del asiento.
+  Las piezas con vida están activadas por defecto con `UHealthComponent` y datos en `PartHealth.json`. Se probaron
+  daño rival real, rotura de asiento/raíz, salida segura, protección aliada y reembolso sin piezas rotas. `jam.Build.PartHealth 0` conserva la opción de desactivarlas para construcciones nuevas.
 - **Hecho cuando:** las frases de ejemplo del HUD salen como lo que piden con el cofre inicial más el primer loot, y X
   solo toca la tuya.
 
@@ -216,7 +216,7 @@ Una línea de objetivo arriba guía paso a paso; cada paso se cumple y aparece e
   victoria o derrota, tu mejor creación con el pedido que la creó, y R para la revancha.
 - **En el código (15 nov):** avisos en el HUD también en Shipping, ayuda cerrada, loot con íconos y mochila con
   cantidades, cuenta atrás al morir y pantalla final. Pantalla inicial **Prompt & Conquer** probada en PIE:
-  pausa la partida hasta Enter o clic; Enter devuelve el control y empieza el reloj.
+  pausa la partida hasta Enter o clic; Enter devuelve el control y empieza el reloj. **I** pliega la mochila a una barra con la cantidad; el botón admite Alt+clic y no cambia al escribir un pedido.
 
 ## 10. Sensación por evento
 | Evento | Imagen | Sonido | Física |
@@ -248,6 +248,7 @@ Una línea de objetivo arriba guía paso a paso; cada paso se cumple y aparece e
 | Desarmar tu construcción | X |
 | Fusionar material a espada o arco | F |
 | Cámara / ayuda | V / H |
+| Plegar o mostrar mochila | I; Alt+clic en su botón |
 
 - **Mando:** hoy no se puede pedir con mando. Fuera de la entrega.
 
