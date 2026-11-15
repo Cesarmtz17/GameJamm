@@ -164,8 +164,8 @@ arma de mano usa la misma receta (piezas de arma como `type`).
 ## 6. La partida: Asalto
 - **Objetivo, siempre en pantalla:** derriba la torre 1 → la torre 2 → la base rival. La base está protegida hasta que
   caen sus dos torres.
-- **Equipos:** tú + 2 bots contra 3 bots. Minions cada 30 s por base. Las torres hacen la mitad de daño si no vas con tus
-  minions: hay que empujar con la oleada.
+- **Equipos:** tú + 2 bots contra 3 bots. Minions cada 30 s por base. Sin minions aliados cerca, infliges la mitad de daño
+  a las torres: hay que empujar con la oleada (regla real de `TeamStructure::TakeDamage`).
 - **Duración:** 15 min, muerte súbita al minuto 12. Si nadie cae, gana quien tenga más vida en torres y base (❓ empate).
 - **Sin online (decidido 14 nov):** los jueces juegan solos y replicar construcciones con física es lo más caro. La página
   dice "por equipos contra bots".
@@ -313,7 +313,7 @@ progresión, **audio**. El uso de IA no puntúa por sí mismo.
 6. **Student Project:** requisitos para un equipo.
 
 **Idioma de entrega (15 nov):** Javier pidió interfaz y ejemplos en inglés; se implementaron conservando el reconocimiento
-de pedidos españoles. Las reglas oficiales §8(i), verificadas después, exigen inglés para juego, audio, video y formulario.
+de pedidos españoles. Las reglas oficiales §7(i), verificadas después, exigen inglés para juego, audio, video y formulario.
 Student requiere que todos los integrantes estén inscritos en educación superior; falta confirmar la situación del equipo.
 
 ## Historial

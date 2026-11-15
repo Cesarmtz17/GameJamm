@@ -12,14 +12,14 @@ Deadline: **15 nov 2026, 8:59 PM EST (7:59 PM CDMX)**. Tarde = descalificado.
 - [x] Nombre del equipo: **cavinos** (Javier, 15 nov; minúsculas).
 - [ ] Nombre de cada integrante + **email de su cuenta de Epic Games**
 - [x] Nombre del juego: **Prompt & Conquer** (Javier, 15 nov).
-- [ ] Link a **video de gameplay de 30–60 s**
+- [ ] Link a **video de gameplay de 30–60 s**, resolución **1920×1080 o superior** (reglas §7(c)).
 - [ ] Herramientas usadas (motores, modelos IA, generadores de assets — Rodin/Meshy/Tripo/etc. si se usan, aplica a premios de partners)
 - [ ] Assets de terceros con su licencia (Fab, sonidos, etc.)
 - [ ] Declarar cualquier cosa hecha antes del 12 nov (si aplica)
 - [ ] Link al devlog **público** (obligatorio para Glass Box). El repo está público hoy, así que `docs/DEVLOG.md` sirve de respaldo, pero el link principal debe ser un devlog legible (itch.io); ver [DEVLOG.md](DEVLOG.md)
 - [ ] Marcar en el formulario los Modifiers que perseguimos (ver "Metas de premios")
 - [ ] Controles explicados en la página
-- [x] Inglés obligatorio verificado en las reglas oficiales, §8(i): texto del juego, audio, video e información de entrega.
+- [x] Inglés obligatorio verificado en las reglas oficiales, §7(i): texto del juego, audio, video e información de entrega.
 
 ## Metas de premios
 
@@ -72,4 +72,4 @@ Prellenado desde el historial del repo el 13 nov: **confirmar licencias y comple
 
 **Selección de audio (15 nov):** Javier conservó la música de partida, `SFX_Loot_Pickup` y `SFX_Fanfare` originales. Las otras músicas y efectos todavía conservan sus originales. Para el cofre eligió `SFX_Chest_Open` v4 (1.05 s), ya importado sobre el asset existente con lock; es el séptimo reemplazo.
 
-**Idioma (15 nov):** Javier pidió la interfaz completa en inglés. Traducción de código y datos lista; compilación y prueba de esa localización todavía pendientes. Ejemplos previstos para la página y el video: `an ice rifle` y `a car that burns everything`. La elección del inglés viene de Javier; no se presenta como requisito de la jam.
+**Idioma (15 nov):** Javier pidió la interfaz completa en inglés. El checkpoint `9095d58` compiló y se empaquetó en Shipping; se probaron el título y Enter en el paquete, y un rifle de hielo generado por OpenAI. En editor se verificaron daño y ralentización reales. Ejemplos para la página y el video: `an ice rifle` y `a car that burns everything`. Las reglas oficiales §7(i), verificadas después, también exigen inglés. Sigue pendiente la prueba humana de cinco minutos del paquete final.
