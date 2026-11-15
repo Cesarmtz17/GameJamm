@@ -58,6 +58,11 @@ namespace
 	};
 	const float ShotIn = 0.15f, ShotOut = 0.75f;
 
+	// Arma de mano pedida (GDD 5.1), sin clip nuevo: brazo del arma bajo y al frente; al disparar se extiende a la mira.
+	// U = hombro > codo, F = codo > mano, B = hacia donde apunta el canon (mano derecha; la izquierda espeja Y).
+	const FVector GunReadyU(0.30f, 0.35f, -0.89f), GunReadyF(0.92f, -0.08f, -0.22f), GunReadyB(1.00f, 0.00f, -0.08f);
+	const FVector GunAimU(0.78f, 0.28f, -0.42f), GunAimF(0.98f, -0.12f, 0.10f), GunAimB(1.00f, 0.00f, 0.00f);
+
 	FVector Nlerp(const FVector& A, const FVector& B, float Alpha)
 	{
 		if (A.IsNearlyZero() || B.IsNearlyZero()) { return Alpha < 0.5f ? A : B; }
@@ -174,6 +179,42 @@ namespace
 		const FQuat Aim = FRotator(S.Pitch, 0.f, 0.f).Quaternion();
 		auto Mesh = [&ToMesh](const FVector& V) { return V.IsNearlyZero() ? V : ToMesh.RotateVector(V.GetSafeNormal()); };
 		auto MeshAim = [&ToMesh, &Aim](const FVector& V) { return V.IsNearlyZero() ? V : ToMesh.RotateVector(Aim.RotateVector(V.GetSafeNormal())); };
+
+		if (S.bGun)
+		{
+			// El canon apunta a donde mira el personaje (con la mira vertical al disparar) y el arma queda derecha:
+			// primero se apunta el brazo y el canon; luego la mano gira sobre el canon hasta que el "arriba" del arma
+			// mire hacia arriba. Asi no depende de como venga orientado el hueso de la mano en cada rig.
+			const FQuat GunQ = FRotator(S.Pitch * S.GunAim, 0.f, 0.f).Quaternion();
+			auto MeshGun = [&ToMesh, &GunQ, &S](const FVector& A, const FVector& B)
+			{
+				FVector V = Nlerp(A, B, S.GunAim);
+				V.Y *= S.GunSide;
+				return ToMesh.RotateVector(GunQ.RotateVector(V.GetSafeNormal()));
+			};
+			const FVector GunAxis = S.GunInBone.RotateVector(FVector::ForwardVector);
+			AimArm(Pose, S.GunBone, MeshGun(GunReadyU, GunAimU), MeshGun(GunReadyF, GunAimF), 1.f, GunAxis, MeshGun(GunReadyB, GunAimB), 1.f);
+			const FCompactPoseBoneIndex GunHand = FindBone(Pose, S.GunBone);
+			if (GunHand.IsValid())
+			{
+				const FQuat HandQ = ComponentSpace(Pose, GunHand).GetRotation();
+				const FVector Barrel = HandQ.RotateVector(GunAxis).GetSafeNormal();
+				FVector CurUp = FVector::VectorPlaneProject(HandQ.RotateVector(S.GunInBone.RotateVector(FVector::UpVector)), Barrel);
+				const FVector WantUp = FVector::VectorPlaneProject(Mesh(FVector::UpVector), Barrel);
+				if (!Barrel.IsNearlyZero() && CurUp.SizeSquared() > 0.01 && WantUp.SizeSquared() > 0.01)
+				{
+					// Casi de cabeza: dos cuartos de vuelta sobre el canon (un solo giro de 180 grados no tiene eje definido).
+					if (FVector::DotProduct(CurUp.GetSafeNormal(), WantUp.GetSafeNormal()) < -0.9)
+					{
+						const FVector Quarter = FVector::CrossProduct(Barrel, CurUp);
+						Turn(Pose, GunHand, CurUp, Quarter, 1.f);
+						CurUp = Quarter;
+					}
+					Turn(Pose, GunHand, CurUp, WantUp, 1.f);
+				}
+			}
+			return;
+		}
 
 		if (!S.bBow)
 		{
@@ -328,6 +369,16 @@ void UJamFigureAnim::NativeUpdateAnimation(float DeltaSeconds)
 	const UJamWeaponComponent* Weapon = Char ? Char->FindComponentByClass<UJamWeaponComponent>() : nullptr;
 	State.bRig = bHasRig && bMovesEnabled && Weapon && Weapon->IsInHand();
 	State.bBow = Weapon && Weapon->Current == EJamWeapon::Bow;
+	// Arma pedida: el componente dice en que hueso va y como; aqui solo se suaviza el paso a "apuntando".
+	float GunAimWant = 0.f;
+	State.bGun = Weapon && Weapon->GetGeneratedPose(State.GunBone, State.GunInBone, GunAimWant);
+	GunAim = State.bGun ? FMath::FInterpTo(GunAim, GunAimWant, DeltaSeconds, 12.f) : 0.f;
+	State.GunAim = GunAim;
+	if (State.bGun)
+	{
+		const FString GunBoneName = State.GunBone.ToString();
+		State.GunSide = (GunBoneName.EndsWith(TEXT("_l")) || GunBoneName.Contains(TEXT("Left"))) ? -1.f : 1.f;
+	}
 	State.SwordBone = SwordBone;
 	State.BowBone = BowBone;
 	State.DrawBone = DrawBone;

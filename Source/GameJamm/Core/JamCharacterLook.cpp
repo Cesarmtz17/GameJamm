@@ -238,6 +238,11 @@ void UJamCharacterLook::PlayAction(FName Action)
 
 void UJamCharacterLook::HandleWeaponAttack(UJamWeaponComponent* InWeapon, EJamWeapon Kind)
 {
+	// Arma pedida (GDD 5.1): sin espadazo ni clip; la pose de apuntar la pone UJamFigureAnim mientras esta en la mano.
+	if (Kind == EJamWeapon::Generated)
+	{
+		return;
+	}
 	// Con arma en mano: espadazo / tensar y soltar por codigo, sin cortar el caminar. Si no, los clips Attack/Shoot.
 	ACharacter* Char = Cast<ACharacter>(GetOwner());
 	UJamFigureAnim* Fig = Char ? Cast<UJamFigureAnim>(Char->GetMesh()->GetAnimInstance()) : nullptr;

@@ -4,6 +4,17 @@
 #include "Building/JamPlayConsole.h"
 #include "JamHUD.generated.h"
 
+/** Seguimiento de una creacion del jugador (agrupada por pedido) para la pantalla final "tu corte final". */
+struct FJamHudCreation
+{
+	int32 MaxParts = 0;       // maximo de piezas vivas que tuvo
+	float SecsActive = 0.f;   // segundos encendida
+	float SecsDriven = 0.f;   // segundos con el jugador montado en una de sus piezas
+
+	/** Puntaje de "la mas usada": segundos montado * 2 + segundos encendida. */
+	float Score() const { return SecsDriven * 2.f + SecsActive; }
+};
+
 /**
  * HUD de la partida (Core): dibuja encima del HUD de construccion (AJamTestHUD) el reloj, la vida de torres y base
  * por equipo, la vida del jugador, la cuenta de respawn, barras sobre las torres cercanas y la pantalla de victoria o derrota.
@@ -32,6 +43,18 @@ private:
 
 	/** Cola de avisos cortos (JamMsg::Post): la mas nueva abajo, terminando en BaseY. */
 	void DrawPostLines(float BaseY);
+
+	/** Suma, por pedido, los segundos encendida y montado de cada construccion del jugador (JamSay). Solo durante la partida. */
+	void TrackCreations(UWorld* World, const APawn* Pawn, float DeltaSeconds);
+
+	/** Pantalla final: VICTORIA/DERROTA, "TU CORTE FINAL" con la creacion mas usada y "R = revancha". */
+	void DrawFinalCut(EJamTeam Winner, EJamTeam MyTeam);
+
+	/** Creaciones vistas en esta partida, por pedido (Prompt). */
+	TMap<FString, FJamHudCreation> Creations;
+
+	bool bRestartRequested = false;   // R ya pulsada: no se reinicia dos veces
+	double OverSince = -1.0;          // hora (FPlatformTime) en que se vio el fin de la partida
 
 	float LastHealth = -1.f;
 	float HurtFlash = 0.f;

@@ -5,6 +5,7 @@
 #include "Building/JamBuildSpawner.h"
 #include "Core/InventoryComponent.h"
 #include "Building/JamVoice.h"
+#include "Combat/JamWeaponComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CanvasPanel.h"
@@ -1068,6 +1069,17 @@ namespace
 	/** Pedido hecho jugando (caja de texto o tecla 1..9): la construccion sale APAGADA y se enciende con C (GDD 6.3). */
 	void SayFromGame(UWorld* World, const FString& Phrase)
 	{
+		// GDD 5.1: si la frase pide un arma de mano (palabras de Content/Game/Combat/Data/Weapons.json) va al arma pedida;
+		// si no (o si jam.Weapon.Generated 0), a construccion como siempre.
+		if (World && UJamWeaponComponent::IsWeaponPhrase(Phrase))
+		{
+			const APlayerController* PC = World->GetFirstPlayerController();
+			UJamWeaponComponent* Weapon = PC && PC->GetPawn() ? PC->GetPawn()->FindComponentByClass<UJamWeaponComponent>() : nullptr;
+			if (Weapon && Weapon->RequestGeneratedWeapon(Phrase))
+			{
+				return;
+			}
+		}
 		SpawnSay(World, Phrase, SayTransform(World), nullptr, false);
 	}
 
