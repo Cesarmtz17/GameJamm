@@ -81,6 +81,16 @@ bool UJamStatusComponent::IsFrozen() const
 	return FrozenUntil > Now();
 }
 
+bool UJamStatusComponent::IsSlowed() const
+{
+	return SlowUntil > Now();
+}
+
+bool UJamStatusComponent::IsStunned() const
+{
+	return StunUntil > Now();
+}
+
 void UJamStatusComponent::ApplySpeed()
 {
 	ACharacter* Char = Cast<ACharacter>(GetOwner());

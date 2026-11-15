@@ -8,6 +8,7 @@
 //   Jam.Ground X0 X1 Y0 Y1 [paso]  mapa de suelo en el log (# = hay piso, . = hueco) para buscar donde se caen los agentes
 #include "Core/JamGameState.h"
 #include "Core/HealthComponent.h"
+#include "Core/JamMessages.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -28,11 +29,9 @@ namespace
 
 	void JamSay(const FString& Msg)
 	{
+		// Eco de los comandos de prueba (Jam.Goto, Jam.Pos...): al log y a la linea corta del HUD.
 		UE_LOG(LogJam, Log, TEXT("%s"), *Msg);
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, Msg);
-		}
+		JamMsg::Post(Msg, JamMsg::Info, 5.f, TEXT("cmd"));
 	}
 
 	void JamGoto(const TArray<FString>& Args, UWorld* World)

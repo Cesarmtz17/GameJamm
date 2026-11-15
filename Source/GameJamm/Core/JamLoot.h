@@ -28,8 +28,11 @@ namespace JamLoot
 	/** Entrega un lote a un actor: piezas y materiales a su mochila, energia a la barra si es el jugador. Texto de lo que recibio. */
 	FString GiveBundle(AActor* Taker, const TMap<FName, int32>& Bundle, TMap<FName, int32>* OutLeftover = nullptr);
 
-	/** "+2 Plank, +1 Wheel, +15 energia" */
+	/** "+2 Rueda, +1 Lanzallamas, +15 energia" (nombres en espanol para el jugador). */
 	FString Describe(const TMap<FName, int32>& Bundle);
+
+	/** Nombre legible en espanol de un tipo de pieza ("Wheel" -> "Rueda", de names_es de BuildKnowledge.json); si no lo conoce, el tipo tal cual. */
+	FString PartName(const FString& Type);
 
 	/** Z del suelo bajo (X, Y); false si abajo solo hay vacio. */
 	bool GroundAt(UWorld* World, float X, float Y, FVector& Out, const AActor* Ignore = nullptr);

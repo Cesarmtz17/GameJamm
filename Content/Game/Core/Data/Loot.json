@@ -52,6 +52,11 @@
     "items": { "Part.Plank": 1, "Part.Wheel": 4, "Part.Flamethrower": 1, "Part.Fan": 1, "Mat.Fire": 1 },
     "message": "Presiona B y escribe lo que quieras construir. Prueba: un carro que queme todo"
   },
+  "dummies": [
+    { "x": -10800, "y": 850 },
+    { "x": -10500, "y": 850 },
+    { "x": -11100, "y": 850 }
+  ],
   "chests": [
     { "tier": "common", "x": -8600, "y": -3250, "respawn": 60 },
     { "tier": "common", "x": 8600, "y": 3250, "respawn": 60 },

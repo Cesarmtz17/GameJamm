@@ -132,9 +132,40 @@ namespace JamLoot
 				if (OutLeftover) { OutLeftover->Add(It.Key, It.Value - N); }
 			}
 		}
-		FString Text = Describe(Got);
-		if (bFull) { Text += Text.IsEmpty() ? TEXT("Mochila llena") : TEXT(" (mochila llena: lo demas se queda)"); }
-		return Text;
+		// Lo que no cupo va en OutLeftover: quien llama avisa "Mochila llena" (el texto es solo de lo que entro).
+		(void)bFull;
+		return Describe(Got);
+	}
+
+	FString PartName(const FString& Type)
+	{
+		static TMap<FString, FString> Names;
+		static bool bLoaded = false;
+		if (!bLoaded)
+		{
+			bLoaded = true;
+			FString Json;
+			TSharedPtr<FJsonObject> Root;
+			const TArray<TSharedPtr<FJsonValue>>* Elements = nullptr;
+			if (FFileHelper::LoadFileToString(Json, *(FPaths::ProjectContentDir() / TEXT("Game/Building/Data/BuildKnowledge.json")))
+				&& FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Json), Root) && Root && Root->TryGetArrayField(TEXT("elements"), Elements))
+			{
+				for (const auto& V : *Elements)
+				{
+					const TSharedPtr<FJsonObject> E = V->AsObject();
+					FString T;
+					TArray<FString> Es;
+					if (E && E->TryGetStringField(TEXT("type"), T) && E->TryGetStringArrayField(TEXT("names_es"), Es) && Es.Num() > 0 && !Es[0].IsEmpty() && !Names.Contains(T))
+					{
+						FString N = Es[0];
+						N[0] = FChar::ToUpper(N[0]);
+						Names.Add(T, N);
+					}
+				}
+			}
+		}
+		const FString* Found = Names.Find(Type);
+		return Found ? *Found : Type;
 	}
 
 	FString Describe(const TMap<FName, int32>& Bundle)
@@ -144,9 +175,15 @@ namespace JamLoot
 		{
 			FString Id = It.Key.ToString();
 			if (Id == TEXT("Energy")) { Parts.Add(FString::Printf(TEXT("+%d energia"), It.Value)); continue; }
+			if (Id.RemoveFromStart(TEXT("Mat.")))
+			{
+				const FString Low = Id.ToLower();
+				const TCHAR* Es = Low == TEXT("rock") ? TEXT("piedra") : Low == TEXT("fire") ? TEXT("fuego") : Low == TEXT("ice") ? TEXT("hielo") : Low == TEXT("shock") ? TEXT("rayo") : Low == TEXT("bomb") ? TEXT("bomba") : nullptr;
+				Parts.Add(FString::Printf(TEXT("+%d material %s"), It.Value, Es ? Es : *Low));
+				continue;
+			}
 			Id.RemoveFromStart(TEXT("Part."));
-			if (Id.RemoveFromStart(TEXT("Mat."))) { Id = TEXT("material ") + Id; }
-			Parts.Add(FString::Printf(TEXT("+%d %s"), It.Value, *Id));
+			Parts.Add(FString::Printf(TEXT("+%d %s"), It.Value, *PartName(Id)));
 		}
 		return FString::Join(Parts, TEXT(", "));
 	}

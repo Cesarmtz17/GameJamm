@@ -7,6 +7,8 @@
 /**
  * HUD de la partida (Core): dibuja encima del HUD de construccion (AJamTestHUD) el reloj, la vida de torres y base
  * por equipo, la vida del jugador, la cuenta de respawn, barras sobre las torres cercanas y la pantalla de victoria o derrota.
+ * GDD 8 y 9: linea de objetivo por pasos (arriba al centro), avisos grandes de JamMsg::Big debajo y la cola de JamMsg::Post
+ * (la linea del asistente) centrada abajo, encima de la energia.
  */
 UCLASS()
 class GAMEJAMM_API AJamHUD : public AJamTestHUD
@@ -19,6 +21,26 @@ public:
 private:
 	void DrawCentered(const FString& Text, const FLinearColor& Color, float Y, float Scale, bool bBackground = true);
 
+	/** Avanza el paso del objetivo segun el estado del juego (nunca retrocede) y devuelve su texto ("" si no hay). */
+	FString UpdateObjective(UWorld* World, const APawn* Pawn, EJamTeam MyTeam);
+
+	/** Dibuja el objetivo arriba al centro y devuelve la Y donde termina su panel. */
+	float DrawObjective(const FString& Text, float Y);
+
+	/** Avisos grandes (JamMsg::Big) desde la Y dada hacia abajo. */
+	void DrawBigs(float Y);
+
+	/** Cola de avisos cortos (JamMsg::Post): la mas nueva abajo, terminando en BaseY. */
+	void DrawPostLines(float BaseY);
+
 	float LastHealth = -1.f;
 	float HurtFlash = 0.f;
+
+	// Objetivo (GDD 8): paso actual 0..4; los datos de arranque se toman la primera vez que se ve al jugador.
+	int32 ObjStep = 0;
+	bool bObjHaveStart = false;
+	FVector ObjStartLoc = FVector::ZeroVector;
+	double ObjFirstSeen = 0.0;
+	int32 ObjInvBaseline = 0;
+	int32 ObjTowersDownMax = 0;
 };

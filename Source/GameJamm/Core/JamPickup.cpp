@@ -1,5 +1,6 @@
 #include "Core/JamPickup.h"
 #include "Core/JamLoot.h"
+#include "Core/JamMessages.h"
 #include "Core/InventoryComponent.h"
 #include "Core/HealthComponent.h"
 #include "GameJamm.h"
@@ -90,7 +91,11 @@ void AJamPickup::HandleOverlap(UPrimitiveComponent*, AActor* OtherActor, UPrimit
 	TMap<FName, int32> Leftover;
 	const FString Got = JamLoot::GiveBundle(OtherActor, Bundle, &Leftover);
 	UE_LOG(LogJam, Log, TEXT("Loot: %s recoge %s"), *OtherActor->GetName(), *Got);
-	if (GEngine && Pawn->IsPlayerControlled() && !Got.IsEmpty()) { GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor(255, 214, 120), Got); }
+	if (Pawn->IsPlayerControlled())
+	{
+		if (!Got.IsEmpty()) { JamMsg::Post(TEXT("Recogiste: ") + Got, JamMsg::Loot, 3.f, TEXT("loot")); }
+		if (Leftover.Num() > 0) { JamMsg::Post(TEXT("Mochila llena: se quedo en el suelo"), JamMsg::Warn, 5.f, TEXT("bag")); }
+	}
 	if (Pawn->IsPlayerControlled()) { Energy = 0.f; }
 	Items = Leftover;
 	if (Items.Num() == 0 && Energy <= 0.f) { Destroy(); }
