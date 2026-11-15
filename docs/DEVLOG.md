@@ -38,6 +38,18 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 15 nov (madrugada) — Noche con un director y subagentes: arma pedida, HUD legible, ciclo arreglado y el juego suena (Javier + Claude Code)
+- **Qué:** sobre el GDD v2, en la rama `noche/15nov` (PR a `main`): **arma de mano pedida** ("un rifle que dispare hielo", "una escopeta de fuego"; sin clave decide por palabras de `Weapons.json`, se arma visible en la mano con piezas y dispara con el efecto de su boca gastando energía), **HUD legible** (objetivo por pasos arriba, avisos del asistente abajo en vez del canal de depuración que Shipping no muestra, ayuda cerrada), **ciclo arreglado** (X desarma solo lo tuyo, renaces con la mitad, E solo sube a lo tuyo), **audio** (23 efectos y 3 músicas conectados), pantalla final "tu corte final" con R para la revancha y 10 piezas de arma nuevas con Rodin.
+- **Cómo usamos la IA:** Javier dejó un handoff con tareas, reglas "para no congelarse" y una tabla de qué modelo usar para qué, y se fue a dormir. Claude Code hizo de **director**: repartió el código en subagentes con archivos distintos (Sonnet para HUD, avisos, ciclo, audio y pantalla final; Fable para el arma, que era lo más difícil), integró, compiló y probó cada parte en PIE por MCP antes de subirla. Al final, otro subagente Fable revisó el diff completo "con ojos frescos" (solo lectura) y encontró 6 detalles de lógica que se corrigieron antes del paquete.
+- **Qué falló y cómo se arregló:** la tecla 1 ("un carro que queme todo") salía **sin lanzallamas**: la palabra clave `quem` mide 4 letras y el comparador trata esas como palabra exacta, así que "queme" nunca coincidía; se agregaron las formas completas. Un subagente editó con Python y dejó fines de línea `\r\r\n` (líneas duplicadas): se detectó con un script antes de compilar. El arma salía demasiado delgada para la cámara en tercera persona: con las piezas de Rodin y `hand.scale` en el JSON (sin compilar) ya se lee. Los sonidos "en un punto" se oían en todo el mapa porque los WAV no traen atenuación: ahora el volumen baja con la distancia.
+- **Qué aprendimos:** repartir por **dueño de archivo** (no por tarea) evita choques entre agentes; "compila" no es "funciona": cada parte se probó en PIE con capturas y el log (`JamMsg:` / `JamSfx:`), porque de noche nadie puede oír el juego ni mirar la pantalla.
+- **Pendiente:** las decisiones que quedaron para la mañana están en el PR (cofre inicial más grande para que las 9 frases salgan completas, Development vs Shipping por el aviso del firewall de Windows).
+
+![Rifle de hielo pedido por texto, armado con piezas de Rodin en la mano](devlog/2026-11-15-arma-pedida-rifle-hielo.png)
+![Escopeta de fuego: el muñeco de práctica se quema](devlog/2026-11-15-escopeta-fuego-muneco.png)
+![HUD: objetivo por pasos y lo que dio el cofre](devlog/2026-11-15-hud-objetivo-cofre.png)
+![Pantalla final "tu corte final" con la creación más usada y R = revancha](devlog/2026-11-15-corte-final.png)
+
 ## 14 nov — Revisión del GDD contra el código y GDD v2 (Javier + Claude Code)
 - **Qué:** revisamos el GDD v1 punto por punto contra el código y los datos, no contra sus casillas. Tres agentes Explore de solo lectura cubrieron partida/IA/combate, loot/energía/balance y construir/HUD/arquitectura; lo más grave se comprobó a mano.
 - **Hallazgos:** los avisos del cofre inicial y del asistente usan `AddOnScreenDebugMessage`, que la build Shipping no muestra; X borra todas las construcciones del mapa; al morir se renace con 0 piezas; las piezas no tienen vida; el juego no suena porque el código busca los sonidos en una carpeta donde no hay nada importado.
