@@ -18,7 +18,7 @@ struct FJamFigureState
 	bool bRig = false;            // hay arma en mano (UJamCharacterLook::Apply llamo SetRig)
 	bool bBow = false;            // arma actual: arco (si no, espada)
 	bool bCarry = true;           // espada: punta hacia afuera al caminar/correr para no atravesar el cuerpo
-	FName SwordBone, BowBone, DrawBone;
+	FName SwordBone, BowBone, DrawBone, SpineBone;
 	FQuat SwordInBone = FQuat::Identity; // rotacion de la espada respecto a su hueso (eje X = hoja)
 	FQuat BowInBone = FQuat::Identity;   // rotacion del arco respecto a su hueso (eje Z = largo del arco)
 	FQuat MeshQuat = FQuat::Identity;    // rotacion relativa de la malla en el actor (Yaw de Characters.json)
@@ -58,7 +58,7 @@ protected:
 
 private:
 	FJamFigureState State;
-	FName SwordBone, BowBone, DrawBone;
+	FName SwordBone, BowBone, DrawBone, SpineBone;
 	FQuat SwordInBone = FQuat::Identity;
 	FQuat BowInBone = FQuat::Identity;
 	bool bHasRig = false;

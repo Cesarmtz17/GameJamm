@@ -245,7 +245,7 @@ void UJamCharacterLook::HandleWeaponAttack(UJamWeaponComponent* InWeapon, EJamWe
 	if (Fig && InWeapon && InWeapon->IsInHand() && (!MovesVar || MovesVar->GetInt() != 0))
 	{
 		const bool bBow = Kind == EJamWeapon::Bow;
-		const float Dur = bBow ? 0.6f : 0.42f;
+		const float Dur = bBow ? 0.6f : 0.45f; // con SwordHitDelay/BowReleaseDelay de UJamWeaponComponent
 		Fig->StartMove(bBow ? EJamFigureMove::Shot : EJamFigureMove::Slash, Dur);
 		if (!Current.IsNone() && (Current == TEXT("Attack") || Current == TEXT("Shoot"))) { Current = NAME_None; ActionUntil = -1.f; }
 		return;

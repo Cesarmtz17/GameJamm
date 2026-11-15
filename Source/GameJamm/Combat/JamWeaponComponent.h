@@ -46,6 +46,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Sword")
 	float SwordKnockback = 450.f;
 
+	/** Medio angulo del tajo (grados a cada lado del frente del personaje). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Sword")
+	float SwordArc = 75.f;
+
+	/** Segundos desde que se aprieta hasta que pega: cuando la hoja cruza al frente en el espadazo de la figura. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Sword")
+	float SwordHitDelay = 0.19f;
+
+	/** Segundos desde que se aprieta hasta que sale la flecha: cuando la mano suelta la cuerda. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Bow")
+	float BowReleaseDelay = 0.17f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Bow")
 	float BowDamage = 15.f;
 
@@ -156,6 +168,10 @@ private:
 	int32 SwordUses = 0;
 
 	float LastAttackTime = -100.f;
+	float PendingAt = -1.f;       // golpe/flecha en espera (ver SwordHitDelay, BowReleaseDelay)
+	EJamWeapon PendingKind = EJamWeapon::Sword;
+	float FaceYaw = 0.f;          // el personaje voltea a la mira mientras ataca
+	float FaceUntil = -1.f;
 	float SwingAlpha = 1.f; // 0..1 durante el tajo
 
 	TWeakObjectPtr<USceneComponent> HandParent;

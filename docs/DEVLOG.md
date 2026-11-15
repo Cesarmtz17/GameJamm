@@ -43,6 +43,13 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 - **Qué:** las figuras de Rodin traen un solo clip de ataque, un jab con la izquierda, y uno de lanzar en lugar de tensar el arco. Con la espada en la izquierda la hoja también atravesaba el cuerpo al correr. Ahora la espada va en la derecha y el espadazo, el tiro con arco y la espada "cargada" se hacen girando hombro, codo y mano en C++ encima del clip de caminar.
 - **Cómo:** `UJamFigureAnim` hereda de la instancia de animación suelta y no necesita Anim Blueprint. Después de evaluar el clip, cada pose se describe como **direcciones** en el personaje (hombro→codo, codo→mano, hoja). El código busca la rotación mínima que lleva cada hueso a esa dirección, así que no depende de los ejes del rig.
 - **Cómo se probó:** el agente congela el golpe en un avance fijo (`jam.Figure.Freeze`) y saca capturas de frente y de lado con `Jam.Cam` y `Jam.ShotIn`. Así afinó las poses de carga, golpe, remate, tensado y soltado sin tocar la pantalla del usuario.
+- **Hitbox de la espada (segunda vuelta):**
+  - Antes el daño entraba al apretar, antes de que la hoja llegara. Ahora entra cuando la hoja cruza al frente (0.19 s); la flecha sale cuando la mano suelta la cuerda (0.17 s).
+  - El golpe cubre un arco de ±75° frente al cuerpo y 2 m hasta el borde del blanco (las torres grandes cuentan desde su borde).
+  - Ya no pega por la espalda ni a través de paredes: se revisa la línea de vista.
+  - El personaje voltea a donde apuntas mientras ataca y el torso gira con el tajo.
+  - Al pegar, el jugador siente una pausa de 0.06 s.
+  - **Qué falló:** con la cámara fija de pruebas (`Jam.Cam`), el personaje volteaba hacia donde miraba la cámara y no hacia donde apunta el control. En la primera prueba le pegó al muñeco de atrás. Se vio en el mosaico de capturas con `jam.Sword.Debug 1` (dibuja el arco y los impactos).
 - **Trampa evitada:** `PlayAnimation` cambia la malla a modo de animación suelta y borra cualquier instancia propia. Ahora los clips se cambian directo en la instancia.
 
 ## 14 nov — Arco, asiento y muerte de las figuras afinados en PIE (Javier + Claude Code)

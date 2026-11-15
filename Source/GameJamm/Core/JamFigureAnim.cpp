@@ -21,31 +21,35 @@ namespace
 	{
 		float T;
 		FVector U, F, B;
+		float Twist = 0.f; // grados de giro del torso (+ = hombro derecho atras, izquierdo al frente)
+		float Lean = 0.f;  // grados de inclinacion del torso (+ = al frente)
 	};
 
 	// Espada cargada al caminar/correr: punta al frente y hacia afuera (no cruza el torso ni las piernas).
 	const FVector CarryBlade(0.55f, 0.65f, 0.1f);
 
-	// Espadazo en diagonal: arriba a la derecha > cruza al frente > termina abajo a la izquierda.
+	// Espadazo en diagonal (0.45 s): carga arriba a la derecha con el torso girado > cruza al frente > remata abajo a la
+	// izquierda con el torso de vuelta. El dano entra en SwordHitDelay (0.19 s = T 0.42), cuando la hoja pasa al frente.
 	const FKey SlashKeys[] = {
-		{ 0.00f, FVector(-0.10f, 0.80f, 0.55f), FVector(-0.30f, 0.30f, 0.90f), FVector(-0.55f, 0.45f, 0.70f) }, // atras arriba
-		{ 0.30f, FVector(-0.10f, 0.80f, 0.55f), FVector(-0.30f, 0.30f, 0.90f), FVector(-0.55f, 0.45f, 0.70f) }, // carga
-		{ 0.48f, FVector(0.90f, 0.35f, 0.25f), FVector(1.00f, 0.05f, 0.05f), FVector(0.80f, -0.35f, 0.10f) },  // golpe al frente
-		{ 0.62f, FVector(0.60f, -0.45f, -0.25f), FVector(0.40f, -0.85f, -0.30f), FVector(0.15f, -0.80f, -0.55f) }, // remate
-		{ 1.00f, FVector(0.60f, -0.45f, -0.25f), FVector(0.40f, -0.85f, -0.30f), FVector(0.15f, -0.80f, -0.55f) },
+		{ 0.00f, FVector(-0.10f, 0.80f, 0.55f), FVector(-0.30f, 0.30f, 0.90f), FVector(-0.55f, 0.45f, 0.70f), 30.f, -6.f },  // atras arriba
+		{ 0.28f, FVector(-0.25f, 0.80f, 0.55f), FVector(-0.40f, 0.30f, 0.85f), FVector(-0.70f, 0.35f, 0.60f), 38.f, -8.f },  // carga
+		{ 0.45f, FVector(0.90f, 0.35f, 0.25f), FVector(1.00f, 0.05f, 0.05f), FVector(0.80f, -0.35f, 0.10f), -5.f, 10.f },    // golpe al frente
+		{ 0.60f, FVector(0.60f, -0.45f, -0.25f), FVector(0.40f, -0.85f, -0.30f), FVector(0.15f, -0.80f, -0.55f), -35.f, 16.f }, // remate
+		{ 1.00f, FVector(0.60f, -0.45f, -0.25f), FVector(0.40f, -0.85f, -0.30f), FVector(0.15f, -0.80f, -0.55f), -30.f, 12.f },
 	};
-	const float SlashIn = 0.12f, SlashOut = 0.72f; // entra rapido, sale despues del remate
+	const float SlashIn = 0.15f, SlashOut = 0.72f; // entra rapido, sale despues del remate
 
-	// Arco: brazo del arco extendido al frente con el arco vertical; la otra mano tensa junto a la cara y suelta hacia atras.
+	// Arco (0.6 s): de lado con el hombro izquierdo al frente, brazo del arco extendido y el arco vertical; la otra mano
+	// tensa junto a la cara y suelta hacia atras. La flecha sale en BowReleaseDelay (0.17 s = T 0.28).
 	const FKey BowArmKeys[] = {
-		{ 0.00f, FVector(1.00f, -0.20f, 0.05f), FVector(1.00f, -0.05f, 0.05f), FVector(0.05f, -0.15f, 1.00f) },
-		{ 1.00f, FVector(1.00f, -0.20f, 0.05f), FVector(1.00f, -0.05f, 0.05f), FVector(0.05f, -0.15f, 1.00f) },
+		{ 0.00f, FVector(1.00f, -0.20f, 0.05f), FVector(1.00f, -0.05f, 0.05f), FVector(0.05f, -0.15f, 1.00f), -35.f, 0.f },
+		{ 1.00f, FVector(1.00f, -0.20f, 0.05f), FVector(1.00f, -0.05f, 0.05f), FVector(0.05f, -0.15f, 1.00f), -35.f, 0.f },
 	};
 	const FKey DrawArmKeys[] = {
 		{ 0.00f, FVector(0.60f, 0.70f, 0.05f), FVector(0.90f, -0.30f, 0.10f), FVector::ZeroVector },   // mano en la cuerda, al frente
-		{ 0.22f, FVector(-0.55f, 0.80f, 0.10f), FVector(0.75f, -0.65f, 0.10f), FVector::ZeroVector },  // tensado: codo atras, mano en la barbilla
-		{ 0.40f, FVector(-0.55f, 0.80f, 0.10f), FVector(0.75f, -0.65f, 0.10f), FVector::ZeroVector },  // apunta
-		{ 0.50f, FVector(-0.70f, 0.70f, 0.15f), FVector(-0.35f, 0.90f, 0.25f), FVector::ZeroVector },  // suelta: la mano sale hacia atras
+		{ 0.18f, FVector(-0.55f, 0.80f, 0.10f), FVector(0.75f, -0.65f, 0.10f), FVector::ZeroVector },  // tensado: codo atras, mano en la barbilla
+		{ 0.27f, FVector(-0.55f, 0.80f, 0.10f), FVector(0.75f, -0.65f, 0.10f), FVector::ZeroVector },  // apunta
+		{ 0.36f, FVector(-0.70f, 0.70f, 0.15f), FVector(-0.35f, 0.90f, 0.25f), FVector::ZeroVector },  // suelta: la mano sale hacia atras
 		{ 1.00f, FVector(-0.70f, 0.70f, 0.15f), FVector(-0.35f, 0.90f, 0.25f), FVector::ZeroVector },
 	};
 	const float ShotIn = 0.15f, ShotOut = 0.75f;
@@ -66,7 +70,7 @@ namespace
 				const FKey& A = Keys[I - 1];
 				const FKey& B = Keys[I];
 				const float Alpha = FMath::SmoothStep(0.f, 1.f, (T - A.T) / FMath::Max(KINDA_SMALL_NUMBER, B.T - A.T));
-				return { T, Nlerp(A.U, B.U, Alpha), Nlerp(A.F, B.F, Alpha), Nlerp(A.B, B.B, Alpha) };
+				return { T, Nlerp(A.U, B.U, Alpha), Nlerp(A.F, B.F, Alpha), Nlerp(A.B, B.B, Alpha), FMath::Lerp(A.Twist, B.Twist, Alpha), FMath::Lerp(A.Lean, B.Lean, Alpha) };
 			}
 		}
 		return Keys[Num - 1];
@@ -104,6 +108,22 @@ namespace
 		const FQuat Qp = P.IsValid() ? ComponentSpace(Pose, P).GetRotation() : FQuat::Identity;
 		const FQuat D = FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(Cur.GetSafeNormal(), Want.GetSafeNormal()), FMath::Clamp(W, 0.f, 1.f));
 		FTransform& L = Pose[B];
+		L.SetRotation((Qp.Inverse() * D * Qp * L.GetRotation()).GetNormalized());
+	}
+
+	// Torso: giro sobre el eje vertical y luego inclinacion al frente (direcciones del actor, se pasan al componente).
+	void Torso(FCompactPose& Pose, FName SpineName, const FQuat& ToMesh, float Twist, float Lean, float W)
+	{
+		const FCompactPoseBoneIndex Spine = FindBone(Pose, SpineName);
+		if (!Spine.IsValid() || W <= 0.f || (FMath::IsNearlyZero(Twist) && FMath::IsNearlyZero(Lean))) { return; }
+		const float Yaw = FMath::DegreesToRadians(Twist * W), Tilt = FMath::DegreesToRadians(Lean * W);
+		// Sin ambiguedad de signo: el giro lleva el frente (X) hacia la derecha (Y); la inclinacion lleva arriba (Z) al frente.
+		const FQuat TwistQ = FQuat::FindBetweenNormals(FVector::ForwardVector, FVector(FMath::Cos(Yaw), FMath::Sin(Yaw), 0.f));
+		const FQuat LeanQ = FQuat::FindBetweenNormals(FVector::UpVector, FVector(FMath::Sin(Tilt), 0.f, FMath::Cos(Tilt)));
+		const FQuat D = ToMesh * (TwistQ * LeanQ) * ToMesh.Inverse();
+		const FCompactPoseBoneIndex P = Pose.GetParentBoneIndex(Spine);
+		const FQuat Qp = P.IsValid() ? ComponentSpace(Pose, P).GetRotation() : FQuat::Identity;
+		FTransform& L = Pose[Spine];
 		L.SetRotation((Qp.Inverse() * D * Qp * L.GetRotation()).GetNormalized());
 	}
 
@@ -146,6 +166,7 @@ namespace
 			const FKey K = Sample(SlashKeys, UE_ARRAY_COUNT(SlashKeys), T);
 			const FVector Blade = S.bCarry ? Nlerp(CarryBlade, K.B, W) : K.B;
 			const float WBlade = S.bCarry ? 1.f : W;
+			Torso(Pose, S.SpineBone, ToMesh, K.Twist, K.Lean, W);
 			AimArm(Pose, S.SwordBone, Mesh(K.U), Mesh(K.F), W, SwordAxis, Mesh(Blade), WBlade);
 			return;
 		}
@@ -155,6 +176,7 @@ namespace
 		const FKey A = Sample(BowArmKeys, UE_ARRAY_COUNT(BowArmKeys), T);
 		const FKey D = Sample(DrawArmKeys, UE_ARRAY_COUNT(DrawArmKeys), T);
 		const FVector BowAxis = S.BowInBone.RotateVector(FVector::UpVector);
+		Torso(Pose, S.SpineBone, ToMesh, A.Twist, A.Lean, W);
 		AimArm(Pose, S.BowBone, MeshAim(A.U), MeshAim(A.F), W, BowAxis, Mesh(A.B), W);
 		AimArm(Pose, S.DrawBone, MeshAim(D.U), MeshAim(D.F), W, FVector::ZeroVector, FVector::ZeroVector, 0.f);
 	}
@@ -207,9 +229,15 @@ void UJamFigureAnim::SetRig(FName InSwordBone, const FQuat& InSwordInBone, FName
 	bHasRig = true;
 	if (const USkeletalMeshComponent* SK = GetSkelMeshComponent())
 	{
+		SpineBone = NAME_None;
+		FName B = SK->GetParentBone(SK->GetParentBone(SwordBone));
+		for (int32 I = 0; I < 6 && !B.IsNone(); ++I, B = SK->GetParentBone(B))
+		{
+			if (B.ToString().Contains(TEXT("spine"))) { SpineBone = B; break; }
+		}
 		const FName Fore = SK->GetParentBone(SwordBone);
-		UE_LOG(LogJam, Log, TEXT("Figura: espada en %s (codo %s, hombro %s), arco en %s, cuerda con %s"),
-			*SwordBone.ToString(), *Fore.ToString(), *SK->GetParentBone(Fore).ToString(), *BowBone.ToString(), *DrawBone.ToString());
+		UE_LOG(LogJam, Log, TEXT("Figura: espada en %s (codo %s, hombro %s), arco en %s, cuerda con %s, torso %s"),
+			*SwordBone.ToString(), *Fore.ToString(), *SK->GetParentBone(Fore).ToString(), *BowBone.ToString(), *DrawBone.ToString(), *SpineBone.ToString());
 	}
 }
 
@@ -237,6 +265,7 @@ void UJamFigureAnim::NativeUpdateAnimation(float DeltaSeconds)
 	State.SwordBone = SwordBone;
 	State.BowBone = BowBone;
 	State.DrawBone = DrawBone;
+	State.SpineBone = SpineBone;
 	State.SwordInBone = SwordInBone;
 	State.BowInBone = BowInBone;
 	State.MeshQuat = SK ? SK->GetRelativeRotation().Quaternion() : FQuat::Identity;

@@ -20,6 +20,17 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Containers/Ticker.h"
+#include "DrawDebugHelpers.h"
+#include "HAL/IConsoleManager.h"
+
+namespace
+{
+	TAutoConsoleVariable<float> CVarJamHitStop(TEXT("jam.Sword.HitStop"), 0.06f,
+		TEXT("Segundos (reales) que se congela el juego cuando la espada del jugador pega; 0 = sin pausa."));
+	TAutoConsoleVariable<int32> CVarJamSwordDebug(TEXT("jam.Sword.Debug"), 0,
+		TEXT("1 = dibuja el alcance del tajo (arco) y lo que pega, y escribe en el log lo que descarta."));
+}
 
 namespace
 {
@@ -355,9 +366,20 @@ bool UJamWeaponComponent::Attack()
 	{
 		return false;
 	}
-	LastAttackTime = GetWorld()->GetTimeSeconds();
-	if (Current == EJamWeapon::Sword) { SwingSword(); }
-	else { ShootArrow(); }
+	const float Now = GetWorld()->GetTimeSeconds();
+	LastAttackTime = Now;
+	// Voltea a la mira (la camara puede ver a otro lado que el cuerpo) y espera a que la animacion llegue al golpe.
+	FVector From, Aim;
+	GetAim(From, Aim);
+	// Espada: hacia donde apunta el control (el centro de la camara puede no estar en linea con el cuerpo); arco: hacia el blanco.
+	const APawn* AimPawn = Cast<APawn>(GetOwner());
+	FaceYaw = Current == EJamWeapon::Bow || !AimPawn || !AimPawn->GetController() ? Aim.Rotation().Yaw : AimPawn->GetControlRotation().Yaw;
+	const float Delay = Current == EJamWeapon::Sword ? SwordHitDelay : BowReleaseDelay;
+	FaceUntil = Now + Delay + 0.2f;
+	if (!GetOwner()->GetAttachParentActor()) { GetOwner()->SetActorRotation(FRotator(0.f, FaceYaw, 0.f)); }
+	PendingKind = Current;
+	PendingAt = Now + Delay;
+	if (Delay <= 0.f) { PendingAt = -1.f; if (PendingKind == EJamWeapon::Sword) { SwingSword(); } else { ShootArrow(); } }
 	OnWeaponAttack.Broadcast(this, Current);
 	return true;
 }
@@ -424,11 +446,19 @@ void UJamWeaponComponent::SwingSword()
 {
 	SwingAlpha = 0.f;
 	AActor* Owner = GetOwner();
-	FVector From, Aim;
-	GetAim(From, Aim);
-	const FVector Fwd = FVector(Aim.X, Aim.Y, 0.f).GetSafeNormal();
-	const float Radius = SwordRange * 0.5f;
-	const FVector Center = Owner->GetActorLocation() + Fwd * Radius;
+	const FVector Fwd = FRotator(0.f, FaceYaw, 0.f).Vector();
+	const FVector Origin = Owner->GetActorLocation();
+	const float Radius = SwordRange;
+	const FVector Center = Origin;
+	const float MinDot = FMath::Cos(FMath::DegreesToRadians(SwordArc));
+	const bool bDebug = CVarJamSwordDebug.GetValueOnGameThread() != 0;
+	if (bDebug)
+	{
+		const FVector Z(0, 0, 1);
+		DrawDebugLine(GetWorld(), Origin, Origin + Fwd.RotateAngleAxis(SwordArc, Z) * Radius, FColor::Yellow, false, 1.f, 0, 2.f);
+		DrawDebugLine(GetWorld(), Origin, Origin + Fwd.RotateAngleAxis(-SwordArc, Z) * Radius, FColor::Yellow, false, 1.f, 0, 2.f);
+		DrawDebugCircleArc(GetWorld(), Origin, Radius, Fwd, FMath::DegreesToRadians(SwordArc), 16, FColor::Yellow, false, 1.f, 0, 2.f);
+	}
 
 	TArray<FOverlapResult> Overlaps;
 	FCollisionObjectQueryParams Objects;
@@ -447,13 +477,51 @@ void UJamWeaponComponent::SwingSword()
 	for (const FOverlapResult& O : Overlaps)
 	{
 		AActor* A = O.GetActor();
-		if (!A || Done.Contains(A)) { continue; }
+		if (!A || A == Owner || Done.Contains(A)) { continue; }
+		// Punto mas cercano del objetivo (torres grandes: su borde, no su centro).
+		FVector Point = A->GetActorLocation();
+		if (UPrimitiveComponent* C = O.GetComponent())
+		{
+			FVector Closest;
+			if (C->GetClosestPointOnCollision(Origin, Closest) >= 0.f) { Point = Closest; }
+		}
+		FVector To = Point - Origin;
+		To.Z = 0.f;
+		const float Dist = To.Size();
+		// Solo lo que esta frente al cuerpo (o pegado a el) y a la vista: no pega por la espalda ni a traves de paredes.
+		if (Dist > 60.f && FVector::DotProduct(To / Dist, Fwd) < MinDot)
+		{
+			if (bDebug) { UE_LOG(LogJam, Log, TEXT("Espada: %s fuera del arco"), *A->GetName()); }
+			continue;
+		}
+		FHitResult Block;
+		FCollisionQueryParams Sight(SCENE_QUERY_STAT(JamSwordSight), false, Owner);
+		Sight.AddIgnoredActor(A);
+		if (GetWorld()->LineTraceSingleByChannel(Block, Origin + FVector(0, 0, 40.f), Point, ECC_Visibility, Sight) && !Cast<APawn>(Block.GetActor()))
+		{
+			if (bDebug) { UE_LOG(LogJam, Log, TEXT("Espada: %s tapado por %s"), *A->GetName(), *GetNameSafe(Block.GetActor())); }
+			continue;
+		}
 		Done.Add(A);
+		if (bDebug) { DrawDebugSphere(GetWorld(), Point, 20.f, 8, FColor::Red, false, 1.f); }
 		if (DealDamage(A, SwordDamage + BonusDamage + Bonus, Fwd * SwordKnockback * PushMul))
 		{
 			if (!Fused.IsNone() && !(bHit && Fused == TEXT("Bomb"))) { ApplyFusionHit(Fused, A, A->GetActorLocation(), false); }
 			bHit = true;
 		}
+	}
+	// Pausa de impacto (solo el jugador): un instante congelado hace que el golpe se sienta.
+	const APawn* OwnerPawn = Cast<APawn>(Owner);
+	const float Stop = CVarJamHitStop.GetValueOnGameThread();
+	if (bHit && Stop > 0.f && OwnerPawn && OwnerPawn->IsPlayerControlled() && FMath::IsNearlyEqual(UGameplayStatics::GetGlobalTimeDilation(GetWorld()), 1.f))
+	{
+		UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 0.05f);
+		TWeakObjectPtr<UWorld> WeakWorld(GetWorld());
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakWorld](float)
+		{
+			if (WeakWorld.IsValid()) { UGameplayStatics::SetGlobalTimeDilation(WeakWorld.Get(), 1.f); }
+			return false;
+		}), Stop);
 	}
 	// El material se gasta con el uso: un golpe por tajo que pega; al acabarse se cae.
 	if (bHit && !Fused.IsNone() && --SwordUses <= 0)
@@ -496,6 +564,19 @@ void UJamWeaponComponent::ShootArrow()
 void UJamWeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	const float Now = GetWorld()->GetTimeSeconds();
+	AActor* Owner = GetOwner();
+	if (Now < FaceUntil && Owner && !Owner->GetAttachParentActor()) { Owner->SetActorRotation(FRotator(0.f, FaceYaw, 0.f)); }
+	if (PendingAt >= 0.f && Now >= PendingAt)
+	{
+		PendingAt = -1.f;
+		const UHealthComponent* Health = Owner ? Owner->FindComponentByClass<UHealthComponent>() : nullptr;
+		if (!(Health && Health->IsDead()))
+		{
+			if (PendingKind == EJamWeapon::Sword) { SwingSword(); }
+			else { ShootArrow(); }
+		}
+	}
 	if (!HandMesh || Current != EJamWeapon::Sword || SwingAlpha >= 1.f || HandParent.IsValid())
 	{
 		return; // con figura rigeada el tajo viene en la animacion Attack
