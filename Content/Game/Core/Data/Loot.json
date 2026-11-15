@@ -53,10 +53,10 @@
     "message": "Presiona B y escribe lo que quieras construir. Prueba: un carro que queme todo"
   },
   "chests": [
-    { "tier": "common", "x": -8600, "y": -3600, "respawn": 60 },
-    { "tier": "common", "x": 8600, "y": 3600, "respawn": 60 },
-    { "tier": "device", "x": -4000, "y": 6000, "respawn": 90 },
-    { "tier": "device", "x": 4000, "y": -6000, "respawn": 90 }
+    { "tier": "common", "x": -8600, "y": -3250, "respawn": 60 },
+    { "tier": "common", "x": 8600, "y": 3250, "respawn": 60 },
+    { "tier": "device", "x": -4000, "y": 5650, "respawn": 90 },
+    { "tier": "device", "x": 4000, "y": -5650, "respawn": 90 }
   ],
   "rare_event": { "x": 0, "y": 600, "first": 300, "every": 180 },
   "scrap": [
