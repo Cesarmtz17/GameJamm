@@ -297,15 +297,17 @@ void AJamBotHero::BuildSomething()
 
 void AJamBotHero::HandleDied(UHealthComponent* HealthComponent, AActor* Killer)
 {
+	const bool bWasMounted = bMounted;
 	if (bMounted) { Dismount(TEXT("murio")); }
 	MountAt = -1.f;
 	StopMoving();
 	bRetreating = false;
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetCharacterMovement()->DisableMovement();
-	if (Look && Look->IsApplied())
+	if (Look && Look->IsApplied() && !bWasMounted)
 	{
 		// Con figura rigeada: que se vea la animacion Death y se esconde despues (solo si sigue muerto: Respawn reusa este actor).
+		// Montado no: Dismount lo deja 1 m arriba junto al carro y sin movimiento, la caida se veria flotando.
 		FTimerHandle HideTimer;
 		GetWorldTimerManager().SetTimer(HideTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
 		{
