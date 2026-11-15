@@ -7,6 +7,7 @@
 #include "Building/JamInventorySolver.h"
 #include "Core/InventoryComponent.h"
 #include "Core/JamLoot.h"
+#include "Core/JamAudio.h"
 #include "Core/JamMessages.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/Engine.h"
@@ -110,6 +111,14 @@ void AJamBuildSpawner::SetBuildActive(bool bOn)
 {
 	TArray<AJamBuildPart*> Raw;
 	for (AJamBuildPart* P : Parts) { Raw.Add(P); }
+	// Apagar (tecla C): las piezas ya suenan Power_On al encenderse; el apagado lo suena el constructor, una vez, solo al del jugador.
+	if (!bOn && bAnnounceOnScreen && IsBuildActive())
+	{
+		for (const AJamBuildPart* P : Parts)
+		{
+			if (IsValid(P)) { JamAudio::PlayAt(this, TEXT("SFX_Power_Off"), P->GetActorLocation(), 0.7f); break; }
+		}
+	}
 	UJamAssembler::SetBuildActive(Raw, ActivateIds, bOn);
 }
 
@@ -454,6 +463,8 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& InRecipe, const FString& InNo
 	UE_LOG(LogJamBuild, Log, TEXT("%s %s"), *LastStatus, *LastRecipeJson);
 	if (bAnnounceOnScreen)
 	{
+		// Un solo pop al aparecer la construccion del jugador (los bots no suenan para no hacer ruido).
+		if (Built.Num() > 0 && IsValid(Built[0])) { JamAudio::PlayAt(this, TEXT("SFX_Build_Pop"), Built[0]->GetActorLocation(), 0.8f); }
 		// Mecanicas = capacidades (Kind) de las piezas que se van a encender.
 		TArray<FString> Mechs;
 		for (const AJamBuildPart* P : Built)

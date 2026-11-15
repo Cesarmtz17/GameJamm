@@ -1,6 +1,7 @@
 #include "Core/JamGameMode.h"
 #include "AI/JamWaveSpawner.h"
 #include "Core/JamCharacter.h"
+#include "Core/JamAudio.h"
 #include "Core/JamGameState.h"
 #include "Core/JamHUD.h"
 #include "Core/InventoryComponent.h"
@@ -41,6 +42,7 @@ void AJamGameMode::StartPlay()
 		{
 			GetWorld()->SpawnActor<AJamWaveSpawner>();
 		}
+		JamAudio::Music(this, TEXT("MUS_Match_Loop"), 0.4f); // GDD 10: musica de partida (la intensa entra en muerte subita)
 		GetWorld()->SpawnActor<AJamLootDirector>(); // GDD 4: cofres, chatarra y cofre raro (Content/Game/Core/Data/Loot.json)
 	}
 }
@@ -64,6 +66,7 @@ void AJamGameMode::MatchTick()
 			It->AttackDamage *= 0.5f;
 		}
 		UE_LOG(LogJam, Log, TEXT("Muerte subita"));
+		JamAudio::Music(this, TEXT("MUS_Match_Intense_Loop"), 0.45f);
 		OnSuddenDeath();
 	}
 
@@ -115,6 +118,7 @@ void AJamGameMode::EndMatch(EJamTeam Winner)
 	UE_LOG(LogJam, Log, TEXT("Match over. Winner: %s"), *UEnum::GetValueAsString(Winner));
 	GetWorldTimerManager().ClearTimer(MatchTimer);
 	JamGameState->SetMatchResult(Winner);
+	JamAudio::Music(this, TEXT("MUS_Menu_Loop"), 0.4f); // pantalla final
 	OnMatchEnded(Winner);
 }
 
@@ -181,6 +185,7 @@ void AJamGameMode::Respawn(AController* Controller)
 	RestartPlayer(Controller);
 	if (bPlayer)
 	{
+		JamAudio::Play2D(this, TEXT("SFX_Respawn"), 0.8f);
 		UInventoryComponent* NewInv = Controller->GetPawn() ? Controller->GetPawn()->FindComponentByClass<UInventoryComponent>() : nullptr;
 		if (NewInv)
 		{

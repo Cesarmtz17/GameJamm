@@ -2,6 +2,7 @@
 #include "Core/HealthComponent.h"
 #include "Core/JamStatics.h"
 #include "Core/JamGameMode.h"
+#include "Core/JamAudio.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
@@ -97,9 +98,15 @@ void ATeamStructure::HandleDied(UHealthComponent* HealthComponent, AActor* Kille
 	Mesh->SetHiddenInGame(true);
 	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	OnStructureDestroyed(Killer);
+	JamAudio::PlayAt(this, TEXT("SFX_Tower_Destroyed"), GetActorLocation(), 0.9f);
 
 	if (AJamGameMode* GameMode = GetWorld()->GetAuthGameMode<AJamGameMode>())
 	{
+		// Fanfarria al caer una estructura enemiga (o la base de cualquiera); si cae una torre propia solo suena el derrumbe.
+		if (bIsBase || GetTeam() != GameMode->PlayerTeam)
+		{
+			JamAudio::Play2D(this, TEXT("SFX_Fanfare"), 0.8f);
+		}
 		GameMode->NotifyStructureDestroyed(this, Killer);
 	}
 }
@@ -163,6 +170,7 @@ void ATeamStructure::TryAttack()
 		const bool bMinion = Target->ActorHasTag(TEXT("Minion"));
 		const float Damage = bMinion ? AttackDamage : HeroDamage * FMath::Min(1.f + HeroRampPerShot * ShotsOnTarget, HeroRampMax);
 		UGameplayStatics::ApplyDamage(Target, Damage, nullptr, this, nullptr);
+		JamAudio::PlayAt(this, TEXT("SFX_Tower_Shot"), GetActorLocation(), 0.6f);
 
 		// Rayo desde lo alto de la torre al objetivo.
 		FVector Origin, Extent;
