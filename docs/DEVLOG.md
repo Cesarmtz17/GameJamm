@@ -38,6 +38,14 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 15 nov (tarde) — Pedidos de una sola rueda y pruebas con inventario real (Javier + Codex)
+
+- **Cómo usamos la IA:** Codex revisó las nueve frases rápidas con el cofre inicial real de 39 piezas, sin rellenar el inventario entre pedidos. El encargo fue conservar las capacidades y cantidades pedidas, y separar evidencia de receta de funcionamiento físico.
+- **Qué falló y se corrigió:** una torreta láser con bloque y emisor se enriquecía como si estuviera incompleta; ahora conserva esa combinación válida. La palabra «single» no se contaba y una sola rueda terminaba convertida en carro; ahora se conserva la rueda única y su accesorio, también al reparar la receta. Los numerales ya no cruzan «con/with/que/that» ni reinician cantidades de piezas no mencionadas.
+- **Coherencia:** el cálculo del hover usaba la posición del emisor aunque la fuerza real se aplica al centro de masa de la raíz. Se corrigió el cálculo, sin cambiar la física ni rebajar los umbrales. El hovercraft pasó de 69 a 100; la rueda con un lanzallamas conserva su aviso real de desequilibrio (69), pendiente de evaluación física.
+- **Validación y límites:** compilación del editor correcta y nueva pasada de nueve pedidos: torreta láser con un bloque y un emisor, hovercraft completo y rueda única conservada. La catapulta conserva resorte, bola, viga y bloque, con un ajuste de receta todavía visible. Estas comprobaciones no acreditan por sí solas que los nueve vehículos se conduzcan o vuelen. En una prueba separada, un minion enemigo real rompió una rueda y un lanzallamas, sin aplicar daño desde el script; el jugador montado conservó 150 de vida. La salud de piezas sigue apagada por defecto hasta terminar expulsión y reembolso.
+- **Integración:** cambios de Building realizados con la autorización de Javier para todas las áreas. El primer enlace de la DLL falló por otra instancia abierta del editor; al cerrarla, el enlace terminó correctamente.
+
 ## 15 nov (tarde) — Relevo a Codex, Prompt & Conquer y selección de audio (Javier + Codex)
 
 - **Dirección y relevo:** Javier eligió el título **Prompt & Conquer** y el equipo **cavinos**, en minúsculas; el zip previsto es `cavinos_PromptAndConquer.zip`. Al agotarse la suscripción de Claude, Codex retomó la sesión desde Orca, leyó el estado real del repo y continuó el trabajo del equipo con el encargo de terminar el juego y preparar la entrega.

@@ -265,7 +265,7 @@ void AJamBuildSpawner::BuildNow()
 			if (bOk && C.Pieces.Num() > 0)
 			{
 				// Ruta principal: el modelo decidio piezas y cantidades. Los numerales del texto ("25 llantas") mandan sobre
-				// la cantidad, y una decision muy pobre (menos de 3 tipos de pieza) se completa con el concepto del respaldo.
+				// la cantidad. Una bolsa pequena se completa salvo que ya tenga una base y un arma sin movilidad pendiente.
 				TArray<FName> Negated;
 				const FString Clean = UJamBuildGenerator::StripNegations(PromptCopy, Negated);
 				TArray<FJamPieceCount> Bag = C.Pieces;
@@ -276,11 +276,35 @@ void AJamBuildSpawner::BuildNow()
 					auto KindOf = [](FName T) { FJamPartDef D; UJamPartCatalog::Find(T, D); return D.Kind; };
 					TArray<FJamPieceCount> Seed;
 					UJamBuildGenerator::BagFromKeywords(Clean, Seed, false);
-					for (const FJamPieceCount& S : Seed)
+					const bool bHasBase = Bag.ContainsByPredicate([](const FJamPieceCount& I)
 					{
-						const EJamPartKind Kd = KindOf(S.Type);
-						const bool bSameKind = (Kd == EJamPartKind::Wheel || Kd == EJamPartKind::Fan) && Bag.ContainsByPredicate([&](const FJamPieceCount& X) { return KindOf(X.Type) == Kd; });
-						if (!bSameKind && !Bag.ContainsByPredicate([&S](const FJamPieceCount& X) { return X.Type == S.Type; })) { Bag.Add(S); }
+						FJamPartDef Def;
+						return I.Count > 0 && UJamPartCatalog::Find(I.Type, Def)
+							&& (Def.Kind == EJamPartKind::Structural || Def.Kind == EJamPartKind::Slide);
+					});
+					const bool bHasWeapon = Bag.ContainsByPredicate([](const FJamPieceCount& I)
+					{
+						const FJamPieceRule* Rule = UJamBuildGenerator::PieceTable().FindByPredicate([&I](const FJamPieceRule& R) { return R.Type == I.Type; });
+						FJamPartDef Def;
+						return I.Count > 0 && Rule && Rule->bWeapon && UJamPartCatalog::Find(I.Type, Def) && Def.Kind != EJamPartKind::Light;
+					});
+					const bool bConceptNeedsMobility = Seed.ContainsByPredicate([&KindOf](const FJamPieceCount& I)
+					{
+						const EJamPartKind Kd = KindOf(I.Type);
+						return I.Count > 0 && (Kd == EJamPartKind::Wheel || Kd == EJamPartKind::Fan || Kd == EJamPartKind::Rocket
+							|| Kd == EJamPartKind::Balloon || Kd == EJamPartKind::Hover || Kd == EJamPartKind::Sail || Kd == EJamPartKind::Wing);
+					});
+					// Beam + Block ya es una torreta laser: no agregar canon ni bateria del arquetipo por tener solo dos tipos.
+					// Plank solo sigue incompleto; Plank + Flame en un pedido de carro aun necesita las ruedas del concepto.
+					const bool bKeepSmallWeaponBuild = Bag.Num() == 2 && bHasBase && bHasWeapon && !bConceptNeedsMobility;
+					if (!bKeepSmallWeaponBuild)
+					{
+						for (const FJamPieceCount& S : Seed)
+						{
+							const EJamPartKind Kd = KindOf(S.Type);
+							const bool bSameKind = (Kd == EJamPartKind::Wheel || Kd == EJamPartKind::Fan) && Bag.ContainsByPredicate([&](const FJamPieceCount& X) { return KindOf(X.Type) == Kd; });
+							if (!bSameKind && !Bag.ContainsByPredicate([&S](const FJamPieceCount& X) { return X.Type == S.Type; })) { Bag.Add(S); }
+						}
 					}
 				}
 				UJamBuildGenerator::ApplyNumerals(Clean, Bag, true);

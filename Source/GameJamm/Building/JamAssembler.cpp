@@ -505,7 +505,10 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 		double Cx = 0, Cy = 0;
 		for (const FForce& P : Lift)
 		{
-			const FVector At = P.P->Def.Kind == EJamPartKind::Rocket ? Com : P.P->Center;
+			// Rocket and Hover apply RootMesh->AddForce in Tick: the force acts at the body's COM,
+			// regardless of the emitter's socket. Balloons/fans apply it to their own body.
+			const bool bAtRootCom = P.P->Def.Kind == EJamPartKind::Rocket || P.P->Def.Kind == EJamPartKind::Hover;
+			const FVector At = bAtRootCom ? Com : P.P->Center;
 			Cx += At.X * P.Fv.Z; Cy += At.Y * P.Fv.Z;
 		}
 		const double Dist = FMath::Sqrt(FMath::Square(Cx / Up - Com.X) + FMath::Square(Cy / Up - Com.Y));
@@ -1695,6 +1698,7 @@ namespace
 		static const TMap<FString, int32> Words = []()
 		{
 			const TMap<FString, int32> Raw = {
+			{TEXT("one"), 1}, {TEXT("single"), 1}, {TEXT("lone"), 1}, {TEXT("uno"), 1}, {TEXT("un"), 1}, {TEXT("una"), 1},
 			{TEXT("dos"), 2}, {TEXT("tres"), 3}, {TEXT("cuatro"), 4}, {TEXT("cinco"), 5}, {TEXT("seis"), 6}, {TEXT("siete"), 7}, {TEXT("ocho"), 8}, {TEXT("nueve"), 9},
 			{TEXT("diez"), 10}, {TEXT("once"), 11}, {TEXT("doce"), 12}, {TEXT("trece"), 13}, {TEXT("catorce"), 14}, {TEXT("quince"), 15}, {TEXT("dieciseis"), 16}, {TEXT("dieciséis"), 16},
 			{TEXT("veinte"), 20}, {TEXT("veinticinco"), 25}, {TEXT("treinta"), 30}, {TEXT("cuarenta"), 40}, {TEXT("cincuenta"), 50},
@@ -1718,7 +1722,8 @@ namespace
 			for (const FString& W : R.Words)
 			{
 				const FString Stem = Phon(W.TrimStartAndEnd());
-				if (!Stem.Contains(TEXT(" ")) && Stem.Len() >= 3 && Stem.Len() > BestLen && Word.StartsWith(Stem))
+				const bool bMatches = Stem.Contains(TEXT(" ")) ? (Word + TEXT(" ") + NextWord).StartsWith(Stem) : Word.StartsWith(Stem);
+				if (Stem.Len() >= 3 && Stem.Len() > BestLen && bMatches)
 				{
 					Best = R.Type;
 					BestLen = Stem.Len();
@@ -1729,34 +1734,63 @@ namespace
 		if (Best == "Battery" && NextWord.StartsWith(TEXT("grande"))) { Best = "BigBattery"; }
 		return Best;
 	}
+
+	FName NumeralTarget(const TArray<FString>& Tok, int32 Index)
+	{
+		if (!Tok.IsValidIndex(Index) || NumberOf(Tok[Index]) <= 0) { return NAME_None; }
+		static const TSet<FString> Boundaries = {
+			Phon(TEXT("con")), Phon(TEXT("with")), Phon(TEXT("que")), Phon(TEXT("that")),
+			Phon(TEXT("y")), Phon(TEXT("and")), Phon(TEXT("o")), Phon(TEXT("or")),
+			Phon(TEXT("para")), Phon(TEXT("for")), Phon(TEXT("sin")), Phon(TEXT("without")), Phon(TEXT("on")), Phon(TEXT("en")) };
+		for (int32 j = Index + 1; j < Tok.Num() && j <= Index + 3; ++j)
+		{
+			// "one car with a cannon" counts the object, not the accessory in the next clause.
+			// A second numeral starts its own quantity ("un par de alas" -> par = two).
+			if (Boundaries.Contains(Tok[j]) || NumberOf(Tok[j]) > 0) { break; }
+			const FName Type = TypeOfWord(Tok[j], j + 1 < Tok.Num() ? Tok[j + 1] : FString());
+			if (!Type.IsNone()) { return Type; }
+		}
+		return NAME_None;
+	}
+
+	bool HasPieceNumeral(const TArray<FString>& Tok)
+	{
+		for (int32 i = 0; i < Tok.Num(); ++i)
+		{
+			if (!NumeralTarget(Tok, i).IsNone()) { return true; }
+		}
+		return false;
+	}
 }
 
 void UJamBuildGenerator::ApplyNumerals(const FString& Prompt, TArray<FJamPieceCount>& Bag, bool bResetCounts)
 {
 	// "25 llantas", "cuatro cañones", "un par de alas": numero y, en las 3 palabras siguientes, una pieza.
 	const TArray<FString> Tok = FJamText(Prompt).Toks; // normalizado por sonido: "beinticinco yantas" = 25 llantas
-	if (bResetCounts && Tok.ContainsByPredicate([](const FString& T) { return NumberOf(T) > 0; }))
-	{
-		for (FJamPieceCount& I : Bag)
-		{
-			const FJamPieceRule* Rule = FindRule(I.Type);
-			I.Count = FMath::Max(Rule ? Rule->DefaultCount : 1, (I.Mode == "lift" && I.Type == "Fan") ? 2 : 1);
-		}
-	}
+	TSet<FName> CountedWheels;
+	// Keep the caller signature, but a quantity only replaces the named type; an article near
+	// one accessory must never erase the model's counts for unrelated wheels, weapons or lift.
+	(void)bResetCounts;
 	for (int32 i = 0; i < Tok.Num(); ++i)
 	{
 		const int32 N = NumberOf(Tok[i]);
 		if (N <= 0) { continue; }
-		for (int32 j = i + 1; j < Tok.Num() && j <= i + 3; ++j)
+		const FName Type = NumeralTarget(Tok, i);
+		if (!Type.IsNone())
 		{
-			const FName Type = TypeOfWord(Tok[j], j + 1 < Tok.Num() ? Tok[j + 1] : FString());
-			if (!Type.IsNone())
-			{
-				BagItem(Bag, Type).Count = FMath::Clamp(N, 1, 100);
-				if (Type == "BigWheel") { Bag.RemoveAll([](const FJamPieceCount& I) { return I.Type == "Wheel"; }); }
-				break;
-			}
+			BagItem(Bag, Type).Count = FMath::Clamp(N, 1, 100);
+			FJamPartDef Def;
+			if (UJamPartCatalog::Find(Type, Def) && Def.Kind == EJamPartKind::Wheel) { CountedWheels.Add(Type); }
 		}
+	}
+	// A quantified wheel type replaces an inferred default, but explicit mixed wheel counts remain possible.
+	if (CountedWheels.Num())
+	{
+		Bag.RemoveAll([&CountedWheels](const FJamPieceCount& I)
+		{
+			FJamPartDef Def;
+			return !CountedWheels.Contains(I.Type) && UJamPartCatalog::Find(I.Type, Def) && Def.Kind == EJamPartKind::Wheel;
+		});
 	}
 }
 
@@ -1796,7 +1830,7 @@ void UJamBuildGenerator::RefineBag(const FString& Prompt, const TArray<FName>& N
 {
 	auto KindOf = [](FName T) { FJamPartDef D; UJamPartCatalog::Find(T, D); return D.Kind; };
 	const FJamText Text(Prompt);
-	const bool bDigits = Text.Toks.ContainsByPredicate([](const FString& T) { return NumberOf(T) > 0; }); // el jugador dijo algun numero
+	const bool bDigits = HasPieceNumeral(Text.Toks); // an object article ("one car") is not a part count
 	// Cantidad implicita en el nombre: triciclo = 3 ruedas, cuadricoptero = 4 helices, moto / bici = 2.
 	struct FImplied { const TCHAR* Stem; EJamPartKind Kind; int32 Count; };
 	static const FImplied Implied[] = { { TEXT("triciclo"), EJamPartKind::Wheel, 3 }, { TEXT("cuatrimoto"), EJamPartKind::Wheel, 4 }, { TEXT("cuadric"), EJamPartKind::Fan, 4 },
@@ -1826,7 +1860,7 @@ void UJamBuildGenerator::RefineBag(const FString& Prompt, const TArray<FName>& N
 		R.Type = "Rocket";
 		Bag.Add(R);
 	}
-	// Una torre o un muro no es UN bloque: cosa estatica cuya unica estructura es un Block o un Wall sin numero -> 3.
+	// Only an actual tower/wall needs repeated structure; a block supporting an emitter stays one block.
 	const bool bMoves = Bag.ContainsByPredicate([&KindOf](const FJamPieceCount& I)
 	{
 		const EJamPartKind Kd = KindOf(I.Type);
@@ -1840,7 +1874,10 @@ void UJamBuildGenerator::RefineBag(const FString& Prompt, const TArray<FName>& N
 		{
 			if (KindOf(I.Type) == EJamPartKind::Structural || KindOf(I.Type) == EJamPartKind::Slide) { ++Structs; Only = &I; }
 		}
-		if (Structs == 1 && (Only->Type == "Block" || Only->Type == "Wall") && Only->Count == 1) { Only->Count = 3; }
+		const bool bTower = HitWords(Text, K({TEXT("torre "), TEXT("tower "), TEXT("atalaya"), TEXT("pilar "), TEXT("pillar "), TEXT("columna"), TEXT("column ")}));
+		const FJamPieceRule* WallRule = FindRule("Wall");
+		const bool bWall = WallRule && HitWords(Text, WallRule->Words);
+		if (Structs == 1 && Only->Count == 1 && ((Only->Type == "Block" && bTower) || (Only->Type == "Wall" && bWall))) { Only->Count = 3; }
 	}
 }
 
@@ -1848,12 +1885,19 @@ void UJamBuildGenerator::BagFromKeywords(const FString& Prompt, TArray<FJamPiece
 {
 	Bag.Reset();
 	const FJamText Text(Prompt);
+	bool bWheelRoot = false;
 	// 1) Concepto con nombre (carro, catapulta, dron...): su receta base, leida como bolsa de piezas con su modo.
 	for (const FJamArchetypeDef& A : ArchetypeTable())
 	{
 		if (!HitWords(Text, A.Keywords)) { continue; }
+		const FBuildRecipePart* Root = A.Parts.FindByPredicate([](const FBuildRecipePart& P) { return P.AttachTo.IsNone(); });
+		FJamPartDef RootDef;
+		bWheelRoot = Root && UJamPartCatalog::Find(Root->Type, RootDef) && RootDef.Kind == EJamPartKind::Wheel;
 		for (const FBuildRecipePart& P : A.Parts)
 		{
+			// A self-rolling primitive supplies its own body. Its accessories come from the requested pieces,
+			// rather than importing the old concept's mirrored weapons.
+			if (bWheelRoot && !P.AttachTo.IsNone()) { continue; }
 			FJamPieceCount& I = BagItem(Bag, P.Type);
 			++I.Count;
 			const FString Sock = P.Socket.ToString();
@@ -1867,12 +1911,22 @@ void UJamBuildGenerator::BagFromKeywords(const FString& Prompt, TArray<FJamPiece
 	// 2) Piezas nombradas en la frase.
 	for (const FJamPieceRule& R : PieceTable())
 	{
-		if (HitWords(Text, R.Words) && BagItem(Bag, R.Type).Count == 0) { BagItem(Bag, R.Type).Count = R.DefaultCount; }
+		if (HitWords(Text, R.Words) && BagItem(Bag, R.Type).Count == 0)
+		{
+			FJamPartDef Def;
+			BagItem(Bag, R.Type).Count = bWheelRoot && UJamPartCatalog::Find(R.Type, Def) && Def.Kind == EJamPartKind::Wheel ? 1 : R.DefaultCount;
+		}
 	}
 	Bag.RemoveAll([](const FJamPieceCount& I) { return I.Count <= 0; });
-	if (Bag.ContainsByPredicate([](const FJamPieceCount& I) { return I.Type == "BigWheel"; }) && Text.Toks.ContainsByPredicate([](const FString& T) { return T.StartsWith(TEXT("grande")); }))
+	const FJamPieceRule* BigWheelRule = FindRule("BigWheel");
+	const bool bBigWheelNamed = BigWheelRule && HitWords(Text, BigWheelRule->Words);
+	if (Bag.ContainsByPredicate([](const FJamPieceCount& I) { return I.Type == "BigWheel"; }) && (bBigWheelNamed || Text.Toks.ContainsByPredicate([](const FString& T) { return T.StartsWith(TEXT("grande")); })))
 	{
 		Bag.RemoveAll([](const FJamPieceCount& I) { return I.Type == "Wheel"; });
+	}
+	else if (bWheelRoot && Bag.ContainsByPredicate([](const FJamPieceCount& I) { return I.Type == "Wheel"; }))
+	{
+		Bag.RemoveAll([](const FJamPieceCount& I) { return I.Type == "BigWheel"; });
 	}
 	// 3) Numerales.
 	ApplyNumerals(Prompt, Bag);
@@ -2057,7 +2111,7 @@ namespace
 		Rules.StableSort([](const FJamPieceRule& A, const FJamPieceRule& B) { return A.PlaceOrder < B.PlaceOrder; });
 		FString MountSockets;
 		FName LaunchSpring;   // resorte en modo lanzar con la cara de arriba libre: la bola o la bomba van encima (las lanza)
-		static const TArray<FString> RootWheelFaces = { TEXT("Left") };
+		static const TArray<FString> RootWheelFaces = { TEXT("Left"), TEXT("Right") };
 		for (const FJamPieceRule* RulePtr : Rules)
 		{
 			const FJamPieceRule& Rule = *RulePtr;
@@ -2066,7 +2120,7 @@ namespace
 			const FJamPlaceMode* Mode = Rule.Modes.Find(Item->Mode);
 			const TArray<FString>* Faces = Mode ? &Mode->Faces : &Rule.Faces;
 			FString Sym = Mode ? Mode->Sym : Rule.Sym, Order = Mode ? Mode->Order : Rule.Order;
-			if (bRootWheel) { Faces = &RootWheelFaces; Sym = TEXT("y"); Order = TEXT("center"); } // rueda raiz: todo va en el eje, en pares
+			if (bRootWheel) { Faces = &RootWheelFaces; Sym = TEXT("y"); Order = TEXT("center"); } // axle attachments: try balanced pairs first
 			int32 Left = Item->Count;
 			FName LastId = Rule.Type == RootType ? FName("body") : NAME_None;
 			while (Left > 0)
@@ -2116,7 +2170,8 @@ namespace
 					{
 						TArray<FString> PassFaces = *Faces;
 						if (Pass == 2) { PassFaces.Append(Rule.Odd); }
-						const FString PassSym = Pass == 2 ? Sym.Replace(TEXT("x"), TEXT("")) : Sym;
+						// A requested odd accessory also fits on a root axle; never invent its mirror.
+						const FString PassSym = Pass == 2 ? (bRootWheel ? FString() : Sym.Replace(TEXT("x"), TEXT(""))) : Sym;
 						for (const FName& Seg : SegOrder(Order))
 						{
 							for (const FString& Face : PassFaces)
@@ -2181,10 +2236,10 @@ void UJamBuildGenerator::BagOfRecipe(const FBuildRecipe& Recipe, TArray<FJamPiec
 		FJamPieceCount& I = BagItem(OutBag, P.Type);
 		++I.Count;
 		const FString Sock = P.Socket.ToString();
-		if (P.AttachTo.IsNone()) { continue; }
+		if (P.AttachTo.IsNone()) { if (D.Kind == EJamPartKind::Wheel) { I.Mode = "root"; } continue; }
 		if ((D.Kind == EJamPartKind::Fan || D.Kind == EJamPartKind::Rocket) && bLayout && F.Pl[P.Id].Facing.Z < -0.5) { I.Mode = "lift"; }
 		if (D.Kind == EJamPartKind::Spring && Sock.StartsWith(TEXT("Top"))) { I.Mode = "launch"; }
-		if (D.Kind == EJamPartKind::Wheel && (Sock == TEXT("Front") || Sock == TEXT("Back"))) { I.Mode = "inline"; }
+		if (D.Kind == EJamPartKind::Wheel && I.Mode != "root" && (Sock == TEXT("Front") || Sock == TEXT("Back"))) { I.Mode = "inline"; }
 	}
 }
 
@@ -2216,11 +2271,18 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 
 	// 1) Raiz: una rueda sola rueda sola; si no, la primera pieza de estructura pedida; si no hay, una tabla.
 	FName RootType = "Plank";
-	const int32 Wheels = CountOf("Wheel") + CountOf("BigWheel");
+	int32 Wheels = 0;
+	FName OnlyWheelType;
+	for (const FJamPieceCount& I : Bag) { if (KindOfType(I.Type) == EJamPartKind::Wheel) { Wheels += I.Count; OnlyWheelType = I.Type; } }
+	const FJamPieceCount* RootWheel = Bag.FindByPredicate([](const FJamPieceCount& I) { return I.Mode == "root" && KindOfType(I.Type) == EJamPartKind::Wheel; });
 	const bool bAnyChassis = Bag.ContainsByPredicate([](const FJamPieceCount& I) { return KindOfType(I.Type) == EJamPartKind::Structural || KindOfType(I.Type) == EJamPartKind::Slide; });
-	if (Wheels == 1 && !bAnyChassis)
+	if (RootWheel)
 	{
-		RootType = CountOf("BigWheel") ? FName("BigWheel") : FName("Wheel");
+		RootType = RootWheel->Type;
+	}
+	else if (Wheels == 1 && !bAnyChassis)
+	{
+		RootType = OnlyWheelType;
 	}
 	else
 	{
@@ -2238,6 +2300,7 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 			}
 		}
 	}
+	for (FJamPieceCount& I : Bag) { if (I.Mode == "root") { I.Mode = NAME_None; } }
 	if (Budget && RootType != "Seat" && Budget->FindRef(FName(*(TEXT("Part.") + RootType.ToString()))) <= 0) { Note = TEXT("Missing root part: ") + RootType.ToString(); return false; }
 	if (CountOf(RootType) > 0) { BagItem(Bag, RootType).Count -= 1; }
 	const int32 AskedPlanks = CountOf("Plank");
