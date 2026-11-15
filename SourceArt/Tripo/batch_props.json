@@ -2,6 +2,754 @@
  "_doc": "Props del mapa (Rodin) reemplazados EN SU LUGAR: cada malla de MapDressed conserva su caja y centro (ue_dump_bounds.py) y usa un modelo compartido (src) con MI/texturas compartidas (mat). Generado con las medidas del 14 nov; normalizar con normalize_batch.py -j 4.",
  "parts": [
   {
+   "name": "SM_MAP_Dressed_CampNE_Arch",
+   "src": "SM_PROP_ARCH_v1.glb",
+   "mat": "PROP_ARCH",
+   "size": [
+    310.5,
+    556.8,
+    500.0
+   ],
+   "center": [
+    8301.0,
+    3699.0,
+    250.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 2000,
+   "auto_axis": false,
+   "kind": "arch",
+   "fit": "height",
+   "rot": "z-69"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNE_Barrel",
+   "src": "SM_PROP_BARREL_v1.glb",
+   "mat": "PROP_BARREL",
+   "size": [
+    84.0,
+    84.0,
+    100.0
+   ],
+   "center": [
+    8350.0,
+    3180.0,
+    50.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "barrel",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNE_Chest",
+   "src": "SM_PROP_CHEST_v1.glb",
+   "mat": "PROP_CHEST",
+   "size": [
+    122.0,
+    72.0,
+    50.0
+   ],
+   "center": [
+    8600.0,
+    3600.0,
+    25.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1000,
+   "auto_axis": false,
+   "kind": "chest",
+   "zclip": [
+    0,
+    0.58
+   ]
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNE_ChestLid",
+   "src": "SM_PROP_CHEST_v1.glb",
+   "mat": "PROP_CHEST",
+   "size": [
+    122.0,
+    72.0,
+    36.0
+   ],
+   "center": [
+    8600.0,
+    3600.0,
+    68.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 600,
+   "auto_axis": false,
+   "kind": "chestlid",
+   "zclip": [
+    0.58,
+    1
+   ]
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNE_Crate",
+   "src": "SM_PROP_CRATE_v1.glb",
+   "mat": "PROP_CRATE",
+   "size": [
+    127.4,
+    127.4,
+    104.0
+   ],
+   "center": [
+    8200.0,
+    3300.0,
+    52.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 600,
+   "auto_axis": false,
+   "kind": "crate"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNE_Fire",
+   "src": "SM_PROP_CAMPFIRE_v1.glb",
+   "mat": "PROP_CAMPFIRE",
+   "size": [
+    120.0,
+    120.0,
+    110
+   ],
+   "center": [
+    8800.0,
+    3450.0,
+    55.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1000,
+   "auto_axis": false,
+   "kind": "fire",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNE_Pillar",
+   "src": "SM_PROP_PILLAR_v1.glb",
+   "mat": "PROP_PILLAR",
+   "size": [
+    90.0,
+    90.0,
+    400.0
+   ],
+   "center": [
+    9000.0,
+    3200.0,
+    200.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "pillar",
+   "rot": "z90",
+   "fit": "height",
+   "overflow": 2.2
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNE_Scrap",
+   "src": "SM_PROP_SCRAP_v1.glb",
+   "mat": "PROP_SCRAP",
+   "size": [
+    221.8,
+    217.2,
+    80.0
+   ],
+   "center": [
+    8950.0,
+    3900.0,
+    40.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "scrap",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNW_Arch",
+   "src": "SM_PROP_ARCH_v1.glb",
+   "mat": "PROP_ARCH",
+   "size": [
+    310.5,
+    556.8,
+    500.0
+   ],
+   "center": [
+    -4298.9,
+    6099.0,
+    250.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 2000,
+   "auto_axis": false,
+   "kind": "arch",
+   "fit": "height",
+   "rot": "z-69"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNW_Barrel",
+   "src": "SM_PROP_BARREL_v1.glb",
+   "mat": "PROP_BARREL",
+   "size": [
+    84.0,
+    84.0,
+    100.0
+   ],
+   "center": [
+    -4250.0,
+    5580.0,
+    50.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "barrel",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNW_Chest",
+   "src": "SM_PROP_CHEST_v1.glb",
+   "mat": "PROP_CHEST",
+   "size": [
+    122.0,
+    72.0,
+    50.0
+   ],
+   "center": [
+    -4000.0,
+    6000.0,
+    25.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1000,
+   "auto_axis": false,
+   "kind": "chest",
+   "zclip": [
+    0,
+    0.58
+   ]
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNW_ChestLid",
+   "src": "SM_PROP_CHEST_v1.glb",
+   "mat": "PROP_CHEST",
+   "size": [
+    122.0,
+    72.0,
+    36.0
+   ],
+   "center": [
+    -4000.0,
+    6000.0,
+    68.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 600,
+   "auto_axis": false,
+   "kind": "chestlid",
+   "zclip": [
+    0.58,
+    1
+   ]
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNW_Crate",
+   "src": "SM_PROP_CRATE_v1.glb",
+   "mat": "PROP_CRATE",
+   "size": [
+    127.4,
+    127.4,
+    104.0
+   ],
+   "center": [
+    -4400.0,
+    5700.0,
+    52.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 600,
+   "auto_axis": false,
+   "kind": "crate"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNW_Fire",
+   "src": "SM_PROP_CAMPFIRE_v1.glb",
+   "mat": "PROP_CAMPFIRE",
+   "size": [
+    120.0,
+    120.0,
+    110
+   ],
+   "center": [
+    -3800.0,
+    5850.0,
+    55.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1000,
+   "auto_axis": false,
+   "kind": "fire",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNW_Pillar",
+   "src": "SM_PROP_PILLAR_v1.glb",
+   "mat": "PROP_PILLAR",
+   "size": [
+    90.0,
+    90.0,
+    400.0
+   ],
+   "center": [
+    -3600.0,
+    5600.0,
+    200.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "pillar",
+   "rot": "z270",
+   "fit": "height",
+   "overflow": 2.2
+  },
+  {
+   "name": "SM_MAP_Dressed_CampNW_Scrap",
+   "src": "SM_PROP_SCRAP_v1.glb",
+   "mat": "PROP_SCRAP",
+   "size": [
+    221.8,
+    217.2,
+    80.0
+   ],
+   "center": [
+    -3650.0,
+    6300.0,
+    40.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "scrap",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSE_Arch",
+   "src": "SM_PROP_ARCH_v1.glb",
+   "mat": "PROP_ARCH",
+   "size": [
+    310.5,
+    556.8,
+    500.0
+   ],
+   "center": [
+    3701.1,
+    -5901.0,
+    250.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 2000,
+   "auto_axis": false,
+   "kind": "arch",
+   "fit": "height",
+   "rot": "z-69"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSE_Barrel",
+   "src": "SM_PROP_BARREL_v1.glb",
+   "mat": "PROP_BARREL",
+   "size": [
+    84.0,
+    84.0,
+    100.0
+   ],
+   "center": [
+    3750.0,
+    -6420.0,
+    50.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "barrel",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSE_Chest",
+   "src": "SM_PROP_CHEST_v1.glb",
+   "mat": "PROP_CHEST",
+   "size": [
+    122.0,
+    72.0,
+    50.0
+   ],
+   "center": [
+    4000.0,
+    -6000.0,
+    25.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1000,
+   "auto_axis": false,
+   "kind": "chest",
+   "zclip": [
+    0,
+    0.58
+   ]
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSE_ChestLid",
+   "src": "SM_PROP_CHEST_v1.glb",
+   "mat": "PROP_CHEST",
+   "size": [
+    122.0,
+    72.0,
+    36.0
+   ],
+   "center": [
+    4000.0,
+    -6000.0,
+    68.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 600,
+   "auto_axis": false,
+   "kind": "chestlid",
+   "zclip": [
+    0.58,
+    1
+   ]
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSE_Crate",
+   "src": "SM_PROP_CRATE_v1.glb",
+   "mat": "PROP_CRATE",
+   "size": [
+    127.4,
+    127.4,
+    104.0
+   ],
+   "center": [
+    3600.0,
+    -6300.0,
+    52.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 600,
+   "auto_axis": false,
+   "kind": "crate"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSE_Fire",
+   "src": "SM_PROP_CAMPFIRE_v1.glb",
+   "mat": "PROP_CAMPFIRE",
+   "size": [
+    120.0,
+    120.0,
+    110
+   ],
+   "center": [
+    4200.0,
+    -6150.0,
+    55.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1000,
+   "auto_axis": false,
+   "kind": "fire",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSE_Pillar",
+   "src": "SM_PROP_PILLAR_v1.glb",
+   "mat": "PROP_PILLAR",
+   "size": [
+    90.0,
+    90.0,
+    400.0
+   ],
+   "center": [
+    4400.0,
+    -6400.0,
+    200.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "pillar",
+   "rot": "z0",
+   "fit": "height",
+   "overflow": 2.2
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSE_Scrap",
+   "src": "SM_PROP_SCRAP_v1.glb",
+   "mat": "PROP_SCRAP",
+   "size": [
+    221.8,
+    217.2,
+    80.0
+   ],
+   "center": [
+    4350.0,
+    -5700.0,
+    40.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "scrap",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSW_Arch",
+   "src": "SM_PROP_ARCH_v1.glb",
+   "mat": "PROP_ARCH",
+   "size": [
+    310.5,
+    556.8,
+    500.0
+   ],
+   "center": [
+    -8899.0,
+    -3501.0,
+    250.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 2000,
+   "auto_axis": false,
+   "kind": "arch",
+   "fit": "height",
+   "rot": "z-69"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSW_Barrel",
+   "src": "SM_PROP_BARREL_v1.glb",
+   "mat": "PROP_BARREL",
+   "size": [
+    84.0,
+    84.0,
+    100.0
+   ],
+   "center": [
+    -8850.0,
+    -4020.0,
+    50.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "barrel",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSW_Chest",
+   "src": "SM_PROP_CHEST_v1.glb",
+   "mat": "PROP_CHEST",
+   "size": [
+    122.0,
+    72.0,
+    50.0
+   ],
+   "center": [
+    -8600.0,
+    -3600.0,
+    25.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1000,
+   "auto_axis": false,
+   "kind": "chest",
+   "zclip": [
+    0,
+    0.58
+   ]
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSW_ChestLid",
+   "src": "SM_PROP_CHEST_v1.glb",
+   "mat": "PROP_CHEST",
+   "size": [
+    122.0,
+    72.0,
+    36.0
+   ],
+   "center": [
+    -8600.0,
+    -3600.0,
+    68.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 600,
+   "auto_axis": false,
+   "kind": "chestlid",
+   "zclip": [
+    0.58,
+    1
+   ]
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSW_Crate",
+   "src": "SM_PROP_CRATE_v1.glb",
+   "mat": "PROP_CRATE",
+   "size": [
+    127.4,
+    127.4,
+    104.0
+   ],
+   "center": [
+    -9000.0,
+    -3900.0,
+    52.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 600,
+   "auto_axis": false,
+   "kind": "crate"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSW_Fire",
+   "src": "SM_PROP_CAMPFIRE_v1.glb",
+   "mat": "PROP_CAMPFIRE",
+   "size": [
+    120.0,
+    120.0,
+    110
+   ],
+   "center": [
+    -8400.0,
+    -3750.0,
+    55.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1000,
+   "auto_axis": false,
+   "kind": "fire",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSW_Pillar",
+   "src": "SM_PROP_PILLAR_v1.glb",
+   "mat": "PROP_PILLAR",
+   "size": [
+    90.0,
+    90.0,
+    400.0
+   ],
+   "center": [
+    -8200.0,
+    -4000.0,
+    200.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "pillar",
+   "rot": "z180",
+   "fit": "height",
+   "overflow": 2.2
+  },
+  {
+   "name": "SM_MAP_Dressed_CampSW_Scrap",
+   "src": "SM_PROP_SCRAP_v1.glb",
+   "mat": "PROP_SCRAP",
+   "size": [
+    221.8,
+    217.2,
+    80.0
+   ],
+   "center": [
+    -8250.0,
+    -3300.0,
+    40.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "scrap",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
    "name": "SM_MAP_Dressed_DecoTree0",
    "src": "SM_PROP_TREE_ROUND_B_v1.glb",
    "mat": "PROP_TREE_ROUND_B",
@@ -68,6 +816,1894 @@
    "auto_axis": false,
    "kind": "pine",
    "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    62.5,
+    64.5,
+    53.5
+   ],
+   "center": [
+    2243.2,
+    -1256.0,
+    26.8
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_001",
+   "src": "SM_PROP_MUSHROOM_B_v1.glb",
+   "mat": "PROP_MUSHROOM_B",
+   "size": [
+    100.0,
+    100.0,
+    90.0
+   ],
+   "center": [
+    3743.1,
+    -771.7,
+    45.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "mushroom",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_002",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    74.2,
+    72.2,
+    66.6
+   ],
+   "center": [
+    1397.7,
+    1892.5,
+    33.3
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_003",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    106.0,
+    100.8,
+    89.9
+   ],
+   "center": [
+    -4126.1,
+    -1727.5,
+    45.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_004",
+   "src": "SM_FOL_FLOWERS_A_v1.glb",
+   "mat": "FOL_FLOWERS_A",
+   "size": [
+    90.4,
+    91.3,
+    52.5
+   ],
+   "center": [
+    2498.9,
+    -2505.4,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_005",
+   "src": "SM_PROP_ROCK_FLAT_A_v1.glb",
+   "mat": "PROP_ROCK_FLAT_A",
+   "size": [
+    232.8,
+    223.3,
+    75.8
+   ],
+   "center": [
+    3283.0,
+    -1325.3,
+    37.9
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "rockflat",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_006",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    73.3,
+    72.7,
+    60.7
+   ],
+   "center": [
+    3826.7,
+    965.0,
+    30.4
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_007",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    61.9,
+    64.3,
+    53.7
+   ],
+   "center": [
+    -2611.9,
+    1854.4,
+    26.9
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_008",
+   "src": "SM_PROP_ROCK_CLUSTER_B_v1.glb",
+   "mat": "PROP_ROCK_CLUSTER_B",
+   "size": [
+    176.4,
+    195.7,
+    120.0
+   ],
+   "center": [
+    -2705.6,
+    -2106.8,
+    60.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "rockcluster",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_009",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    54.9,
+    56.7,
+    51.9
+   ],
+   "center": [
+    4127.2,
+    704.6,
+    25.9
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_010",
+   "src": "SM_PROP_ROCK_FLAT_A_v1.glb",
+   "mat": "PROP_ROCK_FLAT_A",
+   "size": [
+    213.9,
+    218.2,
+    71.7
+   ],
+   "center": [
+    2210.4,
+    -1659.1,
+    35.9
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "rockflat",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_011",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    92.9,
+    94.5,
+    78.0
+   ],
+   "center": [
+    -3504.2,
+    1500.0,
+    39.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_012",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    69.8,
+    63.2,
+    60.2
+   ],
+   "center": [
+    3802.2,
+    780.4,
+    30.1
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_013",
+   "src": "SM_FOL_FLOWERS_A_v1.glb",
+   "mat": "FOL_FLOWERS_A",
+   "size": [
+    91.2,
+    90.6,
+    52.5
+   ],
+   "center": [
+    -3500.6,
+    -886.9,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_014",
+   "src": "SM_PROP_MUSHROOM_B_v1.glb",
+   "mat": "PROP_MUSHROOM_B",
+   "size": [
+    100.0,
+    100.0,
+    90.0
+   ],
+   "center": [
+    -1488.8,
+    2658.4,
+    45.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "mushroom",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_015",
+   "src": "SM_FOL_FLOWERS_B_v1.glb",
+   "mat": "FOL_FLOWERS_B",
+   "size": [
+    91.3,
+    89.8,
+    52.5
+   ],
+   "center": [
+    1691.6,
+    1306.5,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_016",
+   "src": "SM_PROP_MUSHROOM_B_v1.glb",
+   "mat": "PROP_MUSHROOM_B",
+   "size": [
+    100.0,
+    100.0,
+    90.0
+   ],
+   "center": [
+    4430.3,
+    1366.6,
+    45.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "mushroom",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_017",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    64.6,
+    64.6,
+    53.8
+   ],
+   "center": [
+    -191.9,
+    1567.4,
+    26.9
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_018",
+   "src": "SM_PROP_ROCK_FLAT_A_v1.glb",
+   "mat": "PROP_ROCK_FLAT_A",
+   "size": [
+    266.3,
+    259.2,
+    87.4
+   ],
+   "center": [
+    2206.8,
+    1996.2,
+    43.7
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "rockflat",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_019",
+   "src": "SM_PROP_ROCK_FLAT_A_v1.glb",
+   "mat": "PROP_ROCK_FLAT_A",
+   "size": [
+    256.3,
+    253.8,
+    85.0
+   ],
+   "center": [
+    -897.1,
+    1963.1,
+    42.5
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "rockflat",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_020",
+   "src": "SM_FOL_FLOWERS_B_v1.glb",
+   "mat": "FOL_FLOWERS_B",
+   "size": [
+    90.9,
+    90.1,
+    52.5
+   ],
+   "center": [
+    1175.2,
+    -2854.2,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_021",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    94.6,
+    95.7,
+    79.0
+   ],
+   "center": [
+    4101.0,
+    1550.7,
+    39.5
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_022",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    61.7,
+    61.8,
+    51.5
+   ],
+   "center": [
+    -642.4,
+    2300.9,
+    25.8
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_023",
+   "src": "SM_FOL_FLOWERS_B_v1.glb",
+   "mat": "FOL_FLOWERS_B",
+   "size": [
+    90.3,
+    91.3,
+    52.5
+   ],
+   "center": [
+    -2907.8,
+    1344.8,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_024",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    95.9,
+    86.6,
+    83.0
+   ],
+   "center": [
+    1919.2,
+    -2019.3,
+    41.5
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_025",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    62.7,
+    69.5,
+    59.9
+   ],
+   "center": [
+    -630.2,
+    2660.1,
+    29.9
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_026",
+   "src": "SM_PROP_ROCK_FLAT_A_v1.glb",
+   "mat": "PROP_ROCK_FLAT_A",
+   "size": [
+    226.8,
+    228.8,
+    75.4
+   ],
+   "center": [
+    -746.9,
+    2083.3,
+    37.7
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "rockflat",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_027",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    110.6,
+    110.2,
+    91.9
+   ],
+   "center": [
+    897.9,
+    -1248.1,
+    46.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_028",
+   "src": "SM_PROP_MUSHROOM_B_v1.glb",
+   "mat": "PROP_MUSHROOM_B",
+   "size": [
+    100.0,
+    100.0,
+    90.0
+   ],
+   "center": [
+    3766.2,
+    1436.3,
+    45.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "mushroom",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_029",
+   "src": "SM_FOL_FLOWERS_B_v1.glb",
+   "mat": "FOL_FLOWERS_B",
+   "size": [
+    89.7,
+    92.5,
+    52.5
+   ],
+   "center": [
+    -2411.9,
+    -2248.2,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_030",
+   "src": "SM_PROP_MUSHROOM_A_v1.glb",
+   "mat": "PROP_MUSHROOM_A",
+   "size": [
+    100.0,
+    100.0,
+    90.0
+   ],
+   "center": [
+    -1994.0,
+    2306.0,
+    45.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "mushroom",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_031",
+   "src": "SM_PROP_ROCK_CLUSTER_A_v1.glb",
+   "mat": "PROP_ROCK_CLUSTER_A",
+   "size": [
+    216.0,
+    156.2,
+    120.0
+   ],
+   "center": [
+    762.4,
+    -1302.1,
+    60.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "rockcluster",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_032",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    73.4,
+    81.0,
+    72.3
+   ],
+   "center": [
+    -2836.3,
+    -2445.2,
+    36.1
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_033",
+   "src": "SM_PROP_ROCK_FLAT_A_v1.glb",
+   "mat": "PROP_ROCK_FLAT_A",
+   "size": [
+    258.3,
+    268.3,
+    87.4
+   ],
+   "center": [
+    1396.4,
+    1061.8,
+    43.7
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "rockflat",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_034",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    80.1,
+    81.6,
+    67.3
+   ],
+   "center": [
+    -301.1,
+    1456.5,
+    33.6
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_035",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    110.8,
+    114.6,
+    95.3
+   ],
+   "center": [
+    1238.2,
+    1741.9,
+    47.6
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_036",
+   "src": "SM_FOL_FLOWERS_B_v1.glb",
+   "mat": "FOL_FLOWERS_B",
+   "size": [
+    91.0,
+    90.9,
+    52.5
+   ],
+   "center": [
+    2406.4,
+    -2521.4,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_037",
+   "src": "SM_FOL_FLOWERS_B_v1.glb",
+   "mat": "FOL_FLOWERS_B",
+   "size": [
+    90.7,
+    91.2,
+    52.5
+   ],
+   "center": [
+    4422.5,
+    -842.1,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_038",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    107.6,
+    110.1,
+    90.9
+   ],
+   "center": [
+    -393.6,
+    1026.5,
+    45.5
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_039",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    113.8,
+    103.0,
+    99.0
+   ],
+   "center": [
+    1524.1,
+    1483.2,
+    49.5
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_040",
+   "src": "SM_PROP_ROCK_FLAT_B_v1.glb",
+   "mat": "PROP_ROCK_FLAT_B",
+   "size": [
+    225.3,
+    218.5,
+    73.9
+   ],
+   "center": [
+    3135.4,
+    -1223.3,
+    37.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "rockflat",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_041",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    66.7,
+    68.8,
+    57.0
+   ],
+   "center": [
+    3239.7,
+    -2224.5,
+    28.5
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_042",
+   "src": "SM_PROP_ROCK_CLUSTER_B_v1.glb",
+   "mat": "PROP_ROCK_CLUSTER_B",
+   "size": [
+    178.9,
+    192.9,
+    120.0
+   ],
+   "center": [
+    2414.4,
+    2314.4,
+    60.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "rockcluster",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_043",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    90.4,
+    92.4,
+    76.3
+   ],
+   "center": [
+    -78.7,
+    3056.4,
+    38.1
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_044",
+   "src": "SM_FOL_FLOWERS_A_v1.glb",
+   "mat": "FOL_FLOWERS_A",
+   "size": [
+    92.3,
+    89.9,
+    52.5
+   ],
+   "center": [
+    -2264.6,
+    1557.3,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_045",
+   "src": "SM_PROP_ROCK_FLAT_A_v1.glb",
+   "mat": "PROP_ROCK_FLAT_A",
+   "size": [
+    203.1,
+    208.1,
+    68.3
+   ],
+   "center": [
+    -2032.3,
+    -802.0,
+    34.1
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "rockflat",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_046",
+   "src": "SM_PROP_ROCK_FLAT_A_v1.glb",
+   "mat": "PROP_ROCK_FLAT_A",
+   "size": [
+    215.7,
+    222.8,
+    72.7
+   ],
+   "center": [
+    -711.6,
+    2143.3,
+    36.4
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "rockflat",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_047",
+   "src": "SM_PROP_MUSHROOM_A_v1.glb",
+   "mat": "PROP_MUSHROOM_A",
+   "size": [
+    100.0,
+    100.0,
+    90.0
+   ],
+   "center": [
+    -3332.3,
+    801.7,
+    45.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "mushroom",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_048",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    88.6,
+    85.1,
+    81.0
+   ],
+   "center": [
+    -2944.4,
+    1272.5,
+    40.5
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_049",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    75.6,
+    74.9,
+    62.5
+   ],
+   "center": [
+    -4267.2,
+    1570.5,
+    31.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_050",
+   "src": "SM_FOL_FLOWERS_A_v1.glb",
+   "mat": "FOL_FLOWERS_A",
+   "size": [
+    91.3,
+    90.0,
+    52.5
+   ],
+   "center": [
+    -3671.4,
+    -2017.0,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_051",
+   "src": "SM_PROP_ROCK_FLAT_A_v1.glb",
+   "mat": "PROP_ROCK_FLAT_A",
+   "size": [
+    216.4,
+    221.1,
+    72.6
+   ],
+   "center": [
+    -2886.2,
+    1643.8,
+    36.3
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "rockflat",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_052",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    99.2,
+    100.0,
+    91.6
+   ],
+   "center": [
+    -2815.7,
+    1540.6,
+    45.8
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_053",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    97.1,
+    87.8,
+    84.3
+   ],
+   "center": [
+    -841.8,
+    1968.6,
+    42.1
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_054",
+   "src": "SM_PROP_MUSHROOM_B_v1.glb",
+   "mat": "PROP_MUSHROOM_B",
+   "size": [
+    100.0,
+    100.0,
+    90.0
+   ],
+   "center": [
+    1969.7,
+    2797.3,
+    45.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "mushroom",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_055",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    54.4,
+    56.8,
+    51.9
+   ],
+   "center": [
+    2005.0,
+    -2113.9,
+    25.9
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_056",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    106.3,
+    110.3,
+    92.0
+   ],
+   "center": [
+    745.1,
+    -2399.2,
+    46.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_057",
+   "src": "SM_FOL_FLOWERS_B_v1.glb",
+   "mat": "FOL_FLOWERS_B",
+   "size": [
+    91.8,
+    90.1,
+    52.5
+   ],
+   "center": [
+    2860.1,
+    -1176.8,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z180",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_058",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    66.1,
+    69.2,
+    58.3
+   ],
+   "center": [
+    -495.2,
+    1630.6,
+    29.1
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_059",
+   "src": "SM_FOL_FLOWERS_A_v1.glb",
+   "mat": "FOL_FLOWERS_A",
+   "size": [
+    90.1,
+    91.0,
+    52.5
+   ],
+   "center": [
+    2216.9,
+    2455.0,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z270",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_060",
+   "src": "SM_PROP_ROCK_FLAT_B_v1.glb",
+   "mat": "PROP_ROCK_FLAT_B",
+   "size": [
+    286.4,
+    291.5,
+    95.9
+   ],
+   "center": [
+    2638.9,
+    1881.0,
+    48.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "rockflat",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_061",
+   "src": "SM_PROP_ROCK_CLUSTER_B_v1.glb",
+   "mat": "PROP_ROCK_CLUSTER_B",
+   "size": [
+    157.1,
+    215.0,
+    120.0
+   ],
+   "center": [
+    4105.1,
+    1324.7,
+    60.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "rockcluster",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_062",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    79.8,
+    80.8,
+    73.4
+   ],
+   "center": [
+    -1018.8,
+    1514.4,
+    36.7
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_063",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    98.8,
+    94.4,
+    83.3
+   ],
+   "center": [
+    1493.6,
+    846.3,
+    41.6
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_064",
+   "src": "SM_FOL_FLOWERS_A_v1.glb",
+   "mat": "FOL_FLOWERS_A",
+   "size": [
+    92.7,
+    89.2,
+    52.5
+   ],
+   "center": [
+    -1749.2,
+    1088.1,
+    26.2
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "flowers",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_065",
+   "src": "SM_PROP_ROCK_CLUSTER_A_v1.glb",
+   "mat": "PROP_ROCK_CLUSTER_A",
+   "size": [
+    200.5,
+    171.3,
+    120.0
+   ],
+   "center": [
+    1536.3,
+    1371.1,
+    60.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "rockcluster",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_066",
+   "src": "SM_PROP_BUSH_A_v1.glb",
+   "mat": "PROP_BUSH_A",
+   "size": [
+    71.3,
+    68.5,
+    59.8
+   ],
+   "center": [
+    2578.8,
+    -1656.5,
+    29.9
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_067",
+   "src": "SM_PROP_MUSHROOM_A_v1.glb",
+   "mat": "PROP_MUSHROOM_A",
+   "size": [
+    100.0,
+    100.0,
+    90.0
+   ],
+   "center": [
+    1200.7,
+    -3001.9,
+    45.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "mushroom",
+   "rot": "z90",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_068",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    81.4,
+    90.0,
+    78.0
+   ],
+   "center": [
+    1053.6,
+    -918.5,
+    39.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_069",
+   "src": "SM_PROP_BUSH_B_v1.glb",
+   "mat": "PROP_BUSH_B",
+   "size": [
+    75.3,
+    74.5,
+    62.3
+   ],
+   "center": [
+    -2337.9,
+    1472.5,
+    31.1
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 500,
+   "auto_axis": false,
+   "kind": "tuft",
+   "rot": "z0",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_070",
+   "src": "SM_PROP_LAMP_v1.glb",
+   "mat": "PROP_LAMP",
+   "size": [
+    30.0,
+    100.0,
+    360.0
+   ],
+   "center": [
+    -5000.0,
+    450.0,
+    180.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "lamp",
+   "fit": "height",
+   "overflow": 9
+  },
+  {
+   "name": "SM_MAP_Dressed_P_071",
+   "src": "SM_PROP_LAMP_v1.glb",
+   "mat": "PROP_LAMP",
+   "size": [
+    30.0,
+    100.0,
+    360.0
+   ],
+   "center": [
+    -3000.0,
+    450.0,
+    180.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "lamp",
+   "fit": "height",
+   "overflow": 9
+  },
+  {
+   "name": "SM_MAP_Dressed_P_072",
+   "src": "SM_PROP_LAMP_v1.glb",
+   "mat": "PROP_LAMP",
+   "size": [
+    30.0,
+    100.0,
+    360.0
+   ],
+   "center": [
+    -1000.0,
+    450.0,
+    180.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "lamp",
+   "fit": "height",
+   "overflow": 9
+  },
+  {
+   "name": "SM_MAP_Dressed_P_073",
+   "src": "SM_PROP_LAMP_v1.glb",
+   "mat": "PROP_LAMP",
+   "size": [
+    30.0,
+    100.0,
+    360.0
+   ],
+   "center": [
+    1000.0,
+    450.0,
+    180.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "lamp",
+   "fit": "height",
+   "overflow": 9
+  },
+  {
+   "name": "SM_MAP_Dressed_P_074",
+   "src": "SM_PROP_LAMP_v1.glb",
+   "mat": "PROP_LAMP",
+   "size": [
+    30.0,
+    100.0,
+    360.0
+   ],
+   "center": [
+    3000.0,
+    450.0,
+    180.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "lamp",
+   "fit": "height",
+   "overflow": 9
+  },
+  {
+   "name": "SM_MAP_Dressed_P_075",
+   "src": "SM_PROP_LAMP_v1.glb",
+   "mat": "PROP_LAMP",
+   "size": [
+    30.0,
+    100.0,
+    360.0
+   ],
+   "center": [
+    5000.0,
+    450.0,
+    180.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "lamp",
+   "fit": "height",
+   "overflow": 9
+  },
+  {
+   "name": "SM_MAP_Dressed_P_076",
+   "src": "SM_PROP_SPIRE_v1.glb",
+   "mat": "PROP_SPIRE",
+   "size": [
+    240.0,
+    173.2,
+    500.0
+   ],
+   "center": [
+    -3600.3,
+    2411.9,
+    250.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "spire",
+   "rot": "z0",
+   "fit": "height",
+   "overflow": 1.5
+  },
+  {
+   "name": "SM_MAP_Dressed_P_077",
+   "src": "SM_PROP_SPIRE_v1.glb",
+   "mat": "PROP_SPIRE",
+   "size": [
+    232.8,
+    187.9,
+    500.0
+   ],
+   "center": [
+    3804.1,
+    -2208.1,
+    250.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 800,
+   "auto_axis": false,
+   "kind": "spire",
+   "rot": "z0",
+   "fit": "height",
+   "overflow": 1.5
+  },
+  {
+   "name": "SM_MAP_Dressed_P_078",
+   "src": "SM_PROP_BOARD_v1.glb",
+   "mat": "PROP_BOARD",
+   "size": [
+    100.0,
+    210.0,
+    230
+   ],
+   "center": [
+    -11200.0,
+    1000.0,
+    115.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1000,
+   "auto_axis": false,
+   "kind": "board",
+   "fit": "height",
+   "overflow": 1.2,
+   "rot": "z90"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_079",
+   "src": "SM_PROP_BOARD_v1.glb",
+   "mat": "PROP_BOARD",
+   "size": [
+    100.0,
+    210.0,
+    230
+   ],
+   "center": [
+    11200.0,
+    -1000.0,
+    115.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 512,
+   "tris": 1000,
+   "auto_axis": false,
+   "kind": "board",
+   "fit": "height",
+   "overflow": 1.2,
+   "rot": "z90"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_080",
+   "src": "SM_PROP_TENT_RED_v1.glb",
+   "mat": "PROP_TENT_RED",
+   "size": [
+    367.2,
+    351.0,
+    330
+   ],
+   "center": [
+    -10800.0,
+    -1200.0,
+    165.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "tent_red",
+   "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_P_081",
+   "src": "SM_PROP_TENT_BLUE_v1.glb",
+   "mat": "PROP_TENT_BLUE",
+   "size": [
+    367.2,
+    351.0,
+    280
+   ],
+   "center": [
+    10800.0,
+    1200.0,
+    140.0
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 1500,
+   "auto_axis": false,
+   "kind": "tent_blue",
    "fit": "height"
   },
   {
@@ -299,6 +2935,30 @@
    "kind": "pine",
    "rot": "z0",
    "fit": "height"
+  },
+  {
+   "name": "SM_MAP_Dressed_Windmill_Base",
+   "src": "SM_PROP_WINDMILL_v1.glb",
+   "mat": "PROP_WINDMILL",
+   "size": [
+    850,
+    700,
+    1300
+   ],
+   "center": [
+    1800,
+    2600,
+    650
+   ],
+   "sockets": "none",
+   "fx": [],
+   "tex": 1024,
+   "tris": 2500,
+   "auto_axis": false,
+   "kind": "windmill",
+   "fit": "height",
+   "overflow": 9,
+   "rot": "z180"
   }
  ]
 }

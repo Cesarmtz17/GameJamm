@@ -51,6 +51,8 @@ def run_part(p, preview):
         cmd += ["--tris", str(p["tris"])]
     if p.get("fit"):  # "height": props del mapa, misma altura con proporciones propias (ver tripo_normalize.py)
         cmd += ["--fit", p["fit"]]
+    if p.get("overflow"):
+        cmd += ["--overflow", str(p["overflow"])]
     if p.get("zclip"):  # [desde, hasta] en fracción de la altura: p. ej. el cuerpo y la tapa de un cofre del mismo modelo
         cmd += ["--zclip", *[str(z) for z in p["zclip"]]]
     if p.get("center"):  # mallas del mapa: traen su posición del mundo integrada (ver ue_dump_bounds.py)

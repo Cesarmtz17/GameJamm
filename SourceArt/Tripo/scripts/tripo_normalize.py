@@ -53,6 +53,8 @@ def parse_args():
     p.add_argument("--fit", default="exact", choices=["exact", "height"],
                    help="exact = caja idéntica a Size (piezas); height = misma altura y proporciones propias, el ancho "
                         "solo se aprieta si se pasa >10%% de Size (props del mapa: árboles, rocas)")
+    p.add_argument("--overflow", type=float, default=1.1,
+                   help="Con --fit height: cuánto puede pasarse el ancho de Size antes de apretarlo (1.1 = 10%%)")
     p.add_argument("--zclip", type=float, nargs=2, default=None,
                    help="Conserva solo la rebanada entre dos fracciones de la altura (0-1), p. ej. cuerpo y tapa de un cofre")
     p.add_argument("--preview", default="")
@@ -412,7 +414,7 @@ def main():
         zclip(obj, *a.zclip)
         report["zclip"] = a.zclip
     report["tris_before"], report["tris_after"] = decimate(obj, a.tris)
-    report["stretch"] = fit_height(obj, a.size) if a.fit == "height" else fit_to_box(obj, a.size)
+    report["stretch"] = fit_height(obj, a.size, a.overflow) if a.fit == "height" else fit_to_box(obj, a.size)
     if a.fit == "height":
         mn, mx = bbox(obj)
         report["bbox_cm"] = [round((mx[i] - mn[i]) * 100, 1) for i in range(3)]
