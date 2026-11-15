@@ -38,6 +38,14 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 14 nov — Revisión del GDD contra el código y GDD v2 (Javier + Claude Code)
+- **Qué:** revisamos el GDD v1 punto por punto contra el código y los datos, no contra sus casillas. Tres agentes Explore de solo lectura cubrieron partida/IA/combate, loot/energía/balance y construir/HUD/arquitectura; lo más grave se comprobó a mano.
+- **Hallazgos:** los avisos del cofre inicial y del asistente usan `AddOnScreenDebugMessage`, que la build Shipping no muestra; X borra todas las construcciones del mapa; al morir se renace con 0 piezas; las piezas no tienen vida; el juego no suena porque el código busca los sonidos en una carpeta donde no hay nada importado.
+- **Decisión** (Javier, único integrante activo esa noche, con el equipo avisado): GDD v2. Entran las armas de mano pedidas a la IA, el objetivo siempre en pantalla y los primeros 2 minutos guiados; quedan fuera el juego en red y el segundo modo. Se conservan la regla de construcción y el contrato de receta JSON (`CLAUDE.md` §0.1).
+- **Cómo usamos la IA:** Claude Code con el prompt *"Vamos a revisar docs/GDD.md punto por punto: qué está bien, qué quedó mal, qué sí se desarrolló en el código y cómo mejorarlo"*. El formato nuevo (✅/❓, números en los datos, "En el código" y "Hecho cuando") viene del que Javier usa en sus proyectos.
+- **Qué falló:** el GDD v1 tenía números objetivo que ya no coincidían con el código y casillas `[x]` viejas. En la v2 los números viven en los datos.
+- **Qué aprendimos:** una casilla marcada no prueba nada; antes de decidir, leer el código.
+
 ## 14 nov — Espadazo y tiro con arco sin clips nuevos: los huesos se giran en C++ (Cesar + Claude Code)
 
 - **Qué:** las figuras de Rodin traen un solo clip de ataque, un jab con la izquierda, y uno de lanzar en lugar de tensar el arco. Con la espada en la izquierda la hoja también atravesaba el cuerpo al correr. Ahora la espada va en la derecha y el espadazo, el tiro con arco y la espada "cargada" se hacen girando hombro, codo y mano en C++ encima del clip de caminar.

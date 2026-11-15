@@ -32,7 +32,7 @@ status: borrador
 | Salida | Estructuras armadas con piezas físicas que **funcionan** (se mueven, disparan, queman) por propiedades, no por objetos cerrados |
 | Dónde | En Unreal, con el MCP, en la MacBook Air M5 |
 | Insumos | Toda la carpeta `docs/mechanics-research/` y `Content/Game/Building/Data/BuildKnowledge.json` |
-| Autoridad | Lo que establece Jesús Daniel es ley para todos los agentes ([CLAUDE.md §0.1](../../CLAUDE.md)) |
+| Autoridad | Desde el 14 nov 2026 la dirección del diseño la fija [docs/GDD.md](../GDD.md) v2; la regla de construcción de Jesús Daniel sigue como base ([CLAUDE.md §0.1](../../CLAUDE.md)) |
 
 ## 2. Reglas que no se rompen
 
