@@ -92,7 +92,12 @@ siendo de su dueño: lo que el arte necesita de código se pide en la sección "
 
 ## Pendiente de código (lo pide el arte)
 
-### Construcción (Jesús): 10 piezas de solo datos sin malla
+### Construcción (Jesús): 10 piezas de solo datos sin malla — HECHO (Javier, 14 nov ~22:45)
+
+> [!success] Hecho por Javier con la autorización del equipo (Jesús avisado por Discord)
+> Las 10 entradas ya están en `RealMeshNames()`. Verificado en PIE: las 10 salen con su malla de arte y sin forma básica de
+> color. Ojo: el respaldo por palabras clave casi no elige 6 de ellas (tarima, varilla, contrapeso, patín, lanzadera,
+> aspas): "un helicóptero con aspas" arma un carro con lanzallamas. Eso es del generador, no del arte.
 
 Las mallas ya están importadas en `Content/Game/Building/Parts/` con la caja de su `Size` actual. Para que se vean
 basta agregar estas entradas a `RealMeshNames()` en `Source/GameJamm/Building/JamBuildPart.cpp`:

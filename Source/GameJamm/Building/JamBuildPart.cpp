@@ -195,6 +195,10 @@ namespace
 			{"Wing", "SM_DEV_WING"}, {"Sail", "SM_DEV_SAIL"}, {"Stabilizer", "SM_DEV_STABILIZER"}, {"Seat", "SM_CTRL_SEAT"}, {"Head", "SM_CTRL_HEAD"},
 			{"Battery", "SM_PWR_BATTERY_S"}, {"BigBattery", "SM_PWR_BATTERY_L"}, {"Cannon", "SM_DEV_CANNON"}, {"Flamethrower", "SM_DEV_FLAME"}, {"Frost", "SM_DEV_FROST"},
 			{"Beam", "SM_DEV_BEAM"}, {"Shock", "SM_DEV_SHOCK"}, {"Bomb", "SM_CTRL_TIMEBOMB"}, {"Hydrant", "SM_DEV_HYDRANT"}, {"Light", "SM_DEV_LIGHT"},
+			// 10 piezas nuevas (arte de Javier, docs/ARTE-TRIPO.md): mallas con la caja de su Size; Spikes con puas a +X, Propeller disco en YZ como Fan.
+			{"Deck", "SM_PART_DECK"}, {"Rod", "SM_PART_ROD"}, {"UBlock", "SM_PART_UBLOCK"}, {"Cart", "SM_DEV_CART"},
+			{"RailSkid", "SM_DEV_RAILSKID"}, {"IceBlock", "SM_DEV_ICEBLOCK"}, {"Spikes", "SM_DEV_SPIKES"},
+			{"Launcher", "SM_DEV_LAUNCHER"}, {"WagonWheel", "SM_DEV_WHEEL_WAGON"}, {"Propeller", "SM_DEV_PROPELLER"},
 		};
 		return M;
 	}
