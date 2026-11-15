@@ -9,6 +9,7 @@
 #include "Core/JamMessages.h"
 #include "Core/HealthComponent.h"
 #include "Core/JamAudio.h"
+#include "Core/JamLoot.h"
 #include "Components/StaticMeshComponent.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
@@ -369,8 +370,7 @@ namespace
 
 	FString JamPartDisplayName(FName Type)
 	{
-		const FString* Name = JamPartHealthTable().Names.Find(Type);
-		return Name ? *Name : Type.ToString();
+		return JamLoot::PartName(Type.ToString());
 	}
 }
 
@@ -378,31 +378,31 @@ FString AJamBuildPart::GetStatusText() const
 {
 	if (bBroken)
 	{
-		return TEXT("rota");
+		return TEXT("broken");
 	}
 	if (Build.IsValid() && Build->StunUntil > 0.f)
 	{
-		return TEXT("aturdida por descarga");
+		return TEXT("stunned by lightning");
 	}
 	if (Kind == EJamPartKind::Bomb)
 	{
-		return bActive ? FString::Printf(TEXT("explota en %.0f s"), FMath::Max(BurnLeft, 0.f)) : FString(TEXT("sin encender"));
+		return bActive ? FString::Printf(TEXT("explodes in %.0f s"), FMath::Max(BurnLeft, 0.f)) : FString(TEXT("off"));
 	}
 	if (Kind == EJamPartKind::Rocket)
 	{
 		const float Wait = GetWorld() ? ReadyAt - GetWorld()->GetTimeSeconds() : 0.f;
-		return bActive ? FString::Printf(TEXT("encendido, %.1f s de combustible"), FMath::Max(BurnLeft, 0.f))
-			: Wait > 0.f ? FString::Printf(TEXT("recargando, %.0f s"), Wait) : FString(TEXT("listo (6 de energia por encendido)"));
+		return bActive ? FString::Printf(TEXT("on, %.1f s fuel left"), FMath::Max(BurnLeft, 0.f))
+			: Wait > 0.f ? FString::Printf(TEXT("recharging, %.0f s"), Wait) : FString(TEXT("ready (6 energy to ignite)"));
 	}
 	if (Kind == EJamPartKind::Battery)
 	{
-		return FString::Printf(TEXT("reserva %.0f"), Build.IsValid() ? Build->Energy : 0.f);
+		return FString::Printf(TEXT("reserve %.0f"), Build.IsValid() ? Build->Energy : 0.f);
 	}
 	if (Kind == EJamPartKind::Balloon && bActive && GetWorld() && GetWorld()->GetTimeSeconds() < HeatedUntil)
 	{
-		return TEXT("subiendo el doble (fuego cerca)");
+		return TEXT("double lift (fire nearby)");
 	}
-	return bActive ? TEXT("encendido") : TEXT("apagado");
+	return bActive ? TEXT("on") : TEXT("off");
 }
 
 void AJamBuildPart::PlaySfx(const TCHAR* Name, float Volume) const
@@ -1085,7 +1085,7 @@ void AJamBuildPart::Tick(float DeltaSeconds)
 			const APawn* EnergyOwner = Build.IsValid() ? Cast<APawn>(Build->Owner.Get()) : nullptr;
 			if (!EnergyOwner || EnergyOwner->IsPlayerControlled())
 			{
-				JamMsg::Post(TEXT("Sin energia: dispositivos apagados. La barra se recarga sola; C los vuelve a encender"), JamMsg::Warn, 6.f, TEXT("energy"));
+				JamMsg::Post(TEXT("No energy: devices powered off. Energy recharges automatically; press C to switch them back on"), JamMsg::Warn, 6.f, TEXT("energy"));
 			}
 			for (const TWeakObjectPtr<AJamBuildPart>& P : Build->Parts)
 			{
@@ -1776,15 +1776,15 @@ void AJamBuildPart::BreakPart(AActor* Killer)
 	// Avisos solo para el jugador: le rompieron algo suyo, o rompio algo de otro. Misma Key: no se apilan.
 	if (OwnerPawn && OwnerPawn->IsPlayerControlled())
 	{
-		const FString Msg = (bWholeBuild && Extra > 0) ? FString::Printf(TEXT("Te rompieron la base (%s): tu construccion se desarmo"), *Name)
-			: Extra > 0 ? FString::Printf(TEXT("Te rompieron: %s (se soltaron %d piezas mas)"), *Name, Extra)
-			: FString::Printf(TEXT("Te rompieron: %s"), *Name);
+		const FString Msg = (bWholeBuild && Extra > 0) ? FString::Printf(TEXT("Your root part (%s) broke: your build fell apart"), *Name)
+			: Extra > 0 ? FString::Printf(TEXT("Your %s broke (%d more parts detached)"), *Name, Extra)
+			: FString::Printf(TEXT("Your %s broke"), *Name);
 		JamMsg::Post(Msg, JamMsg::Bad, 4.f, TEXT("partbroke"));
 	}
 	else if (KillerPawn && KillerPawn->IsPlayerControlled())
 	{
-		const FString Msg = (bWholeBuild && Extra > 0) ? FString::Printf(TEXT("Desarmaste la construccion rival (%s)"), *Name)
-			: FString::Printf(TEXT("Rompiste: %s rival"), *Name);
+		const FString Msg = (bWholeBuild && Extra > 0) ? FString::Printf(TEXT("Destroyed the enemy build (%s)"), *Name)
+			: FString::Printf(TEXT("Broke the enemy's %s"), *Name);
 		JamMsg::Post(Msg, JamMsg::Good, 3.f, TEXT("partkill"));
 	}
 }
@@ -1850,10 +1850,10 @@ namespace
 		{
 			Broken += (IsValid(P) && P->bBroken) ? 1 : 0;
 		}
-		FString Msg = FString::Printf(TEXT("Jam.HurtBuild %.0f: %d piezas golpeadas, %d rotas"), Damage, Hurt, Broken);
-		if (Targets.Num() == 0) { Msg = TEXT("Jam.HurtBuild: no encontre piezas (pide una construccion con B, o agrega 'all')"); }
-		else if (NoHealth > 0) { Msg += FString::Printf(TEXT(" (%d sin vida: jam.Build.PartHealth estaba en 0 al crearlas)"), NoHealth); }
-		else if (!AJamBuildPart::PartHealthEnabled()) { Msg += TEXT(" (jam.Build.PartHealth 0: invulnerables)"); }
+		FString Msg = FString::Printf(TEXT("Jam.HurtBuild %.0f: %d parts hit, %d broken"), Damage, Hurt, Broken);
+		if (Targets.Num() == 0) { Msg = TEXT("Jam.HurtBuild: no parts found (request a build with B, or add 'all')"); }
+		else if (NoHealth > 0) { Msg += FString::Printf(TEXT(" (%d without health: jam.Build.PartHealth was 0 when created)"), NoHealth); }
+		else if (!AJamBuildPart::PartHealthEnabled()) { Msg += TEXT(" (jam.Build.PartHealth 0: invulnerable)"); }
 		UE_LOG(LogJamPart, Log, TEXT("%s"), *Msg);
 		JamMsg::Post(Msg, JamMsg::Info, 5.f, TEXT("hurtbuild"));
 	}

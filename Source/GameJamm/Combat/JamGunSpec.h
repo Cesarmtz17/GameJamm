@@ -58,6 +58,11 @@ struct FJamGunSpec
 	float FlashSeconds = 0.07f;
 	float FlashIntensity = 6000.f;
 	float FlashRadius = 350.f;
+
+	// Retroceso visual: vuelve a la pose de reposo sin mover la camara ni la punteria.
+	float RecoilDistance = 2.5f; // cm hacia atras, independientes de hand.scale
+	float RecoilPitch = 2.f;    // grados de elevacion de la boca
+	float RecoilSeconds = 0.16f;
 };
 
 /**

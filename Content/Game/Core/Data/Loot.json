@@ -49,8 +49,14 @@
   },
   "starter": {
     "x": -10450, "y": 380,
-    "items": { "Part.Plank": 1, "Part.Wheel": 4, "Part.Flamethrower": 1, "Part.Fan": 1, "Mat.Fire": 1, "Part.Balloon": 2, "Part.Wing": 2, "Part.Spring": 1 },
-    "message": "Presiona B y escribe lo que quieras construir. Prueba: un carro que queme todo"
+    "items": {
+      "Part.Plank": 8, "Part.Wheel": 4, "Part.Block": 2, "Part.Girder": 1, "Part.Ball": 1,
+      "Part.Flamethrower": 2, "Part.Fan": 2, "Part.Balloon": 4, "Part.Wing": 2, "Part.Spring": 1,
+      "Part.Cannon": 1, "Part.Beam": 1, "Part.HoverStone": 2, "Part.Sail": 1, "Part.Frost": 1,
+      "Part.Light": 1, "Part.Stabilizer": 1, "Part.Rocket": 1, "Part.Panel": 1,
+      "Part.Battery": 1, "Part.Cylinder": 1, "Mat.Fire": 1
+    },
+    "message": "Press B and type what you want to build. Try: a car that burns everything"
   },
   "dummies": [
     { "x": -10800, "y": 850 },

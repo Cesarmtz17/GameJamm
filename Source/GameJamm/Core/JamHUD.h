@@ -15,6 +15,16 @@ struct FJamHudLootNotice
 	double Started = -1.0;
 };
 
+/** Dano realmente aplicado por el jugador; una rafaga cercana se agrupa por blanco y efecto. */
+struct FJamHudDamageNotice
+{
+	TWeakObjectPtr<AActor> Target;
+	FName Effect;
+	FVector Position = FVector::ZeroVector;
+	float Damage = 0.f;
+	double Started = 0.0;
+};
+
 /** Seguimiento de una creacion del jugador (agrupada por pedido) para la pantalla final "tu corte final". */
 struct FJamHudCreation
 {
@@ -44,7 +54,13 @@ public:
 	static bool ShowLoot(AActor* Taker, const TMap<FName, int32>& Offered, const TMap<FName, int32>& Leftover,
 		const FString& SourceTier, float EnergyBefore);
 
+	/** ActualDamage = vida antes - vida despues; no presenta golpes bloqueados ni dano de otros jugadores/bots. */
+	static void ShowDamage(AActor* Source, AActor* Target, float ActualDamage, FName Effect);
+
 private:
+	void DrawDamageNotices();
+	TArray<FJamHudDamageNotice> DamageNotices;
+
 	UTexture2D* GetLootIcon(FName ItemId);
 	void DrawLootIcon(FName ItemId, float X, float Y, float Size, float Alpha = 1.f);
 	void DrawLootNotices(float Bottom);

@@ -26,7 +26,7 @@ namespace
 
 	void JamBSFail(const AJamBuildSpawner* S, const TCHAR* Reason)
 	{
-		JamBSPost(S, FString::Printf(TEXT("No pude armar eso: %s"), Reason), JamMsg::Bad, TEXT("build"));
+		JamBSPost(S, FString::Printf(TEXT("Couldn't build that: %s"), Reason), JamMsg::Bad, TEXT("build"));
 	}
 
 	/** Contenido entre corchetes tras una etiqueta de la nota ("skipped=[Wall x1]" -> "Wall x1"). */
@@ -76,11 +76,11 @@ namespace
 	/** Nombre para "Armaste ...": el de la receta si es util; si es generico ("Construccion") o un arquetipo en ingles, el pedido del jugador entre comillas. */
 	FString JamBSName(const FString& RecipeName, const FString& Prompt)
 	{
-		const bool bGeneric = RecipeName.IsEmpty() || RecipeName == TEXT("Construccion")
+		const bool bGeneric = RecipeName.IsEmpty() || RecipeName == TEXT("Construccion") || RecipeName == TEXT("Construction")
 			|| UJamBuildGenerator::ArchetypeTable().ContainsByPredicate([&RecipeName](const FJamArchetypeDef& A) { return A.Name == FName(*RecipeName); });
 		if (!bGeneric) { return RecipeName; }
 		FString P = Prompt.TrimStartAndEnd();
-		if (P.IsEmpty()) { return TEXT("tu construccion"); }
+		if (P.IsEmpty()) { return TEXT("your build"); }
 		if (P.Len() > 36) { P = P.Left(34) + TEXT("..."); }
 		return TEXT("\"") + P + TEXT("\"");
 	}
@@ -221,7 +221,7 @@ void AJamBuildSpawner::BuildNow()
 		{
 			LastStatus = FString::Printf(TEXT("FAIL recipe: %s"), *Err);
 			UE_LOG(LogJamBuild, Warning, TEXT("%s"), *LastStatus);
-			JamBSFail(this, TEXT("la receta no es valida"));
+			JamBSFail(this, TEXT("invalid recipe"));
 			return;
 		}
 		Realize(Recipe, TEXT("source=json"));
@@ -239,7 +239,7 @@ void AJamBuildSpawner::BuildNow()
 		}
 		LastStatus = FString::Printf(TEXT("FAIL decision override: %s"), *Note);
 		UE_LOG(LogJamBuild, Warning, TEXT("%s"), *LastStatus);
-		JamBSFail(this, TEXT("no entendi el pedido"));
+		JamBSFail(this, TEXT("I couldn't understand the request"));
 		return;
 	}
 	if (bUseDecisionModel && (!FJamDecisionClient::GetTypeSafeKey().IsEmpty() || !FJamDecisionClient::GetApiKey().IsEmpty()
@@ -247,7 +247,7 @@ void AJamBuildSpawner::BuildNow()
 	{
 		LastStatus = TEXT("waiting for decision model...");
 		Announce(FString::Printf(TEXT("Jam: \"%s\" -> preguntando al modelo de decision (Jev / OpenAI)..."), *Prompt), true);
-		JamBSPost(this, TEXT("Pensando..."), JamMsg::Info, TEXT("build"), 10.f);
+		JamBSPost(this, TEXT("Thinking..."), JamMsg::Info, TEXT("build"), 10.f);
 		const FString PromptCopy = Prompt;
 		TWeakObjectPtr<AJamBuildSpawner> Weak(this);
 		// Composicion comun a Jev y al planificador: bolsa -> numerales del texto -> raiz señalada -> compositor con sentido -> Realize.
@@ -321,8 +321,8 @@ void AJamBuildSpawner::BuildNow()
 				N.Split(TEXT(" "), &Backend, &Rest);
 				if (!Picked.IsEmpty())
 				{
-					const TCHAR* Who = Backend.StartsWith(TEXT("openai")) ? TEXT("OpenAI") : Backend.StartsWith(TEXT("jev")) ? TEXT("Jev") : TEXT("La IA");
-					JamBSPost(Self, FString::Printf(TEXT("%s eligio: %s"), Who, *Picked.Left(110)), JamMsg::Info, TEXT("buildai"));
+					const TCHAR* Who = Backend.StartsWith(TEXT("openai")) ? TEXT("OpenAI") : Backend.StartsWith(TEXT("jev")) ? TEXT("Jev") : TEXT("AI");
+					JamBSPost(Self, FString::Printf(TEXT("%s picked: %s"), Who, *Picked.Left(110)), JamMsg::Info, TEXT("buildai"));
 				}
 				Self->Realize(R, Backend + TEXT(" ") + Note2);
 				return;
@@ -357,7 +357,7 @@ void AJamBuildSpawner::BuildNow()
 	{
 		LastStatus = FString::Printf(TEXT("FAIL recipe: %s"), *Note);
 		UE_LOG(LogJamBuild, Warning, TEXT("%s"), *LastStatus);
-		JamBSFail(this, TEXT("no entendi el pedido"));
+		JamBSFail(this, TEXT("I couldn't understand the request"));
 		return;
 	}
 	Announce(TEXT("Jam: sin clave del modelo de decision (o desactivado). Uso el respaldo por palabras clave."), false);
@@ -392,7 +392,7 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& InRecipe, const FString& InNo
 			TArray<FString> Why = Coh.Grave;
 			Why.Append(Coh.Minor);
 			if (Why.Num() > 2) { Why.SetNum(2); }
-			Msg.Add((Coh.Score < UJamAssembler::MinCoherence() ? TEXT("No quedo bien: ") : TEXT("Ojo: ")) + FString::Join(Why, TEXT("; ")));
+			Msg.Add((Coh.Score < UJamAssembler::MinCoherence() ? TEXT("Unstable build: ") : TEXT("Note: ")) + FString::Join(Why, TEXT("; ")));
 		}
 		LastCoherenceNote = FString::Join(Msg, TEXT(". "));
 		if (!LastCoherenceNote.IsEmpty()) { Announce(FString::Printf(TEXT("Jam: %s"), *LastCoherenceNote), Coh.Score >= UJamAssembler::MinCoherence()); }
@@ -402,18 +402,18 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& InRecipe, const FString& InNo
 	FString MissingText = JamBSMissing(FString(), Note); // lo que no cupo / falto, para la linea "Falto: ..." del jugador
 	if (bUseInventory)
 	{
-		if (!Inventory) { LastStatus = TEXT("FAIL inventory: no hay inventario del propietario"); Announce(LastStatus, false); JamBSFail(this, TEXT("no tienes mochila")); return; }
+		if (!Inventory) { LastStatus = TEXT("FAIL inventory: owner has no inventory"); Announce(LastStatus, false); JamBSFail(this, TEXT("you have no backpack")); return; }
 		TMap<FName, int32> Available = Inventory->Items;
 		if (PaidInventory.Get() == Inventory) { for (const auto& Item : GetRefundableItems()) { Available.FindOrAdd(Item.Key) += Item.Value; } } // solo lo vivo: ClearBuild solo devuelve eso
 		FBuildRecipe Fitted;
 		FString InventoryNote;
 		if (!JamInventorySolver::Fit(Recipe, Available, Fitted, InventoryNote))
 		{
-			LastStatus = TEXT("Faltan piezas para una construccion util: ") + InventoryNote;
+			LastStatus = TEXT("Not enough parts for a useful build: ") + InventoryNote;
 			Announce(LastStatus, false);
 			const FString Lacking = JamBSMissing(InventoryNote, FString());
-			JamBSFail(this, Lacking.IsEmpty() ? TEXT("con lo que tienes no queda estable") : TEXT("te faltan piezas"));
-			if (!Lacking.IsEmpty()) { JamBSPost(this, TEXT("Falto: ") + Lacking.Left(90), JamMsg::Warn, TEXT("build2")); }
+			JamBSFail(this, Lacking.IsEmpty() ? TEXT("your parts can't make a stable build") : TEXT("you need more parts"));
+			if (!Lacking.IsEmpty()) { JamBSPost(this, TEXT("Missing: ") + Lacking.Left(90), JamMsg::Warn, TEXT("build2")); }
 			return; // conserva la construccion anterior y sus piezas
 		}
 		Recipe = MoveTemp(Fitted);
@@ -460,7 +460,7 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& InRecipe, const FString& InNo
 		LastStatus = FString::Printf(TEXT("FAIL assemble: %s"), *Err);
 		UE_LOG(LogJamBuild, Warning, TEXT("%s"), *LastStatus);
 		Announce(TEXT("Jam: ") + LastStatus, false);
-		JamBSFail(this, TEXT("no pude ensamblar las piezas"));
+		JamBSFail(this, TEXT("the parts couldn't be assembled"));
 		return;
 	}
 	// Solo sustituir la construccion anterior cuando la nueva ya existe.
@@ -471,9 +471,9 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& InRecipe, const FString& InNo
 		if (!Inventory->ConsumeItems(Cost))
 		{
 			UJamAssembler::DestroyBuild(Built);
-			LastStatus = TEXT("FAIL inventory: el inventario cambio durante la construccion");
+			LastStatus = TEXT("FAIL inventory: inventory changed while building");
 			Announce(LastStatus, false);
-			JamBSFail(this, TEXT("tu mochila cambio mientras armaba"));
+			JamBSFail(this, TEXT("your backpack changed while building"));
 			return;
 		}
 		PaidInventory = Inventory;
@@ -499,8 +499,8 @@ void AJamBuildSpawner::Realize(const FBuildRecipe& InRecipe, const FString& InNo
 		}
 		Announce(FString::Printf(TEXT("Jam: \"%s\"\n  decision: %s\n  %d piezas | mecanicas activas: %s"), *Prompt, *Note, Built.Num(), *FString::Join(Mechs, TEXT(", "))), true);
 		// Lo que ve el jugador: "Armaste ...: N piezas" y, si algo no cupo o falto, "Falto: ...". Misma Key que "Pensando...".
-		JamBSPost(this, FString::Printf(TEXT("Armaste %s: %d %s"), *JamBSName(Recipe.Name, Prompt), Built.Num(), Built.Num() == 1 ? TEXT("pieza") : TEXT("piezas")), JamMsg::Good, TEXT("build"));
-		if (!MissingText.IsEmpty()) { JamBSPost(this, TEXT("Falto: ") + MissingText.Left(90), JamMsg::Warn, TEXT("build2")); }
+		JamBSPost(this, FString::Printf(TEXT("Built %s: %d %s"), *JamBSName(Recipe.Name, Prompt), Built.Num(), Built.Num() == 1 ? TEXT("part") : TEXT("parts")), JamMsg::Good, TEXT("build"));
+		if (!MissingText.IsEmpty()) { JamBSPost(this, TEXT("Missing: ") + MissingText.Left(90), JamMsg::Warn, TEXT("build2")); }
 	}
 
 	if (!bAutoActivate)

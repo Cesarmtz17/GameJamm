@@ -114,12 +114,12 @@ void AJamPickup::HandleOverlap(UPrimitiveComponent*, AActor* OtherActor, UPrimit
 		const bool bIconNotice = AJamHUD::ShowLoot(OtherActor, Bundle, Leftover, FString(), EnergyBefore);
 		if (!Got.IsEmpty())
 		{
-			if (!bIconNotice) { JamMsg::Post(TEXT("Recogiste: ") + Got, JamMsg::Loot, 3.f, TEXT("loot")); }
+			if (!bIconNotice) { JamMsg::Post(TEXT("Picked up: ") + Got, JamMsg::Loot, 3.f, TEXT("loot")); }
 			JamAudio::Play2D(this, TEXT("SFX_Loot_Pickup"), 0.7f);
 		}
 		if (Leftover.Num() > 0)
 		{
-			JamMsg::Post(TEXT("Mochila llena: se quedo en el suelo"), JamMsg::Warn, 5.f, TEXT("bag"));
+			JamMsg::Post(TEXT("Backpack full: the rest stayed on the ground"), JamMsg::Warn, 5.f, TEXT("bag"));
 			// Con la mochila llena el pickup sigue en el suelo y el overlap no se repite, asi que no hay spam.
 			JamAudio::Play2D(this, TEXT("SFX_Backpack_Full"), 0.7f);
 		}

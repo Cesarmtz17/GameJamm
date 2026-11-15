@@ -1,8 +1,10 @@
 #include "Combat/JamStatusComponent.h"
 #include "Core/HealthComponent.h"
+#include "Core/JamHUD.h"
 #include "GameJamm.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/Controller.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -124,7 +126,10 @@ void UJamStatusComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 	// Quemadura: un tick de dano por segundo mientras dure.
 	while (BurnDps > 0.f && T >= NextBurnTick && NextBurnTick <= BurnUntil)
 	{
+		const float Before = H ? H->GetHealth() : 0.f;
 		UGameplayStatics::ApplyDamage(GetOwner(), BurnDps, BurnBy.Get(), BurnCauser.Get(), nullptr);
+		AActor* Source = BurnBy.IsValid() ? BurnBy->GetPawn() : BurnCauser.Get();
+		if (H) { AJamHUD::ShowDamage(Source, GetOwner(), Before - H->GetHealth(), TEXT("Fire")); }
 		UE_LOG(LogJam, Log, TEXT("Estado %s: quemadura -%.0f"), *GetOwner()->GetName(), BurnDps);
 		NextBurnTick += 1.f;
 	}

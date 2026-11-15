@@ -203,7 +203,7 @@ void AJamLootDirector::SpawnRareChest()
 	RareChest = PlaceChest((*Rare)->GetNumberField(TEXT("x")), (*Rare)->GetNumberField(TEXT("y")), TEXT("rare"), -1.f, true, false);
 	if (RareChest.IsValid())
 	{
-		JamMsg::Big(TEXT("Cofre raro en la pradera central"), JamMsg::Loot, 6.f, TEXT("rare"));
+		JamMsg::Big(TEXT("Rare chest in the central meadow"), JamMsg::Loot, 6.f, TEXT("rare"));
 	}
 }
 

@@ -115,7 +115,7 @@ bool AJamLootChest::OpenFor(AActor* Taker)
 	{
 		AJamPickup::SpawnBundle(GetWorld(), GetActorLocation() + GetActorForwardVector() * -120.f + FVector(0, 0, 40.f), Leftover, 0.f, 0.f);
 	}
-	const FString What = bScrapLook ? TEXT("Chatarra") : FixedItems.Num() > 0 ? TEXT("Cofre inicial") : Table == TEXT("rare") ? TEXT("Cofre raro") : TEXT("Cofre");
+	const FString What = bScrapLook ? TEXT("Scrap") : FixedItems.Num() > 0 ? TEXT("Starter chest") : Table == TEXT("rare") ? TEXT("Rare chest") : TEXT("Chest");
 	UE_LOG(LogJam, Log, TEXT("Loot: %s abre %s (%s): %s"), *Taker->GetName(), *What, *Table, *Got);
 	const APawn* Pawn = Cast<APawn>(Taker);
 	// Sonido: el cofre se abre (la chatarra suena a recoger); si es el jugador y se llevo algo, el pitido de loot; si no cupo, mochila llena.
@@ -132,13 +132,13 @@ bool AJamLootChest::OpenFor(AActor* Taker)
 		const bool bRareChest = !bScrapLook && FixedItems.Num() == 0 && Table == TEXT("rare");
 		if (!bIconNotice && (!Got.IsEmpty() || Leftover.Num() == 0))
 		{
-			const FString Line = FString::Printf(TEXT("%s: %s"), *What, Got.IsEmpty() ? TEXT("vacio") : *Got);
+			const FString Line = FString::Printf(TEXT("%s: %s"), *What, Got.IsEmpty() ? TEXT("empty") : *Got);
 			if (bRareChest) { JamMsg::Big(Line, JamMsg::Loot, 5.f, TEXT("loot")); }
 			else { JamMsg::Post(Line, JamMsg::Loot, 5.f, TEXT("loot")); }
 		}
-		if (bIconNotice && bRareChest) { JamMsg::Big(TEXT("Cofre raro abierto"), JamLoot::TierColor(TEXT("rare")), 3.f, TEXT("loot")); }
-		if (bIconNotice && Got.IsEmpty() && Leftover.Num() == 0) { JamMsg::Post(What + TEXT(": vacío"), JamMsg::Loot, 3.f, TEXT("loot")); }
-		if (Leftover.Num() > 0) { JamMsg::Post(TEXT("Mochila llena: se quedo en el suelo"), JamMsg::Warn, 5.f, TEXT("bag")); }
+		if (bIconNotice && bRareChest) { JamMsg::Big(TEXT("Rare chest opened"), JamLoot::TierColor(TEXT("rare")), 3.f, TEXT("loot")); }
+		if (bIconNotice && Got.IsEmpty() && Leftover.Num() == 0) { JamMsg::Post(What + TEXT(": empty"), JamMsg::Loot, 3.f, TEXT("loot")); }
+		if (Leftover.Num() > 0) { JamMsg::Post(TEXT("Backpack full: the rest stayed on the ground"), JamMsg::Warn, 5.f, TEXT("bag")); }
 		if (!Message.IsEmpty()) { JamMsg::Post(Message, JamMsg::Info, 10.f, TEXT("tip")); }
 	}
 	if (bScrapLook) { SetActorHiddenInGame(true); SetActorEnableCollision(false); }

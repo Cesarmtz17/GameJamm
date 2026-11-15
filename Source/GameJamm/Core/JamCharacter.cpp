@@ -35,9 +35,9 @@ namespace
 {
 	// Camara mas rapida (pedido del equipo): el giro base vive en AJamTestCharacter (Building); aqui solo se ajusta.
 	TAutoConsoleVariable<float> CVarJamPadTurnBoost(TEXT("jam.Pad.TurnBoost"), 1.6f,
-		TEXT("Multiplicador del giro de camara con el stick derecho (1 = el de Building, 180 grados/s)."));
+		TEXT("Right-stick camera turn multiplier (1 = Building default, 180 degrees/s)."));
 	TAutoConsoleVariable<float> CVarJamMouseSensGame(TEXT("jam.Mouse.SensGame"), 0.2f,
-		TEXT("Sensibilidad del mouse en partida; se copia a jam.Mouse.Sens al aparecer (0 = no tocarla)."));
+		TEXT("In-game mouse sensitivity, copied to jam.Mouse.Sens on spawn (0 = unchanged)."));
 }
 
 void AJamCharacter::BeginPlay()
@@ -138,7 +138,7 @@ void AJamCharacter::HandleDied(UHealthComponent* HealthComponent, AActor* Killer
 	double BagLife = 30.0;
 	JamLoot::Config()->TryGetNumberField(TEXT("death_bag_seconds"), BagLife);
 	AJamPickup::SpawnBundle(GetWorld(), GetActorLocation(), Bag, OrbEnergy, float(BagLife));
-	UE_LOG(LogJam, Log, TEXT("%s suelta bolsa: %s (+%.0f energia)"), *GetName(), *JamLoot::Describe(Bag), OrbEnergy);
+	UE_LOG(LogJam, Log, TEXT("%s drops bag: %s (+%.0f energy)"), *GetName(), *JamLoot::Describe(Bag), OrbEnergy);
 
 	if (Look && Look->IsApplied())
 	{

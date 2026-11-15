@@ -185,10 +185,17 @@ AActor* AJamMinion::FindTarget(float Range) const
 
 	TArray<FOverlapResult> Overlaps;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(JamMinionTarget), false, this);
-	GetWorld()->OverlapMultiByObjectType(Overlaps, Me, FQuat::Identity, FCollisionObjectQueryParams(ECC_Pawn), FCollisionShape::MakeSphere(Range), Params);
+	FCollisionObjectQueryParams ObjectTypes(ECC_Pawn);
+	const bool bTargetParts = AJamBuildPart::PartHealthEnabled();
+	if (bTargetParts) { ObjectTypes.AddObjectTypesToQuery(ECC_PhysicsBody); }
+	GetWorld()->OverlapMultiByObjectType(Overlaps, Me, FQuat::Identity, ObjectTypes, FCollisionShape::MakeSphere(Range), Params);
+	TSet<AActor*> SeenPawns;
 	for (const FOverlapResult& O : Overlaps)
 	{
 		AActor* A = O.GetActor();
+		const UPrimitiveComponent* Component = O.GetComponent();
+		if (!A || !Component || Component->GetCollisionObjectType() != ECC_Pawn || SeenPawns.Contains(A)) { continue; }
+		SeenPawns.Add(A);
 		const UHealthComponent* H = A ? A->FindComponentByClass<UHealthComponent>() : nullptr;
 		if (!H || H->IsDead() || H->Team == Mine || H->Team == EJamTeam::Neutral)
 		{
@@ -219,6 +226,33 @@ AActor* AJamMinion::FindTarget(float Range) const
 			Best = *It;
 		}
 	}
+	// Mantiene la prioridad del carril: personajes y torres primero. Sin ellos, puede romper una construccion rival.
+	if (Best || !bTargetParts) { return Best; }
+	const EJamTeam EnemyTeam = UJamStatics::GetOpposingTeam(Mine);
+	TSet<AActor*> SeenParts;
+	FCollisionQueryParams SightParams(SCENE_QUERY_STAT(JamMinionBuildSight), false, this);
+	for (const FOverlapResult& O : Overlaps)
+	{
+		AJamBuildPart* Part = Cast<AJamBuildPart>(O.GetActor());
+		if (!Part || SeenParts.Contains(Part)) { continue; }
+		SeenParts.Add(Part);
+		const UHealthComponent* H = Part->Health;
+		const APawn* OwnerPawn = Part->Build.IsValid() ? Cast<APawn>(Part->Build->Owner.Get()) : nullptr;
+		if (EnemyTeam == EJamTeam::Neutral || Part->bBroken || !H || H->IsDead() || H->bInvulnerable || H->Team != EnemyTeam ||
+			!OwnerPawn || Part->Build->Team != EnemyTeam || UJamStatics::GetActorTeam(OwnerPawn) != EnemyTeam)
+		{
+			continue;
+		}
+		const float D = FVector::DistSquared(Part->GetActorLocation(), Me);
+		if (D >= BestD) { continue; }
+		FHitResult Hit;
+		if (GetWorld()->LineTraceSingleByChannel(Hit, Me + FVector(0, 0, 40.f), Part->GetActorLocation(), ECC_Visibility, SightParams) && Hit.GetActor() != Part)
+		{
+			continue; // no elige una pieza al otro lado de una isla ni a traves de otro cuerpo
+		}
+		BestD = D;
+		Best = Part;
+	}
 	return Best;
 }
 
@@ -227,10 +261,10 @@ bool AJamMinion::TryAttack(AActor* Target)
 	const float Now = GetWorld()->GetTimeSeconds();
 	// Distancia al borde: torres y bases son anchas.
 	float Reach = AttackRange + 40.f;
-	if (const ATeamStructure* S = Cast<ATeamStructure>(Target))
+	if (Target->IsA<ATeamStructure>() || Target->IsA<AJamBuildPart>())
 	{
 		FVector O, E;
-		S->GetActorBounds(true, O, E);
+		Target->GetActorBounds(true, O, E);
 		Reach += FMath::Max(E.X, E.Y);
 	}
 	if (FVector::Dist2D(Target->GetActorLocation(), GetActorLocation()) > Reach)

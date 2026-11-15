@@ -1,8 +1,8 @@
-# GDD — GameJamm (título por definir)
+# GDD — Prompt & Conquer
 <!-- Tope: 400 líneas. Aquí vive QUÉ es el juego y POR QUÉ. Lo que falta, quién lo hace y los commits viven en
 docs/DEVLOG.md y en las tareas; los números reales viven en los datos. -->
 
-**Versión 2.0 (14 nov 2026).** Reescrita por decisión de Javier, único integrante activo esa noche, con el equipo
+**Versión 2.3 (15 nov 2026).** Reescrita por decisión de Javier, único integrante activo esa noche, con el equipo
 avisado. Conserva la regla de construcción (§3) y el contrato de receta JSON. Es la base del trabajo desde la noche del
 14 al 15 nov; cada sección se marca ✅ cuando Javier la revise. La revisión de la v1 contra el código está en el devlog.
 
@@ -123,19 +123,28 @@ flowchart LR
 - **Lo que hoy la limita no son las mallas:** sin clave decide el respaldo por palabras clave, y con pocas piezas el
   solver la reduce a un carro. Mejoras: vocabulario en datos y suficiente loot al empezar.
 - **Solo tuya:** X desarma **tu** construcción y te devuelve las piezas que siguen existiendo; E solo sube a la tuya.
-- **En el código (14 nov):** X borra todas las construcciones del mapa (también las de los bots); las piezas no tienen
-  vida; E sube a la pieza más cercana de cualquiera.
+- **En el código (15 nov):** X desarma solo tu construcción y devuelve piezas no rotas; E solo permite tu asiento.
+  Las piezas con vida están implementadas con `UHealthComponent` y datos en `PartHealth.json`; siguen desactivadas
+  por defecto mientras se prueba daño rival, rotura y salida segura del asiento.
 - **Hecho cuando:** las frases de ejemplo del HUD salen como lo que piden con el cofre inicial más el primer loot, y X
   solo toca la tuya.
 
 ### 5.3 Cómo decide la IA (capa de decisión)
-- **Orden real:** TypeSafe (Jev) → Jev por OpenRouter → planificador por fal; sin ninguna clave, palabras clave. El modelo
-  elige; el solver ajusta la receta al inventario (sustituye dentro de la misma capacidad, reduce, dice qué faltó).
+- **Orden real (15 nov):** TypeSafe (Jev) → Jev por OpenRouter → **OpenAI Decisions API** (`gpt-6-luna`) → planificador
+  por fal; sin ninguna clave, palabras clave. El modelo elige; el solver ajusta la receta al inventario (sustituye dentro
+  de la misma capacidad, reduce, dice qué faltó).
+- **OpenAI Decisions:** es un modelo de decisión como Jev: no escribe texto, responde preguntas cerradas. Por pedido de
+  construcción van ~59 preguntas (`use_<Tipo>` como sí/no, `pattern`, `root` y `mode_*` como opción); por arma, 6
+  (`body`, `muzzle` y un sí/no por extra, sobre los `id` de `Weapons.json`). Una negativa del modelo en una pregunta la
+  decide la palabra clave; todo negado, error o corte → respaldo. El HUD dice "OpenAI eligió: …".
+- **Hallazgo (15 nov):** "un carro que queme todo" con la pregunta "¿lleva lanzallamas (dispara fuego)?" hacía que el
+  modelo se negara 3 de 3 veces. Con el contexto de "juego de juguete" y "pieza de juguete" en cada pregunta, 0 negativas.
 - **El respaldo no es un plan B escondido:** es lo que juega un juez si la build no lleva clave. Tiene que entender las
   frases más probables de armas y vehículos.
-- **Tiempo:** con clave, un pedido hoy espera hasta 8 s (más 8 del planificador). Objetivo: corte a 3 s al respaldo y
-  "Pensando…" en el HUD mientras espera.
-- **Clave para la build de los jueces:** ❓ (§16). Nunca va al repo: `Config/DefaultSecrets.ini` o variables de entorno.
+- **Tiempo:** corte por proveedor en datos (`decision_timeouts` de `BuildKnowledge.json`): TypeSafe 3 s, OpenRouter 4 s,
+  OpenAI 3 s, fal 8 s. OpenAI medido: 0.2–0.9 s (1.2 s la primera llamada). "Pensando…" en el HUD mientras espera.
+- **Clave para la build de los jueces:** la de OpenAI de Javier (con tope de gasto), solo dentro del zip, nunca en el
+  repo (`Config/DefaultSecrets.ini` o `OPENAI_API_KEY`). Se revoca después del juicio.
 
 ### Formato de receta (contrato entre IA y sistema de construcción)
 ```json
@@ -179,8 +188,8 @@ arma de mano usa la misma receta (piezas de arma como `type`).
 - **Energía (tipo maná):** mínimo garantizado que se recarga solo, máximo que solo se alcanza looteando y ganando peleas.
   La gastan los dispositivos encendidos y los disparos del arma pedida.
 - **Al morir:** sueltas una bolsa con la mitad de tus piezas y renaces con la otra mitad (❓ §16).
-- **En el código (14 nov):** se renace con 0 piezas (el inventario muere con el personaje); los bots construyen sin
-  gastar piezas.
+- **En el código (15 nov):** al morir se suelta la mitad de las piezas y se conserva la otra mitad al renacer.
+  Los bots todavía construyen sin gastar piezas.
 
 ## 8. Los primeros 2 minutos (para los jueces)
 Una línea de objetivo arriba guía paso a paso; cada paso se cumple y aparece el siguiente.
@@ -205,8 +214,9 @@ Una línea de objetivo arriba guía paso a paso; cada paso se cumple y aparece e
 - **Sin paneles de depuración por defecto** (lista de elementos, comandos de consola, "Sentido N/100").
 - **Pantallas:** título (nombre + objetivo + "Enter para jugar"), muerte (cuenta atrás), **final "tu corte final"**:
   victoria o derrota, tu mejor creación con el pedido que la creó, y R para la revancha.
-- **En el código (14 nov):** los avisos del cofre y del asistente usan el canal de depuración del motor, que la build
-  Shipping no muestra; la ayuda sale abierta y tapa media pantalla.
+- **En el código (15 nov):** avisos en el HUD también en Shipping, ayuda cerrada, loot con íconos y mochila con
+  cantidades, cuenta atrás al morir y pantalla final. Pantalla inicial **Prompt & Conquer** probada en PIE:
+  pausa la partida hasta Enter o clic; Enter devuelve el control y empieza el reloj.
 
 ## 10. Sensación por evento
 | Evento | Imagen | Sonido | Física |
@@ -222,8 +232,9 @@ Una línea de objetivo arriba guía paso a paso; cada paso se cumple y aparece e
 | Morir / reaparecer | Cuenta atrás | `SFX_Death` / `SFX_Respawn` | El cuerpo cae |
 
 - **Música:** `MUS_Match_Loop` en partida, `MUS_Match_Intense_Loop` en muerte súbita, `MUS_Menu_Loop` en título y final.
-- **En el código (14 nov):** el juego no suena. El código pide 8 de estos sonidos con el nombre exacto pero busca en
-  `/Game/Game/Building/Audio/`, donde no hay nada importado; los WAV están en `SourceArt/Audio/`.
+- **En el código (15 nov):** 23 SFX y 3 músicas conectados e importados en `/Game/Game/Building/Audio/`.
+  Javier eligió siete reemplazos con Stable Audio 3, ya importados; conservó música de partida, recogida y victoria.
+  El cofre usa la toma v4 elegida por Javier (1.05 s): son siete SFX reemplazados. Hay fogonazo por boca y retroceso visual.
 
 ## 11. Controles
 | Acción | Teclado y mouse |
@@ -294,12 +305,16 @@ progresión, **audio**. El uso de IA no puntúa por sí mismo.
 5. **Alcance para una persona más agentes:** la compuerta y el orden de recorte de §13 mandan.
 
 ## 16. Preguntas abiertas
-1. **Clave para la build de los jueces:** la de fal (la tiene Jesús); confirmar con él.
+1. ~~**Clave para la build de los jueces**~~ → la de OpenAI de Javier (§5.3, 15 nov).
 2. **Al morir** (§7): renacer con la mitad, con todo, o como hoy.
 3. **Empate a los 15 min:** quién gana.
 4. **Arco:** se queda junto al arma pedida o lo reemplaza.
-5. **Título del juego.**
+5. ~~**Título del juego**~~ → **Prompt & Conquer**, elegido por Javier el 15 nov.
 6. **Student Project:** requisitos para un equipo.
+
+**Idioma de entrega (15 nov):** Javier pidió interfaz y ejemplos en inglés; se implementaron conservando el reconocimiento
+de pedidos españoles. Las reglas oficiales §8(i), verificadas después, exigen inglés para juego, audio, video y formulario.
+Student requiere que todos los integrantes estén inscritos en educación superior; falta confirmar la situación del equipo.
 
 ## Historial
 - **v1 · 12–14 nov 2026 · equipo:** regla de construcción, Asalto con minions y bots, loot, energía, fusión, segundo modo.
@@ -310,3 +325,9 @@ progresión, **audio**. El uso de IA no puntúa por sí mismo.
   este GDD hasta el paquete final y lo único fijo es el deadline (19:59 CDMX). Misión del día: terminar el juego con o
   sin el resto del equipo; si no llegan, Javier lo sube. Entran audio nuevo con Stable Audio 3 (local), UI de loot más
   clara, mejoras del mapa y la capa de decisión con clave (Jev, o un modelo de OpenAI por fal si Jev no está).
+- **v2.2 · 15 nov 2026 · Javier:** la capa de decisión con clave es la **OpenAI Decisions API** (`gpt-6-luna`), un modelo
+  que solo elige entre opciones (encaja con §3: el modelo elige, el código decide lo posible). Motivo: el cupón de fal de
+  Javier estaba agotado y nadie del equipo tenía clave de Jev; Jev sigue primero si aparece su clave.
+- **v2.3 · 15 nov 2026 · Javier:** título final **Prompt & Conquer**. Se conservan por elección del director la música
+  de partida y los sonidos actuales de recogida y victoria; se seleccionan seis SFX nuevos y se rehace el cofre.
+  Se actualizan las notas de implementación del ciclo, HUD y audio para reflejar el código del día.

@@ -91,11 +91,11 @@ void AJamTrainingDummy::Tick(float DeltaSeconds)
 	LastFxPost[State] = Now;
 	switch (State)
 	{
-	case 1: JamMsg::Post(TEXT("Muneco: quemandose"), JamMsg::Warn, 2.f, TEXT("dummy_fx")); break;
-	case 2: JamMsg::Post(TEXT("Muneco: ralentizado"), JamMsg::Info, 2.f, TEXT("dummy_fx")); break;
-	case 3: JamMsg::Post(TEXT("Muneco: aturdido"), JamMsg::Info, 2.f, TEXT("dummy_fx")); break;
-	case 4: JamMsg::Post(TEXT("Muneco: congelado"), JamMsg::Info, 2.f, TEXT("dummy_fx")); break;
-	case 5: JamMsg::Post(TEXT("Muneco derribado: revive en 2 s"), JamMsg::Good, 2.f, TEXT("dummy_fx")); break;
+	case 1: JamMsg::Post(TEXT("Dummy: burning"), JamMsg::Warn, 2.f, TEXT("dummy_fx")); break;
+	case 2: JamMsg::Post(TEXT("Dummy: slowed"), JamMsg::Info, 2.f, TEXT("dummy_fx")); break;
+	case 3: JamMsg::Post(TEXT("Dummy: stunned"), JamMsg::Info, 2.f, TEXT("dummy_fx")); break;
+	case 4: JamMsg::Post(TEXT("Dummy: frozen"), JamMsg::Info, 2.f, TEXT("dummy_fx")); break;
+	case 5: JamMsg::Post(TEXT("Dummy down: resets in 2 s"), JamMsg::Good, 2.f, TEXT("dummy_fx")); break;
 	default: break;
 	}
 }
@@ -105,7 +105,7 @@ void AJamTrainingDummy::HandleHealthChanged(UHealthComponent*, float NewHealth, 
 	if (Delta >= 0.f) { return; }
 	UE_LOG(LogJam, Log, TEXT("Dummy %s: -%.0f (queda %.0f)"), *GetName(), -Delta, NewHealth);
 	if (!JamDummyPlayerNear(this)) { return; } // solo avisa si el jugador esta practicando cerca
-	JamMsg::Post(FString::Printf(TEXT("Muneco: -%.0f"), -Delta), JamMsg::Warn, 1.5f, TEXT("dummy_dmg"));
+	JamMsg::Post(FString::Printf(TEXT("Dummy: -%.0f"), -Delta), JamMsg::Warn, 1.5f, TEXT("dummy_dmg"));
 }
 
 void AJamTrainingDummy::HandleDied(UHealthComponent*, AActor*)

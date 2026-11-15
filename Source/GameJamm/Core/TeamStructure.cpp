@@ -1,4 +1,5 @@
 #include "Core/TeamStructure.h"
+#include "Building/JamBuildPart.h"
 #include "Core/HealthComponent.h"
 #include "Core/JamStatics.h"
 #include "Core/JamGameMode.h"
@@ -7,6 +8,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 #include "Engine/StaticMesh.h"
@@ -105,8 +107,8 @@ void ATeamStructure::HandleDied(UHealthComponent* HealthComponent, AActor* Kille
 	if (AJamGameMode* GameMode = GetWorld()->GetAuthGameMode<AJamGameMode>())
 	{
 		const bool bEnemy = GetTeam() != GameMode->PlayerTeam;
-		JamMsg::Big(bIsBase ? (bEnemy ? TEXT("Cayo la base rival") : TEXT("Cayo tu base"))
-			: (bEnemy ? TEXT("Cayo una torre rival") : TEXT("Cayo una de tus torres")),
+		JamMsg::Big(bIsBase ? (bEnemy ? TEXT("Enemy base destroyed") : TEXT("Your base was destroyed"))
+			: (bEnemy ? TEXT("Enemy tower destroyed") : TEXT("Your tower was destroyed")),
 			bEnemy ? JamMsg::Good : JamMsg::Bad, 4.f, TEXT("tower"));
 		// Fanfarria al caer una estructura enemiga (o la base de cualquiera); si cae una torre propia solo suena el derrumbe.
 		if (bIsBase || bEnemy)
@@ -127,11 +129,14 @@ AActor* ATeamStructure::FindTarget() const
 
 	TArray<FOverlapResult> Overlaps;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(JamTowerTarget), false, this);
+	FCollisionObjectQueryParams ObjectTypes(ECC_Pawn);
+	const bool bTargetParts = AJamBuildPart::PartHealthEnabled();
+	if (bTargetParts) { ObjectTypes.AddObjectTypesToQuery(ECC_PhysicsBody); }
 	GetWorld()->OverlapMultiByObjectType(
 		Overlaps,
 		GetActorLocation(),
 		FQuat::Identity,
-		FCollisionObjectQueryParams(ECC_Pawn),
+		ObjectTypes,
 		FCollisionShape::MakeSphere(AttackRange),
 		Params);
 
@@ -139,10 +144,14 @@ AActor* ATeamStructure::FindTarget() const
 	AActor* Best = nullptr;
 	float BestDistSq = TNumericLimits<float>::Max();
 	bool bBestIsMinion = false;
+	TSet<AActor*> SeenPawns;
 	for (const FOverlapResult& Overlap : Overlaps)
 	{
 		AActor* Candidate = Overlap.GetActor();
-		if (!Candidate || UJamStatics::GetActorTeam(Candidate) != EnemyTeam)
+		const UPrimitiveComponent* Component = Overlap.GetComponent();
+		if (!Candidate || !Component || Component->GetCollisionObjectType() != ECC_Pawn || SeenPawns.Contains(Candidate)) { continue; }
+		SeenPawns.Add(Candidate);
+		if (UJamStatics::GetActorTeam(Candidate) != EnemyTeam)
 		{
 			continue;
 		}
@@ -159,6 +168,35 @@ AActor* ATeamStructure::FindTarget() const
 			Best = Candidate;
 			bBestIsMinion = bMinion;
 		}
+	}
+	// Los minions y heroes conservan su prioridad. Si no hay ninguno, la torre puede destruir piezas enemigas.
+	if (Best || !bTargetParts) { return Best; }
+	FVector Origin, Extent;
+	Mesh->Bounds.GetBox().GetCenterAndExtents(Origin, Extent);
+	const FVector From(Origin.X, Origin.Y, Origin.Z + Extent.Z * 0.8f);
+	TSet<AActor*> SeenParts;
+	FCollisionQueryParams SightParams(SCENE_QUERY_STAT(JamTowerBuildSight), false, this);
+	for (const FOverlapResult& O : Overlaps)
+	{
+		AJamBuildPart* Part = Cast<AJamBuildPart>(O.GetActor());
+		if (!Part || SeenParts.Contains(Part)) { continue; }
+		SeenParts.Add(Part);
+		const UHealthComponent* H = Part->Health;
+		const APawn* OwnerPawn = Part->Build.IsValid() ? Cast<APawn>(Part->Build->Owner.Get()) : nullptr;
+		if (Part->bBroken || !H || H->IsDead() || H->bInvulnerable || H->Team != EnemyTeam || !OwnerPawn ||
+			Part->Build->Team != EnemyTeam || UJamStatics::GetActorTeam(OwnerPawn) != EnemyTeam)
+		{
+			continue;
+		}
+		const float DistSq = FVector::DistSquared(Part->GetActorLocation(), GetActorLocation());
+		if (DistSq >= BestDistSq || DistSq > FMath::Square(AttackRange)) { continue; }
+		FHitResult Hit;
+		if (GetWorld()->LineTraceSingleByChannel(Hit, From, Part->GetActorLocation(), ECC_Visibility, SightParams) && Hit.GetActor() != Part)
+		{
+			continue;
+		}
+		BestDistSq = DistSq;
+		Best = Part;
 	}
 	return Best;
 }

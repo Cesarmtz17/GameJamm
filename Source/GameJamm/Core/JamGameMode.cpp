@@ -67,7 +67,7 @@ void AJamGameMode::MatchTick()
 			It->AttackDamage *= 0.5f;
 		}
 		UE_LOG(LogJam, Log, TEXT("Muerte subita"));
-		JamMsg::Big(TEXT("MUERTE SUBITA: las torres pegan menos y reapareces mas tarde"), JamMsg::Warn, 5.f, TEXT("sudden"));
+		JamMsg::Big(TEXT("SUDDEN DEATH: towers deal less damage and respawns take longer"), JamMsg::Warn, 5.f, TEXT("sudden"));
 		JamAudio::Music(this, TEXT("MUS_Match_Intense_Loop"), 0.45f);
 		OnSuddenDeath();
 	}
@@ -204,8 +204,8 @@ void AJamGameMode::Respawn(AController* Controller)
 			}
 			int32 Pieces = 0;
 			for (const auto& Item : NewInv->Items) { if (Item.Key.ToString().StartsWith(TEXT("Part."))) { Pieces += FMath::Max(Item.Value, 0); } }
-			JamMsg::Post(FString::Printf(TEXT("Reapareciste con %d %s%s"), Pieces, Pieces == 1 ? TEXT("pieza") : TEXT("piezas"),
-				bHadGun ? TEXT(". Pulsa B y pide tu arma otra vez") : TEXT("")), JamMsg::Info, 6.f, FName(TEXT("respawn")));
+			JamMsg::Post(FString::Printf(TEXT("Respawned with %d %s%s"), Pieces, Pieces == 1 ? TEXT("part") : TEXT("parts"),
+				bHadGun ? TEXT(". Press B to request your weapon again") : TEXT("")), JamMsg::Info, 6.f, FName(TEXT("respawn")));
 		}
 	}
 }

@@ -23,6 +23,7 @@ public class GameJamm : ModuleRules
 			"NavigationSystem",
 			"GameplayTasks",
 			"UMG",
+			"SlateCore",
 			"HTTP",
 			"Json",
 			"JsonUtilities",

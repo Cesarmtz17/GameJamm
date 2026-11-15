@@ -376,7 +376,7 @@ namespace
 	Out.Color = FLinearColor(float(Rgb.X), float(Rgb.Y), float(Rgb.Z));
 
 	// Nombre: "Rifle" + "de hielo" (solo si la boca se nombro) + extras nombrados.
-	Out.BodyName = JamGunStr(Body, TEXT("name"), TEXT("Arma"));
+	Out.BodyName = JamGunStr(Body, TEXT("name"), TEXT("Weapon"));
 	Out.MuzzleName = JamGunStr(Muzzle, TEXT("name"));
 	Out.ExtraNames = NamedExtras;
 	Out.Name = Out.BodyName;
@@ -384,7 +384,7 @@ namespace
 	if (bMuzzleNamed && !Suffix.IsEmpty()) { Out.Name += TEXT(" ") + Suffix; }
 	for (int32 I = 0; I < NamedExtras.Num(); ++I)
 	{
-		Out.Name += (I == 0 ? TEXT(" con ") : TEXT(" y ")) + NamedExtras[I];
+		Out.Name += (I == 0 ? TEXT(" with ") : TEXT(" and ")) + NamedExtras[I];
 	}
 
 	// Piezas visuales: empunadura + cuerpo + boca (pegada a muzzle_pos del cuerpo) + extras (en los mounts del cuerpo).
@@ -441,6 +441,9 @@ namespace
 	Out.FlashSeconds = float(FMath::Clamp(JamGunNum(Def, TEXT("flash_seconds"), 0.07), 0.0, 1.0));
 	Out.FlashIntensity = float(FMath::Max(0.0, JamGunNum(Def, TEXT("flash_intensity"), 6000.0)));
 	Out.FlashRadius = float(FMath::Max(10.0, JamGunNum(Def, TEXT("flash_radius"), 350.0)));
+	Out.RecoilDistance = float(FMath::Clamp(JamGunNum(Def, TEXT("recoil_distance"), 2.5), 0.0, 10.0));
+	Out.RecoilPitch = float(FMath::Clamp(JamGunNum(Def, TEXT("recoil_pitch"), 2.0), 0.0, 8.0));
+	Out.RecoilSeconds = float(FMath::Clamp(JamGunNum(Def, TEXT("recoil_seconds"), 0.16), 0.0, 0.5));
 
 	UE_LOG(LogJam, Log, TEXT("Arma pedida: \"%s\" -> %s (cuerpo %s, boca %s, efecto %s): dano %.1f x%d cada %.2f s, velocidad %.0f, gravedad %.2f, alcance %.0f, energia %.1f, %d piezas"),
 		*Phrase, *Out.Name, *Out.BodyName, *Out.MuzzleName, *Out.Effect.ToString(), Out.Damage, Out.Pellets, Out.Interval, Out.Speed, Out.Gravity, Out.Range, Out.Energy, Out.Pieces.Num());
@@ -539,7 +542,7 @@ bool JamGun::ParseDecisionResponse(const FString& ResponseJson, const FString& P
 	const TArray<TSharedPtr<FJsonValue>>* Answers = nullptr;
 	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(ResponseJson), Response) || !Response.IsValid() || !Response->TryGetArrayField(TEXT("answers"), Answers) || !Answers)
 	{
-		OutNote = TEXT("respuesta sin answers");
+		OutNote = TEXT("response missing answers");
 		return false;
 	}
 	const FJamGunJson Root = JamGunConfig();

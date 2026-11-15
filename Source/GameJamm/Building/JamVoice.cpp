@@ -81,8 +81,8 @@ namespace
 
 	FString HttpWhy(const TCHAR* Step, FHttpResponsePtr Resp)
 	{
-		return Resp.IsValid() ? FString::Printf(TEXT("%s: respuesta %d del servicio de voz"), Step, Resp->GetResponseCode())
-			: FString::Printf(TEXT("%s: sin conexion con el servicio de voz"), Step);
+		return Resp.IsValid() ? FString::Printf(TEXT("%s: voice service returned %d"), Step, Resp->GetResponseCode())
+			: FString::Printf(TEXT("%s: could not connect to the voice service"), Step);
 	}
 }
 
@@ -228,7 +228,7 @@ bool FJamVoice::Start(FString& OutError)
 	}
 	if (!GLocalReady && FJamDecisionClient::GetFalKey().IsEmpty())
 	{
-		OutError = TEXT("Voz: no hay reconocedor local (whisper.cpp) ni clave de fal. Usa la caja de texto (T).");
+		OutError = TEXT("Voice is unavailable: no local recognizer or fal key. Press B to type your request.");
 		return false;
 	}
 	if (!Capture.IsValid())
@@ -257,7 +257,7 @@ bool FJamVoice::Start(FString& OutError)
 	if (!Capture->Capture.OpenAudioCaptureStream(Params, MoveTemp(OnCapture), 1024) || !Capture->Capture.StartStream())
 	{
 		Capture->Capture.AbortStream();
-		OutError = TEXT("Voz: no se pudo abrir el microfono. Revisa el permiso de Microfono para UnrealEditor (Ajustes del Sistema > Privacidad y seguridad). Usa la caja de texto (T).");
+		OutError = TEXT("Could not open the microphone. Check microphone permissions or press B to type your request.");
 		return false;
 	}
 	bRecording = true;
@@ -288,13 +288,13 @@ void FJamVoice::StopAndTranscribe(FDone Done)
 	if (Mono.Num() < Rate / 3)
 	{
 		Status.Reset();
-		Done(false, TEXT("Voz: muy corto. Manten la tecla G mientras hablas."));
+		Done(false, TEXT("Voice recording too short. Hold G while speaking."));
 		return;
 	}
 	if (Peak < 0.003f)
 	{
 		Status.Reset();
-		Done(false, TEXT("Voz: el microfono no capto sonido. Revisa el permiso de Microfono para UnrealEditor o el dispositivo de entrada. Usa la caja de texto (T)."));
+		Done(false, TEXT("No microphone audio detected. Check your input device or press B to type your request."));
 		return;
 	}
 	TranscribeWav(MakeWav(Mono, Rate), MoveTemp(Done));
@@ -327,7 +327,7 @@ void FJamVoice::TranscribeWav(const TArray<uint8>& Wav, FDone InDone)
 		const FString Key = FJamDecisionClient::GetFalKey();
 		if (Key.IsEmpty())
 		{
-			Done(false, FString::Printf(TEXT("Voz: %s y no hay clave de fal para la nube. Usa la caja de texto (T)."), *LocalWhy));
+			Done(false, FString::Printf(TEXT("Voice: %s and no fal key is configured. Press B to type your request."), *LocalWhy));
 			return;
 		}
 		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Init = Req(TEXT("POST"), TEXT("https://rest.alpha.fal.ai/storage/upload/initiate"), Key, TEXT("application/json"));
@@ -339,7 +339,7 @@ void FJamVoice::TranscribeWav(const TArray<uint8>& Wav, FDone InDone)
 			FString UploadUrl, FileUrl;
 			if (!JsonOf(Resp, bOk, J) || !J->TryGetStringField(TEXT("upload_url"), UploadUrl) || !J->TryGetStringField(TEXT("file_url"), FileUrl))
 			{
-				Done(false, HttpWhy(TEXT("Voz (subida)"), Resp) + TEXT(". Usa la caja de texto (T)."));
+				Done(false, HttpWhy(TEXT("Voice upload"), Resp) + TEXT(". Press B to type your request."));
 				return;
 			}
 			TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Up = Req(TEXT("PUT"), UploadUrl, FString(), TEXT("audio/wav"));
@@ -349,7 +349,7 @@ void FJamVoice::TranscribeWav(const TArray<uint8>& Wav, FDone InDone)
 			{
 				if (!bUpOk || !UpResp.IsValid() || UpResp->GetResponseCode() / 100 != 2)
 				{
-					Done(false, HttpWhy(TEXT("Voz (subida del audio)"), UpResp) + TEXT(". Usa la caja de texto (T)."));
+					Done(false, HttpWhy(TEXT("Audio upload"), UpResp) + TEXT(". Press B to type your request."));
 					return;
 				}
 				TSharedRef<FJsonObject> Body = MakeShared<FJsonObject>();
@@ -367,11 +367,11 @@ void FJamVoice::TranscribeWav(const TArray<uint8>& Wav, FDone InDone)
 					FString Text;
 					if (!JsonOf(TrResp, bTrOk, R) || !R->TryGetStringField(TEXT("text"), Text))
 					{
-						Done(false, TEXT("Voz: el servicio en la nube tardo demasiado o no respondio. Intenta otra vez o usa la caja de texto (T)."));
+						Done(false, TEXT("Voice service timed out. Try again or press B to type your request."));
 						return;
 					}
 					Text = CleanText(Text);
-					Done(!Text.IsEmpty(), Text.IsEmpty() ? FString(TEXT("Voz: no se entendio ninguna palabra. Intenta de nuevo o usa la caja de texto (T).")) : Text);
+					Done(!Text.IsEmpty(), Text.IsEmpty() ? FString(TEXT("No words recognized. Try again or press B to type your request.")) : Text);
 				});
 				Tr->ProcessRequest();
 			});
@@ -383,7 +383,7 @@ void FJamVoice::TranscribeWav(const TArray<uint8>& Wav, FDone InDone)
 	// 1) Local: whisper-server. Si no esta o falla, a la nube.
 	if (!GLocalReady)
 	{
-		Cloud(TEXT("el reconocedor local no esta disponible"));
+		Cloud(TEXT("local recognizer unavailable"));
 		return;
 	}
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Local = LocalRequest(Wav, 4.f);
@@ -393,11 +393,11 @@ void FJamVoice::TranscribeWav(const TArray<uint8>& Wav, FDone InDone)
 		FString Text;
 		if (!JsonOf(Resp, bOk, R) || !R->TryGetStringField(TEXT("text"), Text))
 		{
-			Cloud(TEXT("el reconocedor local no respondio"));
+			Cloud(TEXT("local recognizer did not respond"));
 			return;
 		}
 		Text = CleanText(Text);
-		Done(!Text.IsEmpty(), Text.IsEmpty() ? FString(TEXT("Voz: no se entendio ninguna palabra. Intenta de nuevo o usa la caja de texto (T).")) : Text);
+		Done(!Text.IsEmpty(), Text.IsEmpty() ? FString(TEXT("No words recognized. Try again or press B to type your request.")) : Text);
 	});
 	Local->ProcessRequest();
 }

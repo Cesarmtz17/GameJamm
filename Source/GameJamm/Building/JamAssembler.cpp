@@ -370,7 +370,7 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 	FFacts F;
 	if (!MakeFacts(Recipe, F))
 	{
-		C.Grave.Add(TEXT("receta invalida"));
+		C.Grave.Add(TEXT("invalid recipe"));
 		return C;
 	}
 	const int32 N = F.Ids.Num();
@@ -403,7 +403,7 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 		if (Ov[0] < -10.0 || FMath::Max(Ov[1], 0.0) * FMath::Max(Ov[2], 0.0) < 25.0) { ++Loose; C.Offenders.AddUnique(Id); }
 	}
 	C.Sub[0] = 1.f - (float)Loose / FMath::Max(1, N - 1);
-	if (Loose) { C.Minor.Add(FString::Printf(TEXT("%d sin contacto"), Loose)); }
+	if (Loose) { C.Minor.Add(FString::Printf(TEXT("%d disconnected parts"), Loose)); }
 
 	// C2 solapes
 	int32 Pairs = 0;
@@ -415,7 +415,7 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 		}
 	}
 	C.Sub[1] = 1.f - FMath::Min(1.f, Pairs / FMath::Max(1.f, N / 4.f));
-	if (Pairs) { C.Minor.Add(FString::Printf(TEXT("%d solapes"), Pairs)); }
+	if (Pairs) { C.Minor.Add(FString::Printf(TEXT("%d overlaps"), Pairs)); }
 
 	// C3 simetria izquierda-derecha
 	int32 Sym = 0;
@@ -435,8 +435,8 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 		}
 	}
 	C.Sub[2] = (float)(0.5 * Sym / N + 0.5 * FMath::Max(0.0, 1.0 - FMath::Abs(Com.Y) / FMath::Max(1.0, 0.15 * Wd)));
-	if (Sym < N) { C.Minor.Add(FString::Printf(TEXT("%d sin espejo"), N - Sym)); }
-	if (FMath::Abs(Com.Y) > 0.15 * Wd) { C.Grave.Add(FString::Printf(TEXT("ladeado: centro de masa %.0f cm a un lado"), Com.Y)); }
+	if (Sym < N) { C.Minor.Add(FString::Printf(TEXT("%d unpaired parts"), N - Sym)); }
+	if (FMath::Abs(Com.Y) > 0.15 * Wd) { C.Grave.Add(FString::Printf(TEXT("unbalanced: center of mass %.0f cm off-center"), Com.Y)); }
 
 	// C4 apoyo: las ruedas tocan el suelo y nada arrastra; sin ruedas, lo mas bajo es algo que puede apoyarse
 	TArray<const FPlaced*> Wheels;
@@ -452,8 +452,8 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 	TArray<FName> Drag;
 	GroundBad(F, Drag);
 	C.Sub[3] = TouchFrac * (Drag.Num() ? 0.5f : 1.f);
-	if (TouchFrac < 1.f) { C.Grave.Add(TEXT("ruedas en el aire")); }
-	if (Drag.Num()) { C.Grave.Add((Wheels.Num() ? TEXT("arrastra: ") : TEXT("se apoya en: ")) + JoinIds(Drag)); C.Offenders.Append(Drag); }
+	if (TouchFrac < 1.f) { C.Grave.Add(TEXT("wheels off the ground")); }
+	if (Drag.Num()) { C.Grave.Add((Wheels.Num() ? TEXT("dragging: ") : TEXT("resting on: ")) + JoinIds(Drag)); C.Offenders.Append(Drag); }
 
 	// C5 empuje: lo que empuja, empuja hacia +X sin par de guiñada; lo que sustenta, sobre el centro de masa
 	struct FForce { const FPlaced* P; FVector Fv; };
@@ -495,8 +495,8 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 		}
 		const double YawRel = FMath::Abs(Yaw) / FMath::Max(1.0, Tot * L / 2);
 		E = FMath::Min3(E, FMath::Max(0.0, Sx / Tot), FMath::Max(0.0, 1.0 - YawRel / 0.3));
-		if (Sx / Tot < 0.9) { C.Grave.Add(TEXT("el empuje no va al frente")); }
-		if (YawRel > 0.15) { C.Grave.Add(TEXT("empuje descentrado")); }
+		if (Sx / Tot < 0.9) { C.Grave.Add(TEXT("thrust is not forward")); }
+		if (YawRel > 0.15) { C.Grave.Add(TEXT("off-center thrust")); }
 	}
 	double Up = 0.0;
 	for (const FForce& P : Lift) { Up += P.Fv.Z; }
@@ -511,9 +511,9 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 		const double Dist = FMath::Sqrt(FMath::Square(Cx / Up - Com.X) + FMath::Square(Cy / Up - Com.Y));
 		const double Off = Dist / FMath::Max(1.0, L / 2) * FMath::Min(1.0, Up / (M * 980.0)); // pesa segun cuanto del peso carga
 		E = FMath::Min(E, FMath::Max(0.0, 1.0 - Off / 0.3));
-		if (Off > 0.15) { C.Grave.Add(FString::Printf(TEXT("sustentacion descentrada (%.0f cm del centro de masa)"), Dist)); }
+		if (Off > 0.15) { C.Grave.Add(FString::Printf(TEXT("off-center lift (%.0f cm from center of mass)"), Dist)); }
 	}
-	if (bDown) { E = 0.0; C.Grave.Add(TEXT("empuja contra el suelo")); }
+	if (bDown) { E = 0.0; C.Grave.Add(TEXT("thrust pushes into the ground")); }
 	C.Sub[4] = (float)E;
 
 	// C6 linea de tiro, chorro y columna libre + armas hacia el frente
@@ -533,8 +533,8 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 	TSet<FName> BadRay(Blocked);
 	BadRay.Append(Back);
 	C.Sub[5] = 1.f - (float)BadRay.Num() / FMath::Max(1, Need);
-	if (Blocked.Num()) { C.Grave.Add(TEXT("tapado: ") + JoinIds(Blocked)); C.Offenders.Append(Blocked); }
-	if (Back.Num()) { C.Grave.Add(TEXT("arma hacia atras/abajo: ") + JoinIds(Back)); C.Offenders.Append(Back); }
+	if (Blocked.Num()) { C.Grave.Add(TEXT("blocked: ") + JoinIds(Blocked)); C.Offenders.Append(Blocked); }
+	if (Back.Num()) { C.Grave.Add(TEXT("weapon faces backward/down: ") + JoinIds(Back)); C.Offenders.Append(Back); }
 
 	// C7 centro de masa dentro del apoyo. ponytail: apoyo = rectangulo (todo va alineado a ejes); casco convexo si llegan piezas a 45 grados.
 	double R4[4] = { TNumericLimits<double>::Max(), -TNumericLimits<double>::Max(), TNumericLimits<double>::Max(), -TNumericLimits<double>::Max() };
@@ -565,13 +565,13 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 		if (Half < 10.0) // apoyo en linea (moto, rueda sola): lo sostiene el estabilizador, el giro o la sustentacion
 		{
 			Mg = (bStab || bRootWheel || Up > 0) ? 1.0 : 0.5;
-			if (Mg < 1.0) { C.Minor.Add(FString::Printf(TEXT("se balancea: apoyo en linea (%s) sin estabilizador"), Name)); }
+			if (Mg < 1.0) { C.Minor.Add(FString::Printf(TEXT("unstable: supports form a line (%s), no stabilizer"), Name)); }
 		}
 		else
 		{
 			Mg = FMath::Clamp((Half - FMath::Abs(Com[Axis] - (A0 + A1) / 2)) / Half / 0.2, 0.0, 1.0);
-			if (Mg <= 0.0) { C.Grave.Add(FString::Printf(TEXT("centro de masa fuera del apoyo (%s)"), Name)); }
-			else if (Mg < 1.0) { C.Minor.Add(FString::Printf(TEXT("centro de masa al borde (%s)"), Name)); }
+			if (Mg <= 0.0) { C.Grave.Add(FString::Printf(TEXT("center of mass outside support (%s)"), Name)); }
+			else if (Mg < 1.0) { C.Minor.Add(FString::Printf(TEXT("center of mass at edge (%s)"), Name)); }
 		}
 		Mm = FMath::Min(Mm, Mg);
 	}
@@ -579,7 +579,7 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 	if (H > (bMobile ? 0.75 : 1.5) * Track && !bStab && Up == 0.0 && !bRootWheel)
 	{
 		Mm *= bMobile ? 0.5 : 0.7;
-		C.Minor.Add(FString::Printf(TEXT("alto, puede caerse: centro de masa a %.0f cm sobre %.0f de ancho"), H, Track));
+		C.Minor.Add(FString::Printf(TEXT("top-heavy: center of mass %.0f cm high on %.0f cm width"), H, Track));
 	}
 	C.Sub[6] = (float)Mm;
 
@@ -589,13 +589,13 @@ FJamCoherence UJamAssembler::Coherence(const FBuildRecipe& Recipe)
 	{
 		Pw = FMath::Max(0.0, (Up / (M * 980.0) - 0.6) / 0.6);
 		C.bNoLift = true;
-		(Up < M * 980.0 ? C.Grave : C.Minor).Add(FString::Printf(TEXT("no despega: pesa %.0f kg y levanta %.0f"), M, Up / 980.0));
+		(Up < M * 980.0 ? C.Grave : C.Minor).Add(FString::Printf(TEXT("insufficient lift: weighs %.0f kg, lifts %.0f"), M, Up / 980.0));
 	}
 	if (Wheels.Num())
 	{
 		double Cap = 0;
 		for (const FPlaced* Wh : Wheels) { Cap += Wh->Def.Type == "BigWheel" ? 150.0 : 60.0; } // BuildKnowledge.json: coherence.wheel_load_kg
-		if (M > Cap) { Pw = FMath::Min(Pw, 0.5); C.Minor.Add(FString::Printf(TEXT("sobrecarga: %.0f kg sobre %d ruedas"), M, Wheels.Num())); }
+		if (M > Cap) { Pw = FMath::Min(Pw, 0.5); C.Minor.Add(FString::Printf(TEXT("overloaded: %.0f kg on %d wheels"), M, Wheels.Num())); }
 	}
 	C.Sub[7] = (float)Pw;
 
@@ -940,10 +940,10 @@ const TArray<FJamArchetypeDef>& UJamBuildGenerator::ArchetypeTable()
 			{ Pt(TEXT("body"), TEXT("Block")), Pt(TEXT("mount"), TEXT("Turntable"), TEXT("body"), TEXT("Top")),
 			  Pt(TEXT("f0"), TEXT("Flamethrower"), TEXT("mount"), TEXT("Front")), Pt(TEXT("f1"), TEXT("Flamethrower"), TEXT("mount"), TEXT("Back")) }),
 		Arch(TEXT("Roller"), TEXT("A single wheel that rolls by itself with weapons on its sides: lone wheel, unicycle, rolling wheel of fire."),
-			K({TEXT("rueda infernal"), TEXT("rueda sola"), TEXT("rueda que"), TEXT("llanta con"), TEXT("roller"), TEXT("monociclo"), TEXT("unicycle")}),
+			K({TEXT("rueda infernal"), TEXT("rueda sola"), TEXT("rueda que"), TEXT("llanta con"), TEXT("roller"), TEXT("monociclo"), TEXT("unicycle"), TEXT("single wheel"), TEXT("singlewheel"), TEXT("lone wheel")}),
 			{ Pt(TEXT("body"), TEXT("BigWheel")), Pt(TEXT("f0"), TEXT("Flamethrower"), TEXT("body"), TEXT("Right")), Pt(TEXT("f1"), TEXT("Flamethrower"), TEXT("body"), TEXT("Left")) }),
 		Arch(TEXT("Airship"), TEXT("A slow aircraft lifted by balloons: hot air balloon, airship, blimp, zeppelin."),
-			K({TEXT("dirigible"), TEXT("zeppelin"), TEXT("globo aerost"), TEXT("airship"), TEXT("blimp")}),
+			K({TEXT("dirigible"), TEXT("zeppelin"), TEXT("globo aerost"), TEXT("airship"), TEXT("blimp"), TEXT("hot air balloon")}),
 			{ Pt(TEXT("body"), TEXT("Plank")), Pt(TEXT("b0"), TEXT("Balloon"), TEXT("body"), TEXT("Top_Front")), Pt(TEXT("b1"), TEXT("Balloon"), TEXT("body"), TEXT("Top_Back")),
 			  Pt(TEXT("fire"), TEXT("Flamethrower"), TEXT("body"), TEXT("Top")), Pt(TEXT("fan"), TEXT("Fan"), TEXT("body"), TEXT("Back")), Pt(TEXT("seat"), TEXT("Seat"), TEXT("body"), TEXT("Bottom")) }),
 		Arch(TEXT("Glider"), TEXT("An aircraft with no wheels that glides on its wings after a rocket launch: glider, airplane."),
@@ -1044,14 +1044,14 @@ const TArray<FJamExtraDef>& UJamBuildGenerator::ExtraTable()
 			Extra(TEXT("rocket"), TEXT("The user asks for a rocket, nitro or a rocket booster."), TEXT("No rocket or nitro is mentioned. Jets and fans do not count as a rocket."),
 				TEXT("Rocket"), K({JAM_REAR}), Veh, K({TEXT("cohete"), TEXT("rocket"), TEXT("nitro"), TEXT("booster")})),
 			Extra(TEXT("flame"), TEXT("The user explicitly asks for a flamethrower, flames or to burn things."), TEXT("No flamethrower or burning is mentioned. Rockets, jets and engines do not count as fire."),
-				TEXT("Flamethrower"), K({JAM_FRONT}), All, K({TEXT("fuego"), TEXT("llama"), TEXT("flame"), TEXT("fire"), TEXT("lanzallamas"), TEXT("quem")}), true),
+				TEXT("Flamethrower"), K({JAM_FRONT}), All, K({TEXT("fuego"), TEXT("llama"), TEXT("flame"), TEXT("fire"), TEXT("lanzallamas"), TEXT("quem"), TEXT("flamethrower"), TEXT("burn"), TEXT("burns"), TEXT("burning")}), true),
 			Extra(TEXT("cannon"), TEXT("The user explicitly asks for a cannon, gun or something that shoots projectiles."), TEXT("No cannon or gun is mentioned. Rockets, missiles, lasers, fire, ice, catapults and springs do not count as a cannon."),
 				TEXT("Cannon"), K({JAM_FWD}), All, K({TEXT("cañon"), TEXT("cañón"), TEXT("canon"), TEXT("cannon"), TEXT("dispara"), TEXT("artiller"), TEXT("gun")}), true),
 			Extra(TEXT("balloon"), TEXT("The user wants a balloon."), TEXT("No balloon is asked for."),
 				TEXT("Balloon"), K({TEXT("seat:Top|Top|Top_Back|Top_Front")}), NoRoller, K({TEXT("globo"), TEXT("balloon")})),
 			Extra(TEXT("wing"), TEXT("The user wants wings or a glider wing."), TEXT("No wings are asked for."),
 				TEXT("Wing"), K({TEXT("Left"), TEXT("Right")}), N({TEXT("Car"), TEXT("Bike"), TEXT("Sled"), TEXT("Hover"), TEXT("Flyer"), TEXT("Airship")}),
-				K({TEXT(" ala"), TEXT("alas"), TEXT("wing"), TEXT("planeador"), TEXT("glider")})),
+				K({TEXT(" ala"), TEXT("alas"), TEXT("wing"), TEXT("wings"), TEXT("planeador"), TEXT("glider")})),
 			Extra(TEXT("sail"), TEXT("The user wants a sail that catches the wind."), TEXT("No sail is asked for."),
 				TEXT("Sail"), K({TEXT("Top_Front|Top_Back|Top|seat:Top")}), Join({Ground, N({TEXT("Hover"), TEXT("Airship")})}), K({TEXT("vela"), TEXT("sail"), TEXT("viento")})),
 			Extra(TEXT("hover"), TEXT("The user wants anti-gravity stones or levitation."), TEXT("No levitation or anti-gravity is asked for. Balloons, wings and propellers do not count."),
@@ -1060,7 +1060,7 @@ const TArray<FJamExtraDef>& UJamBuildGenerator::ExtraTable()
 				TEXT("Panel"), K({TEXT("Front_Bottom|Front")}), Join({Veh, N({TEXT("Turret"), TEXT("Catapult"), TEXT("Spinner")})}),
 				K({TEXT("pared"), TEXT("muro"), TEXT("wall"), TEXT("escudo"), TEXT("shield"), TEXT("blind"), TEXT("armor"), TEXT("ariete")})),
 			Extra(TEXT("frost"), TEXT("The user wants ice, freezing or a frost emitter that slows things."), TEXT("No ice or freezing is asked for."),
-				TEXT("Frost"), K({JAM_FWD}), All, K({TEXT("hielo"), TEXT("congel"), TEXT("frost"), TEXT("freez"), TEXT("escarcha")}), true),
+				TEXT("Frost"), K({JAM_FWD}), All, K({TEXT("hielo"), TEXT("congel"), TEXT("frost"), TEXT("freez"), TEXT("escarcha"), TEXT("ice")}), true),
 			Extra(TEXT("beam"), TEXT("The user wants a laser or a long-range energy beam."), TEXT("No laser or beam is asked for. Electricity and lightning do not count as a laser."),
 				TEXT("Beam"), K({JAM_FWD}), All, K({TEXT("laser"), TEXT("láser"), TEXT("beam"), TEXT("haz de")}), true),
 			Extra(TEXT("shock"), TEXT("The user wants electricity, lightning, an electric shock or a tesla coil."), TEXT("No electricity or lightning is asked for. Lasers do not count as electricity."),
@@ -1076,7 +1076,7 @@ const TArray<FJamExtraDef>& UJamBuildGenerator::ExtraTable()
 			Extra(TEXT("battery"), TEXT("The user wants a battery, extra power or longer running time."), TEXT("No battery or extra power is asked for."),
 				TEXT("Battery"), K({JAM_ANY}), All, K({TEXT("bateria"), TEXT("batería"), TEXT("pila"), TEXT("battery")})),
 			Extra(TEXT("light"), TEXT("The user wants a light, headlight, lamp or spotlight."), TEXT("No light or lamp is asked for. Lasers and fire do not count as a light."),
-				TEXT("Light"), K({JAM_FRONT}), All, K({TEXT("luz"), TEXT("luces"), TEXT("faro"), TEXT("lampara"), TEXT("lámpara"), TEXT("linterna"), TEXT("headlight"), TEXT("lamp"), TEXT("spotlight")}), true),
+				TEXT("Light"), K({JAM_FRONT}), All, K({TEXT("luz"), TEXT("luces"), TEXT("faro"), TEXT("lampara"), TEXT("lámpara"), TEXT("linterna"), TEXT("headlight"), TEXT("lamp"), TEXT("spotlight"), TEXT("light")}), true),
 			Extra(TEXT("hydrant"), TEXT("The user wants water, a hose, a hydrant or a water cannon."), TEXT("No water or hose is asked for."),
 				TEXT("Hydrant"), K({JAM_FRONT}), All, K({TEXT("agua"), TEXT("manguera"), TEXT("hidrante"), TEXT("chorro"), TEXT("water"), TEXT("hose"), TEXT("hydrant")}), true),
 			Extra(TEXT("hinge"), TEXT("The user explicitly asks for a hinge, door, hatch or flap."), TEXT("No hinge, door, hatch or flap is mentioned. Heads, turrets, aiming and anchors do not count."),
@@ -1582,12 +1582,12 @@ const TArray<FJamPieceRule>& UJamBuildGenerator::PieceTable()
 		Words(TEXT("Wheel"), K({TEXT("yanta")}), {});
 		Words(TEXT("Fan"), K({TEXT("molino")}), {});
 		Words(TEXT("Sled"), K({TEXT("nieve")}), {});
-		Words(TEXT("Frost"), K({TEXT("freeze")}), {});
+		Words(TEXT("Frost"), K({TEXT("freeze"), TEXT("ice")}), {});
 		Words(TEXT("Ball"), K({TEXT("balon")}), {});
 		// "quem" (de la tabla de extras) mide 4 letras y HitWords lo toma como palabra exacta: "queme", "quema" o "quemar" no lo
 		// activaban y "un carro que queme todo" (tecla 1) salia sin lanzallamas. Con 5+ letras compara por prefijo.
 		Words(TEXT("Flamethrower"), K({TEXT("escupa fuego"), TEXT("eche fuego"), TEXT("echa fuego"), TEXT("de fuego"), TEXT("con fuego"),
-			TEXT("queme"), TEXT("quema"), TEXT("quemar"), TEXT("quemen"), TEXT("incendia"), TEXT("llamas")}), {});
+			TEXT("queme"), TEXT("quema"), TEXT("quemar"), TEXT("quemen"), TEXT("incendia"), TEXT("llamas"), TEXT("burn"), TEXT("burns"), TEXT("burning"), TEXT("flamethrower")}), {});
 		Words(TEXT("Hydrant"), {}, K({TEXT("agua")}));
 		Words(TEXT("Flamethrower"), {}, K({TEXT("fuego"), TEXT("fire")}));
 		Words(TEXT("Panel"), {}, K({TEXT("pared"), TEXT("muro"), TEXT("wall")})); // muro / pared es Wall, no Panel
@@ -2238,7 +2238,7 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 			}
 		}
 	}
-	if (Budget && RootType != "Seat" && Budget->FindRef(FName(*(TEXT("Part.") + RootType.ToString()))) <= 0) { Note = TEXT("Falta pieza base: ") + RootType.ToString(); return false; }
+	if (Budget && RootType != "Seat" && Budget->FindRef(FName(*(TEXT("Part.") + RootType.ToString()))) <= 0) { Note = TEXT("Missing root part: ") + RootType.ToString(); return false; }
 	if (CountOf(RootType) > 0) { BagItem(Bag, RootType).Count -= 1; }
 	const int32 AskedPlanks = CountOf("Plank");
 	// Piezas que solo tienen sentido en un modo: el rotor sustenta, la plataforma de lanzamiento lanza.
@@ -2281,9 +2281,9 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 		++LiftAdded;
 		LiftType = LiftItem->Type;
 	}
-	if (LiftAdded > 0) { Warn.Add(FString::Printf(TEXT("agregue %d %s para que despegue"), LiftAdded, *LiftType.ToString())); }
+	if (LiftAdded > 0) { Warn.Add(FString::Printf(TEXT("added %d %s for takeoff"), LiftAdded, *LiftType.ToString())); }
 	R = Best.R;
-	R.Name = TEXT("Construccion");
+	R.Name = TEXT("Construction");
 
 	// 3) Nota: lo que se armo, lo que no cupo, avisos y coherencia.
 	TArray<FName> Types;
@@ -2302,8 +2302,8 @@ bool UJamBuildGenerator::ComposeFromBag(const TArray<FJamPieceCount>& InBag, FBu
 	TArray<FString> GotS, MissS;
 	for (const FName& T : Types) { GotS.Add(FString::Printf(TEXT("%s x%d"), *T.ToString(), Got[T])); }
 	for (const TPair<FName, int32>& S : Best.Skipped) { MissS.Add(FString::Printf(TEXT("%s x%d"), *S.Key.ToString(), S.Value)); }
-	if (RootType == "Plank" ? Segs > AskedPlanks : Segs > 0) { Warn.Add(FString::Printf(TEXT("chasis mas largo: +%d tablas para que todo quepa con sentido"), RootType == "Plank" ? Segs - AskedPlanks : Segs)); }
-	if (bWeapon && bShieldAway) { Warn.Add(TEXT("el escudo va atras o a los lados para no tapar el arma")); }
+	if (RootType == "Plank" ? Segs > AskedPlanks : Segs > 0) { Warn.Add(FString::Printf(TEXT("longer chassis: +%d planks so every part fits"), RootType == "Plank" ? Segs - AskedPlanks : Segs)); }
+	if (bWeapon && bShieldAway) { Warn.Add(TEXT("shield placed at the back or sides to keep the weapon clear")); }
 	Note = FString::Printf(TEXT("pieces=[%s]"), *FString::Join(GotS, TEXT(", ")));
 	if (MissS.Num() > 0) { Note += FString::Printf(TEXT(" skipped=[%s]"), *FString::Join(MissS, TEXT(", "))); }
 	if (Warn.Num() > 0) { Note += FString::Printf(TEXT(" aviso=[%s]"), *FString::Join(Warn, TEXT("; "))); }

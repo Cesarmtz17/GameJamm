@@ -3,10 +3,10 @@
   "order": ["Fire", "Ice", "Shock", "Rock", "Bomb"],
   "sword_uses": 20,
   "materials": {
-    "Rock":  { "name": "Roca",  "sword_damage": 12, "sword_push": 2.0, "sword_interval": 1.3, "arrow_damage": 8, "arrow_push": 900 },
-    "Fire":  { "name": "Fuego", "burn_dps": 5, "burn_seconds": 3, "arrow_radius": 150 },
-    "Ice":   { "name": "Hielo", "slow": 0.5, "slow_seconds": 2, "freeze_hits": 3, "freeze_seconds": 1, "arrow_freeze_seconds": 1.5 },
-    "Shock": { "name": "Rayo",  "stun_seconds": 0.5, "arrow_radius": 200, "arrow_area_damage": 10 },
-    "Bomb":  { "name": "Bomba", "blast_damage": 35, "blast_radius": 250, "sword_uses": 1 }
+    "Rock":  { "name": "Rock",  "sword_damage": 12, "sword_push": 2.0, "sword_interval": 1.3, "arrow_damage": 8, "arrow_push": 900 },
+    "Fire":  { "name": "Fire", "burn_dps": 5, "burn_seconds": 3, "arrow_radius": 150 },
+    "Ice":   { "name": "Ice", "slow": 0.5, "slow_seconds": 2, "freeze_hits": 3, "freeze_seconds": 1, "arrow_freeze_seconds": 1.5 },
+    "Shock": { "name": "Lightning",  "stun_seconds": 0.5, "arrow_radius": 200, "arrow_area_damage": 10 },
+    "Bomb":  { "name": "Bomb", "blast_damage": 35, "blast_radius": 250, "sword_uses": 1 }
   }
 }

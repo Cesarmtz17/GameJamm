@@ -154,10 +154,11 @@ namespace JamLoot
 				{
 					const TSharedPtr<FJsonObject> E = V->AsObject();
 					FString T;
-					TArray<FString> Es;
-					if (E && E->TryGetStringField(TEXT("type"), T) && E->TryGetStringArrayField(TEXT("names_es"), Es) && Es.Num() > 0 && !Es[0].IsEmpty() && !Names.Contains(T))
+					TArray<FString> En;
+					// Presentation only: the Spanish recognition vocabulary in the data remains unchanged.
+					if (E && E->TryGetStringField(TEXT("type"), T) && E->TryGetStringArrayField(TEXT("names_en"), En) && En.Num() > 0 && !En[0].IsEmpty() && !Names.Contains(T))
 					{
-						FString N = Es[0];
+						FString N = En[0];
 						N[0] = FChar::ToUpper(N[0]);
 						Names.Add(T, N);
 					}
@@ -165,19 +166,32 @@ namespace JamLoot
 			}
 		}
 		const FString* Found = Names.Find(Type);
-		return Found ? *Found : Type;
+		if (Found) { return *Found; }
+		static const TMap<FString, FString> Labels = {
+			{ TEXT("Beam"), TEXT("Laser emitter") }, { TEXT("Frost"), TEXT("Ice emitter") },
+			{ TEXT("Shock"), TEXT("Lightning emitter") }, { TEXT("Light"), TEXT("Lamp") },
+			{ TEXT("UBlock"), TEXT("U-shaped block") }, { TEXT("RailSkid"), TEXT("Rail skid") }
+		};
+		if (const FString* Label = Labels.Find(Type)) { return *Label; }
+		FString Humanized;
+		for (int32 i = 0; i < Type.Len(); ++i)
+		{
+			if (i > 0 && FChar::IsUpper(Type[i]) && FChar::IsLower(Type[i - 1])) { Humanized += TEXT(" "); }
+			Humanized.AppendChar(Type[i]);
+		}
+		return Humanized;
 	}
 
 	FString ItemName(FName ItemId)
 	{
 		const FString Id = ItemId.ToString();
-		if (Id == TEXT("Energy")) { return TEXT("Energía"); }
-		if (Id == TEXT("Backpack")) { return TEXT("Mochila"); }
-		if (Id == TEXT("Mat.Fire")) { return TEXT("Fuego"); }
-		if (Id == TEXT("Mat.Ice")) { return TEXT("Hielo"); }
-		if (Id == TEXT("Mat.Shock")) { return TEXT("Rayo"); }
-		if (Id == TEXT("Mat.Rock")) { return TEXT("Roca"); }
-		if (Id == TEXT("Mat.Bomb")) { return TEXT("Bomba"); }
+		if (Id == TEXT("Energy")) { return TEXT("Energy"); }
+		if (Id == TEXT("Backpack")) { return TEXT("Backpack"); }
+		if (Id == TEXT("Mat.Fire")) { return TEXT("Fire"); }
+		if (Id == TEXT("Mat.Ice")) { return TEXT("Ice"); }
+		if (Id == TEXT("Mat.Shock")) { return TEXT("Lightning"); }
+		if (Id == TEXT("Mat.Rock")) { return TEXT("Rock"); }
+		if (Id == TEXT("Mat.Bomb")) { return TEXT("Bomb"); }
 		return Id.StartsWith(TEXT("Part.")) ? PartName(Id.RightChop(5)) : Id;
 	}
 
@@ -220,12 +234,10 @@ namespace JamLoot
 		for (const auto& It : Bundle)
 		{
 			FString Id = It.Key.ToString();
-			if (Id == TEXT("Energy")) { Parts.Add(FString::Printf(TEXT("+%d energia"), It.Value)); continue; }
+			if (Id == TEXT("Energy")) { Parts.Add(FString::Printf(TEXT("+%d energy"), It.Value)); continue; }
 			if (Id.RemoveFromStart(TEXT("Mat.")))
 			{
-				const FString Low = Id.ToLower();
-				const TCHAR* Es = Low == TEXT("rock") ? TEXT("piedra") : Low == TEXT("fire") ? TEXT("fuego") : Low == TEXT("ice") ? TEXT("hielo") : Low == TEXT("shock") ? TEXT("rayo") : Low == TEXT("bomb") ? TEXT("bomba") : nullptr;
-				Parts.Add(FString::Printf(TEXT("+%d material %s"), It.Value, Es ? Es : *Low));
+				Parts.Add(FString::Printf(TEXT("+%d %s material"), It.Value, *ItemName(It.Key)));
 				continue;
 			}
 			Id.RemoveFromStart(TEXT("Part."));

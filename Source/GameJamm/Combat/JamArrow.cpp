@@ -1,5 +1,7 @@
 #include "Combat/JamArrow.h"
 #include "Combat/JamWeaponComponent.h"
+#include "Core/HealthComponent.h"
+#include "Core/JamHUD.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -69,7 +71,10 @@ void AJamArrow::Strike(AActor* Other)
 		return;
 	}
 	UJamWeaponComponent* W = Weapon.Get();
+	const UHealthComponent* TargetHealth = Other->FindComponentByClass<UHealthComponent>();
+	const float Before = TargetHealth ? TargetHealth->GetHealth() : 0.f;
 	const bool bHurt = W && W->DealDamage(Other, Damage, Movement->Velocity.GetSafeNormal() * Push);
+	if (bHurt && TargetHealth) { AJamHUD::ShowDamage(W->GetOwner(), Other, Before - TargetHealth->GetHealth(), Fused); }
 	// Un aliado no la detiene: sigue de largo. Lo demas (enemigo, suelo, pared) la clava.
 	if (!bHurt && Other->IsA<APawn>() && W && W->GetOwner() && !Other->IsA<AJamArrow>())
 	{

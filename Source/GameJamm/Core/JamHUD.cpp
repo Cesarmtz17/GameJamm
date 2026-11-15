@@ -69,15 +69,15 @@ namespace
 		{
 			const float Cost = Weapon->GetGeneratedEnergyCost();
 			bOutLowEnergy = AJamBuildPart::EnergyMode() != 0 && Cost > 0.f && AJamBuildPart::GetPlayerEnergy(Pawn->GetWorld()) < Cost;
-			return TEXT("EN MANO: ") + Weapon->GetGeneratedHudText() + (bOutLowEnergy ? TEXT("   SIN ENERGIA") : TEXT("")) + TEXT("   (Q cambia)");
+			return TEXT("EQUIPPED: ") + Weapon->GetGeneratedHudText() + (bOutLowEnergy ? TEXT("   NO ENERGY") : TEXT("")) + TEXT("   (Q to switch)");
 		}
 		const FName Fused = Weapon->GetFused();
-		FString Line = Weapon->Current == EJamWeapon::Bow ? TEXT("EN MANO: Arco") : TEXT("EN MANO: Espada");
+		FString Line = Weapon->Current == EJamWeapon::Bow ? TEXT("EQUIPPED: Bow") : TEXT("EQUIPPED: Sword");
 		if (!Fused.IsNone())
 		{
 			Line += FString::Printf(TEXT(" + %s"), *Fused.ToString());
 		}
-		return Line + (bCanCycle ? TEXT("   (Q: tu arma pedida)") : TEXT("   (Q cambia)"));
+		return Line + (bCanCycle ? TEXT("   (Q: your custom weapon)") : TEXT("   (Q to switch)"));
 	}
 
 	/** El paso "pide un arma" solo se muestra si existe la variable jam.Weapon.Generated y vale distinto de 0. */
@@ -203,17 +203,17 @@ void AJamHUD::DrawFinalCut(EJamTeam Winner, EJamTeam MyTeam)
 	float Y = SY * 0.08f;
 
 	// Resultado.
-	const FString Title = Winner == EJamTeam::Neutral ? TEXT("EMPATE") : (Winner == MyTeam ? TEXT("VICTORIA") : TEXT("DERROTA"));
+	const FString Title = Winner == EJamTeam::Neutral ? TEXT("DRAW") : (Winner == MyTeam ? TEXT("VICTORY") : TEXT("DEFEAT"));
 	const float TitleScale = 3.2f * K;
 	DrawCentered(Title, Winner == EJamTeam::Neutral ? JamText : (Winner == MyTeam ? JamGold : JamRed), Y, TitleScale);
 	Y += HeightOf(Title, TitleScale) + 22.f * K;
-	const FString WinLine = Winner == EJamTeam::Neutral ? FString(TEXT("Las dos bases quedaron igual")) :
-		FString::Printf(TEXT("Gana el equipo %s"), Winner == EJamTeam::Blue ? TEXT("AZUL") : TEXT("ROJO"));
+	const FString WinLine = Winner == EJamTeam::Neutral ? FString(TEXT("Both sides finished with equal health")) :
+		FString::Printf(TEXT("%s team wins"), Winner == EJamTeam::Blue ? TEXT("BLUE") : TEXT("RED"));
 	DrawCentered(WinLine, TeamColor(Winner), Y, 1.4f * K, false);
 	Y += HeightOf(WinLine, 1.4f * K) + 34.f * K;
 
 	// Tu corte final: la creacion con mas puntaje (montado * 2 + encendida).
-	const FString CutTitle(TEXT("TU CORTE FINAL"));
+	const FString CutTitle(TEXT("YOUR FINAL CUT"));
 	DrawCentered(CutTitle, JamGold, Y, 1.3f * K);
 	Y += HeightOf(CutTitle, 1.3f * K) + 24.f * K;
 	const FString* BestPrompt = nullptr;
@@ -231,14 +231,14 @@ void AJamHUD::DrawFinalCut(EJamTeam Winner, EJamTeam MyTeam)
 		const FString Quote = TEXT("\"") + Fit(*BestPrompt, 1.3f * K) + TEXT("\"");
 		DrawCentered(Quote, JamText, Y, 1.3f * K);
 		Y += HeightOf(Quote, 1.3f * K) + 22.f * K;
-		const FString Stats = FString::Printf(TEXT("%d %s  -  %d s encendida, %d s manejando"), Best->MaxParts, Best->MaxParts == 1 ? TEXT("pieza") : TEXT("piezas"),
+		const FString Stats = FString::Printf(TEXT("%d %s  -  powered for %d s, driven for %d s"), Best->MaxParts, Best->MaxParts == 1 ? TEXT("part") : TEXT("parts"),
 			FMath::RoundToInt(Best->SecsActive), FMath::RoundToInt(Best->SecsDriven));
 		DrawCentered(Stats, JamText, Y, 1.0f * K, false);
 		Y += HeightOf(Stats, 1.0f * K) + 20.f * K;
 	}
 	else
 	{
-		const FString None(TEXT("No construiste nada esta vez: pulsa B y pide algo la proxima"));
+		const FString None(TEXT("No creation this round. Press B and ask for one next time."));
 		DrawCentered(Fit(None, 1.1f * K), JamText, Y, 1.1f * K, false);
 		Y += HeightOf(None, 1.1f * K) + 20.f * K;
 	}
@@ -246,7 +246,7 @@ void AJamHUD::DrawFinalCut(EJamTeam Winner, EJamTeam MyTeam)
 	// Revancha (late suave para que se note).
 	const double Now = FPlatformTime::Seconds();
 	const float Pulse = 0.8f + 0.2f * FMath::Sin(static_cast<float>(Now) * 4.f);
-	const FString Again = bRestartRequested ? FString(TEXT("Reiniciando...")) : FString(TEXT("R = revancha"));
+	const FString Again = bRestartRequested ? FString(TEXT("Restarting...")) : FString(TEXT("R = rematch"));
 	DrawCentered(Again, FLinearColor(JamGold.R * Pulse, JamGold.G * Pulse, JamGold.B * Pulse, 1.f), FMath::Max(Y + 20.f * K, SY * 0.76f), 2.2f * K);
 }
 
@@ -337,16 +337,16 @@ FString AJamHUD::UpdateObjective(UWorld* World, const APawn* Pawn, EJamTeam MyTe
 			break;
 		}
 		++ObjStep;
-		JamMsg::Big(TEXT("Hecho!"), JamMsg::Good, 2.5f, TEXT("JamObjDone"));
+		JamMsg::Big(TEXT("Done!"), JamMsg::Good, 2.5f, TEXT("JamObjDone"));
 	}
 
 	switch (ObjStep)
 	{
-	case 0: return TEXT("Pasa por el cofre junto a ti");
-	case 1: return TEXT("Pulsa B y pide un arma. Prueba: un rifle que dispare fuego");
-	case 2: return TEXT("Pulsa B y pide un vehiculo. Prueba: un carro que queme todo");
-	case 3: return TEXT("C lo enciende, E te subes. Sigue a tus minions hasta la torre 1");
-	default: return FString::Printf(TEXT("Derriba las 2 torres y la base rival (%d/3)"), FMath::Clamp(ObjTowersDownMax, 0, 3));
+	case 0: return TEXT("Walk over the chest beside you");
+	case 1: return TEXT("Press B and ask for a weapon. Try: a rifle that shoots fire");
+	case 2: return TEXT("Press B and ask for a vehicle. Try: a car that burns everything");
+	case 3: return TEXT("C powers it, E lets you ride. Follow your minions to tower 1");
+	default: return FString::Printf(TEXT("Destroy both towers and the enemy base (%d/3)"), FMath::Clamp(ObjTowersDownMax, 0, 3));
 	}
 }
 
@@ -357,7 +357,7 @@ float AJamHUD::DrawObjective(const FString& Text, float Y)
 	const float MaxW = FMath::Min(SX * 0.35f, 560.f * K);
 	// Parte el texto en filas para que no llegue a los paneles de los lados.
 	TArray<FString> Words;
-	(TEXT("OBJETIVO: ") + Text).ParseIntoArray(Words, TEXT(" "), true);
+	(TEXT("OBJECTIVE: ") + Text).ParseIntoArray(Words, TEXT(" "), true);
 	TArray<FString> Rows;
 	FString Cur;
 	for (const FString& Word : Words)
@@ -442,6 +442,72 @@ void AJamHUD::DrawPostLines(float BaseY)
 		DrawRect(Bg, X - 14.f * K, Y - 4.f * K, TW + 28.f * K, TH + 8.f * K);
 		DrawText(E.Text, Fg, X, Y, Font, K);
 		Bottom = Y - 10.f * K;
+	}
+}
+
+void AJamHUD::ShowDamage(AActor* Source, AActor* Target, float ActualDamage, FName Effect)
+{
+	const APawn* Pawn = Cast<APawn>(Source);
+	APlayerController* PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
+	AJamHUD* HUD = PC && PC->IsLocalController() ? Cast<AJamHUD>(PC->GetHUD()) : nullptr;
+	if (!HUD || !IsValid(Target) || !FMath::IsFinite(ActualDamage) || ActualDamage <= 0.01f
+		|| !UJamStatics::AreEnemies(Source, Target)
+		|| FVector::DistSquared(Pawn->GetActorLocation(), Target->GetActorLocation()) > FMath::Square(6000.f)
+		|| !PC->LineOfSightTo(Target))
+	{
+		return;
+	}
+	FVector Origin, Extent;
+	Target->GetActorBounds(false, Origin, Extent);
+	const FVector Position = Origin + FVector(0.f, 0.f, FMath::Clamp(Extent.Z, 20.0, 160.0) + 15.f);
+	FVector2D Screen;
+	int32 Width = 0, Height = 0;
+	PC->GetViewportSize(Width, Height);
+	if (!PC->ProjectWorldLocationToScreen(Position, Screen) || Screen.X < 0.f || Screen.Y < 0.f
+		|| Screen.X >= Width || Screen.Y >= Height)
+	{
+		return;
+	}
+	const double Now = FPlatformTime::Seconds();
+	HUD->DamageNotices.RemoveAll([Now](const FJamHudDamageNotice& N) { return Now - N.Started >= 0.8; });
+	// Escopeta, explosiones y rafagas: suma lo que entra en los primeros 150 ms, sin alargar el aviso indefinidamente.
+	for (FJamHudDamageNotice& N : HUD->DamageNotices)
+	{
+		if (N.Target.Get() == Target && N.Effect == Effect && Now - N.Started < 0.15)
+		{
+			N.Damage += ActualDamage;
+			return;
+		}
+	}
+	if (HUD->DamageNotices.Num() >= 12) { HUD->DamageNotices.RemoveAt(0); }
+	FJamHudDamageNotice& Notice = HUD->DamageNotices.AddDefaulted_GetRef();
+	Notice.Target = Target;
+	Notice.Effect = Effect;
+	Notice.Position = Position;
+	Notice.Damage = ActualDamage;
+	Notice.Started = Now;
+}
+
+void AJamHUD::DrawDamageNotices()
+{
+	const double Now = FPlatformTime::Seconds();
+	DamageNotices.RemoveAll([Now](const FJamHudDamageNotice& N) { return Now - N.Started >= 0.8; });
+	UFont* Font = GEngine->GetMediumFont();
+	for (const FJamHudDamageNotice& N : DamageNotices)
+	{
+		const float Age = float(Now - N.Started);
+		const FVector P = Project(N.Position + FVector(0.f, 0.f, Age * 60.f));
+		if (P.Z <= 0.f || P.X < 0.f || P.X >= Canvas->SizeX || P.Y < 0.f || P.Y >= Canvas->SizeY) { continue; }
+		const float Alpha = FMath::Clamp((0.8f - Age) / 0.25f, 0.f, 1.f);
+		FLinearColor Color = N.Effect.IsNone() ? JamText : JamLoot::ItemColor(FName(*(TEXT("Mat.") + N.Effect.ToString())));
+		Color.A = Alpha;
+		const FString Text = N.Damage < 1.f ? FString::Printf(TEXT("%.1f"), N.Damage) : FString::Printf(TEXT("%.0f"), N.Damage);
+		const float Scale = 1.2f * K;
+		float W = 0.f, H = 0.f;
+		GetTextSize(Text, W, H, Font, Scale);
+		const float X = P.X - W * 0.5f, Y = P.Y - H;
+		DrawText(Text, FLinearColor(0.f, 0.f, 0.f, Alpha), X + K, Y + K, Font, Scale);
+		DrawText(Text, Color, X, Y, Font, Scale);
 	}
 }
 
@@ -548,7 +614,7 @@ void AJamHUD::DrawLootNotices(float Bottom)
 	}
 	if (LootNotices.Num() > Visible)
 	{
-		DrawText(FString::Printf(TEXT("+%d objetos por mostrar"), LootNotices.Num() - Visible), JamGold, 22.f * K,
+		DrawText(FString::Printf(TEXT("+%d more items"), LootNotices.Num() - Visible), JamGold, 22.f * K,
 			Top + Visible * (RowH + Gap), Font, K);
 	}
 }
@@ -594,13 +660,13 @@ float AJamHUD::DrawBackpack(const APawn* Pawn)
 	DrawRect(FLinearColor(JamPanel.R, JamPanel.G, JamPanel.B, 0.86f), X, Top, Width, Height);
 	DrawRect((bRejected || bFull) && bBlink ? JamRed : JamGold, X, Top, Width, 2.f * K);
 	DrawLootIcon(TEXT("Backpack"), X + 10.f * K, Top + 25.f * K, 42.f * K, (bRejected || bFull) && bBlink ? 0.3f : 1.f);
-	const FString PageText = Pages > 1 ? FString::Printf(TEXT("   página %d/%d (cambia sola)"), Page + 1, Pages) : FString();
-	const FString Header = FString::Printf(TEXT("MOCHILA  %d / %d piezas%s%s"), PartCount, Cap,
-		bRejected ? TEXT("   SIN ESPACIO: el resto queda en el suelo") : bFull ? TEXT("   LLENA") : TEXT(""),
+	const FString PageText = Pages > 1 ? FString::Printf(TEXT("   page %d/%d (auto)"), Page + 1, Pages) : FString();
+	const FString Header = FString::Printf(TEXT("BACKPACK  %d / %d parts%s%s"), PartCount, Cap,
+		bRejected ? TEXT("   NO ROOM: leftovers stay on the ground") : bFull ? TEXT("   FULL") : TEXT(""),
 		*PageText);
 	UFont* Font = GEngine->GetSmallFont();
 	DrawText(FitLootText(Header, Font, K, Width - 24.f * K), bRejected || bFull ? JamGold : JamText, X + 10.f * K, Top + 5.f * K, Font, K);
-	if (Ids.Num() == 0) { DrawText(TEXT("Recoge piezas y materiales al pasar sobre ellos"), JamText, X + 74.f * K, Top + 38.f * K, Font, K); }
+	if (Ids.Num() == 0) { DrawText(TEXT("Walk over parts and materials to collect them"), JamText, X + 74.f * K, Top + 38.f * K, Font, K); }
 	APlayerController* PC = GetOwningPlayerController();
 	float MouseX = -1.f, MouseY = -1.f;
 	if (PC) { PC->GetMousePosition(MouseX, MouseY); }
@@ -620,7 +686,7 @@ float AJamHUD::DrawBackpack(const APawn* Pawn)
 		DrawText(Count, JamText, IX + (44.f * K - W) * 0.5f, IY + 31.f * K, Font, K);
 		if (MouseX >= IX && MouseX < IX + 44.f * K && MouseY >= IY && MouseY < IY + 45.f * K)
 		{
-			const FString Label = JamLoot::ItemName(Id) + (bBlocked ? TEXT(" (tope alcanzado)") : TEXT(""));
+			const FString Label = JamLoot::ItemName(Id) + (bBlocked ? TEXT(" (limit reached)") : TEXT(""));
 			GetTextSize(Label, W, H, Font, K);
 			const float TX = FMath::Clamp(IX, 12.f * K, Canvas->SizeX - W - 12.f * K);
 			DrawRect(JamPanel, TX - 4.f * K, Top - H - 10.f * K, W + 8.f * K, H + 8.f * K);
@@ -658,9 +724,9 @@ void AJamHUD::DrawPickupLabels(const APawn* Pawn, float Bottom)
 		Ids.Sort([](const FName& A, const FName& B) { return JamLoot::ItemName(A) < JamLoot::ItemName(B); });
 		const FName MainId = Ids.Num() > 0 ? Ids[0] : FName(TEXT("Energy"));
 		FString Label = Ids.Num() > 0 ? FString::Printf(TEXT("%s x%d"), *JamLoot::ItemName(MainId), Pickup->Items.FindRef(MainId))
-			: FString::Printf(TEXT("Energía +%.0f"), Pickup->Energy);
+			: FString::Printf(TEXT("Energy +%.0f"), Pickup->Energy);
 		const int32 More = Ids.Num() - 1 + (Ids.Num() > 0 && Pickup->Energy > 0.f ? 1 : 0);
-		if (More > 0) { Label += FString::Printf(TEXT(" (+%d tipos)"), More); }
+		if (More > 0) { Label += FString::Printf(TEXT(" (+%d types)"), More); }
 		Label += FString::Printf(TEXT("  %.0f m"), FVector::Dist(Pickup->GetActorLocation(), Pawn->GetActorLocation()) / 100.f);
 		Label = FitLootText(Label, Font, K, 290.f * K);
 		float W = 0.f, H = 0.f;
@@ -731,8 +797,8 @@ void AJamHUD::DrawHUD()
 		const float W = (S->bIsBase ? 200.f : 150.f) * K, H = 10.f * K;
 		DrawRect(JamPanel, P.X - W * 0.5f - 2 * K, P.Y - 2 * K, W + 4 * K, H + 4 * K);
 		DrawRect(TeamColor(S->GetTeam()), P.X - W * 0.5f, P.Y, W * S->Health->GetHealthPercent(), H);
-		const FString Label = FString::Printf(TEXT("%s %.0f%s"), S->bIsBase ? TEXT("BASE") : TEXT("TORRE"), S->Health->GetHealth(),
-			S->Health->bInvulnerable ? TEXT("  (protegida)") : TEXT(""));
+		const FString Label = FString::Printf(TEXT("%s %.0f%s"), S->bIsBase ? TEXT("BASE") : TEXT("TOWER"), S->Health->GetHealth(),
+			S->Health->bInvulnerable ? TEXT("  (protected)") : TEXT(""));
 		DrawText(Label, JamText, P.X - W * 0.5f, P.Y - 16.f * K, Small, K);
 	}
 
@@ -742,14 +808,14 @@ void AJamHUD::DrawHUD()
 		const int32 Secs = FMath::FloorToInt(GS->MatchSeconds);
 		const float X = 14.f * K, Y = 14.f * K, W = 260.f * K;
 		DrawRect(JamPanel, X, Y, W, 84.f * K);
-		DrawText(FString::Printf(TEXT("%02d:%02d%s"), Secs / 60, Secs % 60, GS->bSuddenDeath ? TEXT("   MUERTE SUBITA") : TEXT("")),
+		DrawText(FString::Printf(TEXT("%02d:%02d%s"), Secs / 60, Secs % 60, GS->bSuddenDeath ? TEXT("   SUDDEN DEATH") : TEXT("")),
 			GS->bSuddenDeath ? JamGold : JamText, X + 10 * K, Y + 6 * K, Medium, K);
 		const EJamTeam Teams[2] = { EJamTeam::Red, EJamTeam::Blue };
 		for (int32 i = 0; i < 2; ++i)
 		{
 			const int32 T = static_cast<int32>(Teams[i]);
 			const float BY = Y + 34.f * K + i * 22.f * K, BW = W - 90.f * K;
-			DrawText(Teams[i] == EJamTeam::Red ? TEXT("ROJO") : TEXT("AZUL"), TeamColor(Teams[i]), X + 10 * K, BY, Small, K);
+			DrawText(Teams[i] == EJamTeam::Red ? TEXT("RED") : TEXT("BLUE"), TeamColor(Teams[i]), X + 10 * K, BY, Small, K);
 			DrawRect(FLinearColor(0.15f, 0.17f, 0.2f, 1.f), X + 70 * K, BY + 2 * K, BW, 12.f * K);
 			DrawRect(TeamColor(Teams[i]), X + 70 * K, BY + 2 * K, TeamMax[T] > 0.f ? BW * TeamHP[T] / TeamMax[T] : 0.f, 12.f * K);
 		}
@@ -768,7 +834,7 @@ void AJamHUD::DrawHUD()
 		DrawRect(JamPanel, X - 6 * K, Y - 6 * K, W + 12 * K, H + 30 * K);
 		DrawRect(FLinearColor(0.15f, 0.17f, 0.2f, 1.f), X, Y, W, H);
 		DrawRect(MyHealth->GetHealthPercent() > 0.3f ? FLinearColor(0.35f, 0.85f, 0.4f, 1.f) : JamRed, X, Y, W * MyHealth->GetHealthPercent(), H);
-		DrawText(FString::Printf(TEXT("VIDA %.0f / %.0f   equipo %s"), HP, MyHealth->MaxHealth, MyTeam == EJamTeam::Blue ? TEXT("AZUL") : TEXT("ROJO")),
+		DrawText(FString::Printf(TEXT("HEALTH %.0f / %.0f   team %s"), HP, MyHealth->MaxHealth, MyTeam == EJamTeam::Blue ? TEXT("BLUE") : TEXT("RED")),
 			JamText, X, Y + H + 2 * K, Small, K);
 		// Arma en mano (GDD 9): a la derecha de la vida, con nombre, efecto y gasto por disparo.
 		if (!MyHealth->IsDead())
@@ -796,7 +862,7 @@ void AJamHUD::DrawHUD()
 	{
 		const AJamGameMode* GM = World->GetAuthGameMode<AJamGameMode>();
 		const float Left = GM ? GM->GetRespawnRemaining(PC) : 0.f;
-		DrawCentered(FString::Printf(TEXT("CAISTE  -  reapareces en tu base en %d s"), FMath::CeilToInt(Left)), JamRed, SY * 0.4f, 1.6f * K);
+		DrawCentered(FString::Printf(TEXT("YOU FELL  -  respawning at your base in %d s"), FMath::CeilToInt(Left)), JamRed, SY * 0.4f, 1.6f * K);
 	}
 
 	// 5) Objetivo (arriba al centro) y avisos: durante la partida, no en la pantalla final.
@@ -804,6 +870,7 @@ void AJamHUD::DrawHUD()
 	float TextBaseY = MsgBaseY > 0.f ? MsgBaseY : SY - 118.f * K;
 	if (!bOver)
 	{
+		DrawDamageNotices();
 		if (Pawn && (!MyHealth || !MyHealth->IsDead()))
 		{
 			TextBaseY = FMath::Min(TextBaseY, DrawBackpack(Pawn));

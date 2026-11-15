@@ -31,6 +31,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Core/JamMessages.h"
 #include "Core/JamAudio.h"
+#include "Core/JamHUD.h"
 #include "Engine/SkeletalMesh.h"
 #include "ReferenceSkeleton.h"
 
@@ -40,6 +41,14 @@ namespace
 		TEXT("Segundos (reales) que se congela el juego cuando la espada del jugador pega; 0 = sin pausa."));
 	TAutoConsoleVariable<int32> CVarJamSwordDebug(TEXT("jam.Sword.Debug"), 0,
 		TEXT("1 = dibuja el alcance del tajo (arco) y lo que pega, y escribe en el log lo que descarta."));
+
+	void JamApplyDamageWithHud(AActor* Target, float Damage, AController* By, AActor* Source, FName Effect)
+	{
+		const UHealthComponent* H = Target ? Target->FindComponentByClass<UHealthComponent>() : nullptr;
+		const float Before = H ? H->GetHealth() : 0.f;
+		UGameplayStatics::ApplyDamage(Target, Damage, By, Source, nullptr);
+		if (H) { AJamHUD::ShowDamage(Source, Target, Before - H->GetHealth(), Effect); }
+	}
 }
 
 namespace
@@ -76,7 +85,7 @@ namespace
 
 	FString MatName(FName Id)
 	{
-		FString Name = Id.ToString();
+		FString Name = Id == TEXT("Shock") ? FString(TEXT("Lightning")) : Id.ToString();
 		if (const TSharedPtr<FJsonObject> M = MatConfig(Id)) { M->TryGetStringField(TEXT("name"), Name); }
 		return Name;
 	}
@@ -264,13 +273,13 @@ bool UJamWeaponComponent::Fuse(FName MaterialId)
 {
 	if (Current == EJamWeapon::Generated)
 	{
-		Notify(TEXT("Tu arma pedida ya trae su efecto. Cambia a la espada o al arco (Q) para fusionar"));
+		Notify(TEXT("Your requested weapon already has an effect. Switch to sword or bow (Q) to fuse materials"));
 		return false;
 	}
 	UInventoryComponent* Inv = GetOwner() ? GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
 	if (!Inv || !MatConfig(MaterialId).IsValid() || Inv->GetCount(InvId(MaterialId)) <= 0)
 	{
-		Notify(FString::Printf(TEXT("No tienes %s para fusionar"), *MatName(MaterialId)));
+		Notify(FString::Printf(TEXT("No %s available to fuse"), *MatName(MaterialId)));
 		return false;
 	}
 	if (Current == EJamWeapon::Sword)
@@ -280,12 +289,12 @@ bool UJamWeaponComponent::Fuse(FName MaterialId)
 		double Uses = 20.0;
 		FusionConfig()->TryGetNumberField(TEXT("sword_uses"), Uses);
 		SwordUses = FMath::RoundToInt(MatNumber(MaterialId, TEXT("sword_uses"), float(Uses)));
-		Notify(FString::Printf(TEXT("Espada + %s (%d golpes)"), *MatName(MaterialId), SwordUses), JamMsg::Good, NAME_None);
+		Notify(FString::Printf(TEXT("Sword + %s (%d hits)"), *MatName(MaterialId), SwordUses), JamMsg::Good, NAME_None);
 	}
 	else
 	{
 		FusedBow = MaterialId;
-		Notify(FString::Printf(TEXT("Flechas de %s (%d)"), *MatName(MaterialId), Inv->GetCount(InvId(MaterialId))), JamMsg::Good, NAME_None);
+		Notify(FString::Printf(TEXT("%s arrows (%d)"), *MatName(MaterialId), Inv->GetCount(InvId(MaterialId))), JamMsg::Good, NAME_None);
 	}
 	RefreshFuseMesh();
 	return true;
@@ -310,7 +319,7 @@ bool UJamWeaponComponent::FuseNext()
 			return Fuse(Id);
 		}
 	}
-	Notify(TEXT("No tienes materiales para fusionar (salen de cofres y chatarra)"));
+	Notify(TEXT("No fusion materials: find them in chests and scrap"));
 	return false;
 }
 
@@ -341,7 +350,7 @@ void UJamWeaponComponent::Explode(const FVector& Where, float Damage, float Radi
 	int32 Hits = 0;
 	for (AActor* A : EnemiesNear(Where, Radius))
 	{
-		UGameplayStatics::ApplyDamage(A, Damage, By, Owner, nullptr);
+		JamApplyDamageWithHud(A, Damage, By, Owner, TEXT("Bomb"));
 		if (ACharacter* C = Cast<ACharacter>(A)) { C->LaunchCharacter((A->GetActorLocation() - Where).GetSafeNormal2D() * 700.f + FVector(0, 0, 350.f), true, true); }
 		++Hits;
 	}
@@ -387,7 +396,7 @@ void UJamWeaponComponent::ApplyFusionHit(FName Id, AActor* Target, const FVector
 			// Descarga en area de 2 m.
 			for (AActor* A : EnemiesNear(Where, MatNumber(Id, TEXT("arrow_radius"), 200.f)))
 			{
-				if (A != Target) { UGameplayStatics::ApplyDamage(A, MatNumber(Id, TEXT("arrow_area_damage"), 10.f), By, GetOwner(), nullptr); }
+				if (A != Target) { JamApplyDamageWithHud(A, MatNumber(Id, TEXT("arrow_area_damage"), 10.f), By, GetOwner(), Id); }
 				UJamStatusComponent::Get(A)->Stun(Stun);
 			}
 		}
@@ -562,8 +571,11 @@ void UJamWeaponComponent::SwingSword()
 		}
 		Done.Add(A);
 		if (bDebug) { DrawDebugSphere(GetWorld(), Point, 20.f, 8, FColor::Red, false, 1.f); }
+		const UHealthComponent* TargetHealth = A->FindComponentByClass<UHealthComponent>();
+		const float Before = TargetHealth ? TargetHealth->GetHealth() : 0.f;
 		if (DealDamage(A, SwordDamage + BonusDamage + Bonus, Fwd * SwordKnockback * PushMul))
 		{
+			if (TargetHealth) { AJamHUD::ShowDamage(Owner, A, Before - TargetHealth->GetHealth(), Fused); }
 			if (!Fused.IsNone() && !(bHit && Fused == TEXT("Bomb"))) { ApplyFusionHit(Fused, A, A->GetActorLocation(), false); }
 			bHit = true;
 		}
@@ -584,7 +596,7 @@ void UJamWeaponComponent::SwingSword()
 	// El material se gasta con el uso: un golpe por tajo que pega; al acabarse se cae.
 	if (bHit && !Fused.IsNone() && --SwordUses <= 0)
 	{
-		Notify(FString::Printf(TEXT("Se acabo el material de la espada (%s)"), *MatName(Fused)));
+		Notify(FString::Printf(TEXT("Sword fusion depleted (%s)"), *MatName(Fused)));
 		FusedSword = NAME_None;
 		SwordUses = 0;
 		RefreshFuseMesh();
@@ -606,7 +618,7 @@ void UJamWeaponComponent::ShootArrow()
 		UInventoryComponent* Inv = GetOwner()->FindComponentByClass<UInventoryComponent>();
 		if (!Fused.IsNone() && !(Inv && Inv->RemoveItem(InvId(Fused), 1)))
 		{
-			Notify(FString::Printf(TEXT("Sin %s: flechas normales"), *MatName(Fused)));
+			Notify(FString::Printf(TEXT("No %s left: normal arrows"), *MatName(Fused)));
 			Fused = FusedBow = NAME_None;
 			RefreshFuseMesh();
 		}
@@ -644,6 +656,22 @@ void UJamWeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 	}
 	if (Current == EJamWeapon::Generated && !(bHasGun && IsGeneratedEnabled())) { SetWeapon(EJamWeapon::Sword); }
 	if (GunRoot && Current != EJamWeapon::Generated && GunRoot->IsVisible()) { GunRoot->SetVisibility(false, true); }
+	if (GunRoot && bHasGun)
+	{
+		// Retroceso del arma, no de la camara: cada cuadro parte de GunInHand, asi nunca acumula deriva.
+		// La bala ya salio por la mira; el pulso visual vuelve suave a la mano y no afecta al asiento.
+		FTransform Pose = GunInHand;
+		const float SinceShot = Now - LastAttackTime;
+		if (Current == EJamWeapon::Generated && Owner && !Owner->GetAttachParentActor()
+			&& Gun.RecoilSeconds > 0.f && SinceShot >= 0.f && SinceShot < Gun.RecoilSeconds)
+		{
+			const float T = 1.f - SinceShot / Gun.RecoilSeconds;
+			const float Kick = T * T * (3.f - 2.f * T);
+			Pose.AddToTranslation(GunInHand.GetRotation().RotateVector(FVector(-Gun.RecoilDistance * Kick, 0.f, 0.f)));
+			Pose.SetRotation((GunInHand.GetRotation() * FRotator(Gun.RecoilPitch * Kick, 0.f, 0.f).Quaternion()).GetNormalized());
+		}
+		GunRoot->SetRelativeTransform(Pose);
+	}
 	if (!HandMesh || Current != EJamWeapon::Sword || SwingAlpha >= 1.f || HandParent.IsValid())
 	{
 		return; // con figura rigeada el tajo viene en la animacion Attack
@@ -690,7 +718,7 @@ FString UJamWeaponComponent::GetGeneratedHudText() const
 	{
 		return FString();
 	}
-	const FString Cost = FString::Printf(TEXT("%s de energia por disparo"), *JamGun::Number(Gun.Energy));
+	const FString Cost = FString::Printf(TEXT("%s energy per shot"), *JamGun::Number(Gun.Energy));
 	return Gun.MuzzleName.IsEmpty() ? FString::Printf(TEXT("%s - %s"), *Gun.Name, *Cost) : FString::Printf(TEXT("%s - %s, %s"), *Gun.Name, *Gun.MuzzleName, *Cost);
 }
 
@@ -712,7 +740,7 @@ bool UJamWeaponComponent::RequestGeneratedWeapon(const FString& Phrase)
 	}
 	// 3) Con clave: el modelo solo ELIGE cuerpo, boca y extras entre los ids de Weapons.json; el codigo pone numeros, limites y piezas
 	// (JamGun::DecideWithIds). Con error, corte (3 s) o todo negado se equipa la de palabras. El arma anterior sigue en la mano mientras.
-	Notify(TEXT("Pensando..."), JamMsg::Info, TEXT("JamGunMade"));
+	Notify(TEXT("Thinking..."), JamMsg::Info, TEXT("JamGunMade"));
 	TWeakObjectPtr<UJamWeaponComponent> Weak(this);
 	FJamDecisionClient::RequestGunChoice(Phrase, [Weak, Request, Phrase, Spec](bool bOk, const FString& BodyId, const FString& MuzzleId, const TArray<FString>& ExtraIds)
 	{
@@ -736,7 +764,7 @@ void UJamWeaponComponent::EquipGenerated(const FJamGunSpec& Spec, const FString&
 	bHasGun = true;
 	BuildGunMesh();
 	SetWeapon(EJamWeapon::Generated);
-	Notify(FString::Printf(TEXT("Armaste: %s"), *GetGeneratedHudText()), JamMsg::Good, TEXT("JamGunMade"));
+	Notify(FString::Printf(TEXT("Built: %s"), *GetGeneratedHudText()), JamMsg::Good, TEXT("JamGunMade"));
 	// Que se vea la IA: una linea aparte con lo que eligio el modelo ("OpenAI eligio: Rifle, boca de Hielo, Mira").
 	const FName AiKey(TEXT("JamGunAI"));
 	if (ChosenBy.IsEmpty())
@@ -745,8 +773,8 @@ void UJamWeaponComponent::EquipGenerated(const FJamGunSpec& Spec, const FString&
 		if (Pawn && Pawn->IsPlayerControlled()) { JamMsg::Remove(AiKey); } // la del arma anterior ya no aplica
 		return;
 	}
-	FString Line = FString::Printf(TEXT("%s eligio: %s"), *ChosenBy, *Gun.BodyName);
-	if (!Gun.MuzzleName.IsEmpty()) { Line += TEXT(", boca de ") + Gun.MuzzleName; }
+	FString Line = FString::Printf(TEXT("%s picked: %s"), *ChosenBy, *Gun.BodyName);
+	if (!Gun.MuzzleName.IsEmpty()) { Line += TEXT(", muzzle: ") + Gun.MuzzleName; }
 	for (FString Extra : Gun.ExtraNames)
 	{
 		if (Extra.IsEmpty()) { continue; }
@@ -925,7 +953,7 @@ bool UJamWeaponComponent::FireGenerated()
 			if (Now - LastNoEnergyNote > 2.f)
 			{
 				LastNoEnergyNote = Now;
-				Notify(FString::Printf(TEXT("Sin energia: %s gasta %s por disparo. Junta energia o espera a que se recargue"), *Gun.Name, *JamGun::Number(Gun.Energy)), JamMsg::Warn, TEXT("JamGunEnergy"));
+				Notify(FString::Printf(TEXT("No energy: %s uses %s per shot. Find energy or wait to recharge"), *Gun.Name, *JamGun::Number(Gun.Energy)), JamMsg::Warn, TEXT("JamGunEnergy"));
 			}
 			return false;
 		}
