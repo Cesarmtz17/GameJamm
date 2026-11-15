@@ -1,7 +1,9 @@
 #include "Core/JamLootDirector.h"
 #include "Core/JamLoot.h"
 #include "Core/JamLootChest.h"
+#include "AI/JamCampGuard.h"
 #include "GameJamm.h"
+#include "Core/HealthComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -88,12 +90,72 @@ void AJamLootDirector::BeginPlay()
 		}
 	}
 
+	// Campamentos neutrales: guardias y lanzadores en anillo alrededor de (x, y).
+	double Respawn = 90.0;
+	Cfg->TryGetNumberField(TEXT("camp_respawn"), Respawn);
+	CampRespawn = float(Respawn);
+	const TArray<TSharedPtr<FJsonValue>>* CampList = nullptr;
+	if (Cfg->TryGetArrayField(TEXT("camps"), CampList))
+	{
+		for (const auto& V : *CampList)
+		{
+			const TSharedPtr<FJsonObject> O = V->AsObject();
+			const float X = O->GetNumberField(TEXT("x")), Y = O->GetNumberField(TEXT("y"));
+			const int32 NG = O->GetIntegerField(TEXT("guards")), NT = O->GetIntegerField(TEXT("throwers"));
+			for (int32 i = 0; i < NG + NT; ++i)
+			{
+				const float A = 2.f * PI * i / FMath::Max(1, NG + NT);
+				const float R = i < NG ? 350.f : 600.f; // los lanzadores atras
+				FVector Ground;
+				if (!JamLoot::GroundAt(GetWorld(), X + R * FMath::Cos(A), Y + R * FMath::Sin(A), Ground, this)
+					&& !JamLoot::GroundAt(GetWorld(), X + 0.5f * R * FMath::Cos(A), Y + 0.5f * R * FMath::Sin(A), Ground, this))
+				{
+					continue;
+				}
+				FCampSlot& Slot = Camps.AddDefaulted_GetRef();
+				Slot.Home = Ground + FVector(0, 0, 100.f);
+				Slot.bThrower = i >= NG;
+				SpawnGuard(Slot);
+			}
+		}
+		UE_LOG(LogJam, Log, TEXT("Campamentos: %d guardias en %d islas"), Camps.Num(), CampList->Num());
+		GetWorldTimerManager().SetTimer(CampTimer, this, &AJamLootDirector::CheckCamps, 5.f, true);
+	}
+
 	const TSharedPtr<FJsonObject>* Rare = nullptr;
 	if (Cfg->TryGetObjectField(TEXT("rare_event"), Rare))
 	{
 		const float First = (*Rare)->GetNumberField(TEXT("first"));
 		const float Every = (*Rare)->GetNumberField(TEXT("every"));
 		GetWorldTimerManager().SetTimer(RareTimer, this, &AJamLootDirector::SpawnRareChest, FMath::Max(Every, 10.f), true, FMath::Max(First, 1.f));
+	}
+}
+
+void AJamLootDirector::SpawnGuard(FCampSlot& Slot)
+{
+	const FTransform T(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f), Slot.Home);
+	AJamCampGuard* G = GetWorld()->SpawnActorDeferred<AJamCampGuard>(AJamCampGuard::StaticClass(), T, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+	if (!G)
+	{
+		return;
+	}
+	G->InitGuard(Slot.bThrower, Slot.Home);
+	G->FinishSpawning(T);
+	G->SpawnDefaultController();
+	Slot.Guard = G;
+	Slot.DeadSince = -1.f;
+}
+
+void AJamLootDirector::CheckCamps()
+{
+	const float Now = GetWorld()->GetTimeSeconds();
+	for (FCampSlot& Slot : Camps)
+	{
+		const AJamCampGuard* G = Slot.Guard.Get();
+		const bool bAlive = G && G->Health && !G->Health->IsDead();
+		if (bAlive) { continue; }
+		if (Slot.DeadSince < 0.f) { Slot.DeadSince = Now; }
+		else if (Now - Slot.DeadSince >= CampRespawn) { SpawnGuard(Slot); }
 	}
 }
 
