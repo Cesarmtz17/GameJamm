@@ -139,8 +139,16 @@ caminar y al atacar. Sin figura, todo queda como hoy.
 > - Caminar, correr, espadazo (`Attack`) y arco (`Shoot`) cambian la animación como se esperaba.
 > - FPS en el spawn con la oleada en pantalla: 60 (GPU 9.3 ms; antes ~7.0).
 >
-> Falta probar morir y reaparecer, la primera persona (V) y una build empaquetada: la configuración de empaquetado está,
-> pero **no se ha hecho ninguna build de prueba**. Los dos ajustes de arriba son la continuación.
+> Más tarde se probó en PIE: la primera persona (V) y reaparecer funcionan. Al morir, el jugador se esconde al instante
+> (`HandleDied`), así que su animación `Death` no se ve.
+>
+> **Build empaquetada de prueba (14 nov 20:20, Development, `BuildCookRun` en 5 min, 0 errores y 0 avisos):**
+> - Entran los 4 JSON.
+> - En el log del juego empaquetado, jugador, bots, guardias y minions cargan su figura ("Look ... con 8 animaciones").
+> - El loot sale de `Loot.json` y `Jam.Type` construye con el respaldo de palabras clave.
+> - Falta probar la build **Shipping** (la del jurado), que no acepta consola.
+>
+> Los dos ajustes de arriba son la continuación.
 
 > [!note] Pedido original (para referencia)
 > - **César:** "Javier pide ~1 h de código antes del freeze: que jugador, minion, bot héroe y guardia usen las figuras
