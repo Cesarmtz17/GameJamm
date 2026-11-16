@@ -6,10 +6,12 @@
  * Voz -> texto para pedir construcciones hablando (push-to-talk).
  * Graba el microfono mientras se mantiene la tecla (AudioCaptureCore), recorta el silencio y arma un WAV mono de 16 kHz.
  * Transcribe en cadena, siempre con tiempo limite y aviso claro:
- *   1) LOCAL: whisper.cpp (`whisper-server` en 127.0.0.1:8177, modelo ggml-base, español forzado, con el vocabulario
- *      del juego como pista). Sin red; ~0.1-0.4 s por frase. El juego lo arranca solo si esta instalado.
- *   2) NUBE: fal (storage/upload -> fal-ai/wizper) con FAL_KEY o [Jam] FalApiKey. Puede tardar varios segundos.
- *   3) Si nada responde: motivo en pantalla; la caja de texto (T) sigue funcionando.
+ *   1) OpenAI Whisper (whisper-1, 20 s), con la clave existente de FJamDecisionClient::GetOpenAIKey().
+ *      Multipart WAV, vocabulario ingles y deteccion automatica de idioma (ingles/espanol).
+ *   2) LOCAL si ya esta listo: whisper.cpp en 127.0.0.1:8177. Sin OpenAI, WarmUp puede arrancar lo ya instalado.
+ *   3) fal (storage/upload -> fal-ai/wizper) con FAL_KEY o [Jam] FalApiKey como respaldo.
+ *   4) Si nada responde: motivo seguro en ingles y B para escribir. Nunca registra claves ni cuerpos de error HTTP.
+ * Solo una grabacion/transcripcion simultanea; todos los callbacks terminan en el hilo del juego.
  * Instalacion de la voz local: docs/building/README-DECISION.md.
  */
 class GAMEJAMM_API FJamVoice
@@ -19,21 +21,21 @@ public:
 
 	static FJamVoice& Get();
 
-	/** Empieza a grabar. false + motivo si no se pudo abrir el microfono. */
+	/** Empieza a grabar. Rechaza mientras transcribe; false + motivo seguro si no puede abrir el microfono. */
 	bool Start(FString& OutError);
 
 	/** Deja de grabar y transcribe lo grabado. Done se llama en el hilo del juego. */
 	void StopAndTranscribe(FDone Done);
 
-	/** Transcribe un WAV ya hecho (pruebas: Jam.VoiceFile con un archivo de `say`). */
+	/** Transcribe un WAV valido no vacio de hasta 25 MiB (pruebas: Jam.VoiceFile). Rechaza llamadas simultaneas. */
 	static void TranscribeWav(const TArray<uint8>& Wav, FDone Done);
 
-	/** Arranca (si hace falta) y calienta el servidor local de voz. Llamar al empezar a jugar. */
+	/** Con clave OpenAI no hace probes locales; sin ella, calienta el servidor local ya instalado. */
 	void WarmUp();
 
 	bool IsRecording() const { return bRecording; }
 
-	/** Para el HUD: segundos que tardo la ultima transcripcion y quien la hizo ("local" / "nube"). */
+	/** Para el HUD: segundos que tardo la ultima transcripcion y quien la hizo ("openai-whisper" / "local" / "fal"). */
 	float LastSeconds = 0.f;
 	FString LastBackend;
 
@@ -45,6 +47,7 @@ public:
 
 private:
 	bool bRecording = false;
+	bool bTranscribing = false;
 	int32 SampleRate = 48000;
 	TArray<float> Samples;      // mono
 	FCriticalSection Lock;

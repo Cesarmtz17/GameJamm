@@ -242,7 +242,7 @@ Una línea de objetivo arriba guía paso a paso; cada paso se cumple y aparece e
 | Moverse, mirar, saltar | WASD, mouse, Espacio |
 | Atacar o disparar | Clic izquierdo |
 | Cambiar arma (espada, arco, arma pedida) | Q o rueda |
-| Pedir por texto / por voz | B (o T, Enter) / mantener G (voz solo con clave de fal) |
+| Pedir por texto / por voz | B (o T, Enter) / mantener G y soltar (Whisper con la clave OpenAI incluida; requiere micrófono y conexión) |
 | Encender o apagar tu construcción | C |
 | Subir o bajar del asiento | E |
 | Desarmar tu construcción | X |

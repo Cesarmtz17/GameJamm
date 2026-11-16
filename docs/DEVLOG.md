@@ -38,6 +38,14 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 15 nov (tarde) — Whisper conectado al flujo de voz (Javier + Codex)
+
+- **Problema reportado por Javier:** la tecla de voz no funcionaba en su partida. El código solo aceptaba un reconocedor local ya instalado o una clave de fal; la instalación local buscaba rutas de Mac y no usaba nuestra clave de OpenAI.
+- **Cambio:** Codex añadió OpenAI Whisper (`whisper-1`) como primera ruta, reutilizando la clave existente sin registrarla ni ponerla en Git. G graba y al soltar transcribe; no se fuerza español para los jueces. Se conservan los respaldos existentes, límite de espera, bloqueo de peticiones simultáneas y errores en inglés con B para escribir.
+- **Validación:** dos WAV de frases sintetizadas pasaron primero por la API real y después por `Jam.VoiceFile` dentro de Unreal. «An ice rifle» transcribió en 0.67 s y equipó el rifle de hielo; «A car that burns everything» transcribió en 1.70 s y produjo siete piezas, coherencia 100, usando el cofre inicial real. Un WAV inválido se rechazó de inmediato; la siguiente transcripción válida funcionó, sin quedar bloqueada.
+- **Límite de esta evidencia:** son pruebas de WAV y del flujo nativo completo, no una prueba del micrófono físico de Javier ni del juez. El proveedor WASAPI está incluido en Windows; queda la comprobación humana con G en el paquete actualizado. La voz necesita conexión; el pedido por texto mantiene su respaldo sin conexión.
+- **Integración:** cambios de Building con autorización de Javier para todas las áreas; el header requiere recompilar. La modificación se hizo por el fallo de voz reportado durante la preparación de entrega.
+
 ## 15 nov (tarde) — Mochila plegable, daño visible y piezas destructibles (Javier + Codex)
 
 - **Pedido de Javier:** «un botón para ocultar el inventario». Codex añadió **I** y un botón de mostrar/ocultar (Alt+clic): plegado queda una barra pequeña con la cantidad. Se probó la tecla I y que no altere el estado mientras se escribe con B. [Captura de la mochila plegada](devlog/inventory-collapsed-15nov.png).
