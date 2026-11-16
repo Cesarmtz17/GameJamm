@@ -33,6 +33,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
+#include "Sound/SoundAttenuation.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/PackageName.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
@@ -47,6 +48,8 @@ static TAutoConsoleVariable<int32> CVarJamRealMeshes(TEXT("jam.Build.RealMeshes"
 	TEXT("1 = usar las mallas de Content/Game/Building/Parts cuando existan; 0 = siempre formas basicas."));
 
 static TAutoConsoleVariable<int32> CVarJamSfx(TEXT("jam.Build.Sfx"), 1, TEXT("1 = sonidos de las piezas (Content/Game/Building/Audio, si estan importados); 0 = sin sonido."));
+static TAutoConsoleVariable<float> CVarJamMotorLoopGain(TEXT("jam.Build.MotorLoopGain"), 0.10f, TEXT("Motor loop volume, 0..1; spatial attenuation applies."));
+static TAutoConsoleVariable<float> CVarJamFireLoopGain(TEXT("jam.Build.FireLoopGain"), 0.18f, TEXT("Fire and rocket loop volume, 0..1; spatial attenuation applies."));
 
 static TAutoConsoleVariable<float> CVarJamDrag(TEXT("jam.Build.AirDrag"), 0.0009f, TEXT("Arrastre del aire de las piezas (1/cm): frenado = valor * velocidad^2. 0 = sin arrastre."));
 
@@ -852,7 +855,17 @@ void AJamBuildPart::SetActive(bool bNewActive)
 	{
 		if (USoundBase* S = FindSfx(Loop))
 		{
-			LoopSound = UGameplayStatics::SpawnSoundAttached(S, Mesh, NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true, 0.5f);
+			const bool bFireLoop = Kind == EJamPartKind::Flame || Kind == EJamPartKind::Rocket;
+			const float Gain = FMath::Clamp(bFireLoop ? CVarJamFireLoopGain.GetValueOnGameThread() : CVarJamMotorLoopGain.GetValueOnGameThread(), 0.f, 1.f);
+			// Pass attenuation before playback; adjusting an already playing ActiveSound would not apply it.
+			USoundAttenuation* Spatial = NewObject<USoundAttenuation>(this);
+			Spatial->Attenuation.bAttenuate = true;
+			Spatial->Attenuation.bSpatialize = true;
+			Spatial->Attenuation.AttenuationShape = EAttenuationShape::Sphere;
+			Spatial->Attenuation.AttenuationShapeExtents = FVector(300.f, 0.f, 0.f);
+			Spatial->Attenuation.FalloffDistance = 2200.f;
+			LoopSound = UGameplayStatics::SpawnSoundAttached(S, Mesh, NAME_None, FVector::ZeroVector,
+				EAttachLocation::KeepRelativeOffset, true, Gain, 1.f, 0.f, Spatial);
 		}
 	}
 	else if (!bNewActive && LoopSound)

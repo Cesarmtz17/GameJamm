@@ -38,6 +38,13 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 15 nov (tarde) — Motores más suaves después de la prueba de Javier (Javier + Codex)
+
+- Javier probó el paquete con Whisper, confirmó que funcionaba y pidió como último ajuste bajar el ruido continuo de motores y mecanismos.
+- Codex encontró que los bucles de las piezas usaban volumen 0.5 sin atenuación: también podían oírse motores de construcciones lejanas. Se redujo el motor a 0.10 y fuego/cohetes a 0.18, con parámetros de consola para ajustar sus ganancias.
+- Se agregó atenuación espacial antes de iniciar el sonido: radio de tres metros y caída durante veintidós metros más. La revisión de la API evitó ajustar la atenuación después de `Play`, cuando el sonido activo ya habría tomado sus valores.
+- No se cambiaron la música elegida, los golpes ni el cofre. La modificación es de Building, con autorización de Javier para todas las áreas; el paquete se vuelve a generar con el ajuste. La escucha humana de esta nueva mezcla queda pendiente.
+
 ## 15 nov (tarde) — Whisper conectado al flujo de voz (Javier + Codex)
 
 - **Problema reportado por Javier:** la tecla de voz no funcionaba en su partida. El código solo aceptaba un reconocedor local ya instalado o una clave de fal; la instalación local buscaba rutas de Mac y no usaba nuestra clave de OpenAI.
