@@ -22,8 +22,11 @@ public:
 	/** Clave de fal (env FAL_KEY o [Jam] FalApiKey): respaldo de decisión vía fal.run/openrouter/router (LLM que elige en JSON). */
 	static FString GetFalKey();
 
-	/** Clave de OpenAI (env OPENAI_API_KEY o [Jam] OpenAIApiKey): Decisions API (gpt-6-luna) en api.openai.com/v1/decisions. */
-	static FString GetOpenAIKey();
+	/** Token del proxy HTTPS configurado; solo sin proxy se usa OPENAI_API_KEY / OpenAIApiKey. Vacio = respaldo offline. */
+	static FString GetOpenAIAuthToken();
+
+	/** Endpoint para decisiones o voz, compartiendo la seleccion de credencial y proxy. */
+	static FString GetOpenAIEndpoint(const TCHAR* Path);
 
 	/** Corte en segundos de un proveedor ("typesafe", "openrouter", "openai", "fal"): BuildKnowledge.json, bloque decision_timeouts. */
 	static float GetTimeout(const TCHAR* Provider, float Default);

@@ -186,7 +186,8 @@ namespace
 		AddText(FString::Printf(TEXT("\r\n--%s--\r\n"), *Boundary));
 		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> R = FHttpModule::Get().CreateRequest();
 		R->SetVerb(TEXT("POST"));
-		R->SetURL(TEXT("https://api.openai.com/v1/audio/transcriptions"));
+		R->SetURL(FJamDecisionClient::GetOpenAIEndpoint(TEXT("/v1/audio/transcriptions")));
+		R->SetHeader(TEXT("User-Agent"), TEXT("PromptAndConquer/1.0"));
 		R->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *Key));
 		R->SetHeader(TEXT("Content-Type"), FString::Printf(TEXT("multipart/form-data; boundary=%s"), *Boundary));
 		R->SetContent(Body);
@@ -215,7 +216,7 @@ namespace
 
 void FJamVoice::WarmUp()
 {
-	if (!FJamDecisionClient::GetOpenAIKey().IsEmpty()) { return; }
+	if (!FJamDecisionClient::GetOpenAIAuthToken().IsEmpty()) { return; }
 	if (GLocalTried)
 	{
 		return;
@@ -284,7 +285,7 @@ bool FJamVoice::Start(FString& OutError)
 	{
 		return true;
 	}
-	if (!GLocalReady && FJamDecisionClient::GetOpenAIKey().IsEmpty() && FJamDecisionClient::GetFalKey().IsEmpty())
+	if (!GLocalReady && FJamDecisionClient::GetOpenAIAuthToken().IsEmpty() && FJamDecisionClient::GetFalKey().IsEmpty())
 	{
 		OutError = TEXT("Voice is unavailable: no configured recognizer. Press B to type your request.");
 		return false;
@@ -482,11 +483,11 @@ void FJamVoice::TranscribeWav(const TArray<uint8>& Wav, FDone InDone)
 		if (!Local->ProcessRequest()) { Done(false, TEXT("Local voice could not start. Press B to type your request.")); }
 	};
 
-	// First choice is the same OpenAI key already used by the decision API; never use fal's Key authorization helper.
-	const FString OpenAIKey = FJamDecisionClient::GetOpenAIKey();
-	if (OpenAIKey.IsEmpty()) { Fallback(TEXT("OpenAI voice is not configured and the local recognizer is unavailable")); return; }
+	// Voice shares the decision API proxy and Bearer token; never use fal's Key authorization helper.
+	const FString OpenAIToken = FJamDecisionClient::GetOpenAIAuthToken();
+	if (OpenAIToken.IsEmpty()) { Fallback(TEXT("OpenAI voice is not configured and the local recognizer is unavailable")); return; }
 	*Backend = TEXT("openai-whisper");
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> OpenAI = OpenAIRequest(Wav, OpenAIKey);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> OpenAI = OpenAIRequest(Wav, OpenAIToken);
 	OpenAI->OnProcessRequestComplete().BindLambda([Done, Fallback, Finished](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
 	{
 		if (*Finished) { return; }

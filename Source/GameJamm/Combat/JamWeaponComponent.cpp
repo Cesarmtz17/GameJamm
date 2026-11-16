@@ -733,7 +733,7 @@ bool UJamWeaponComponent::RequestGeneratedWeapon(const FString& Phrase)
 	const int32 Request = ++GunRequestId; // un pedido nuevo deja sin efecto la respuesta pendiente del anterior
 	// 2) Sin clave de OpenAI (o no es el jugador): se equipa ya, como siempre.
 	const APawn* Pawn = Cast<APawn>(GetOwner());
-	if (!Pawn || !Pawn->IsPlayerControlled() || FJamDecisionClient::GetOpenAIKey().IsEmpty())
+	if (!Pawn || !Pawn->IsPlayerControlled() || FJamDecisionClient::GetOpenAIAuthToken().IsEmpty())
 	{
 		EquipGenerated(Spec, FString());
 		return true;

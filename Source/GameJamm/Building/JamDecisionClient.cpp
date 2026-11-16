@@ -36,7 +36,6 @@ namespace
 
 	// Decisions API de OpenAI (contrato verificado con llamadas reales el 15 nov): input [developer, user] + questions[]
 	// (predicate / choice) -> answers[] con predicate.probability, choice.choice/.confidence o refusal POR PREGUNTA.
-	const TCHAR* OpenAIEndpoint = TEXT("https://api.openai.com/v1/decisions");
 	const TCHAR* OpenAIModel = TEXT("gpt-6-luna");
 	const TCHAR* OpenAIBackend = TEXT("openai-decisions");
 	// El mensaje developer deja claro que es un juego de piezas de juguete con efectos de juego: sin esto el modelo se niega
@@ -61,6 +60,34 @@ namespace
 		return Key;
 	}
 
+	struct FOpenAIConnection
+	{
+		FString BaseUrl;
+		FString Token;
+	};
+
+	FOpenAIConnection OpenAIConnection()
+	{
+		FString Url = JamSecret(TEXT("OPENAI_PROXY_URL"), TEXT("OpenAIProxyUrl")).TrimStartAndEnd();
+		FString Token = JamSecret(TEXT("OPENAI_PROXY_TOKEN"), TEXT("OpenAIProxyToken")).TrimStartAndEnd();
+		// A configured proxy takes precedence even over a developer's provider environment key.
+		// Incomplete/invalid proxy settings fail closed instead of sending a provider key to it.
+		if (!Url.IsEmpty() || !Token.IsEmpty())
+		{
+			while (Url.RemoveFromEnd(TEXT("/"))) {}
+			const FString Host = Url.Mid(8);
+			if (!Url.StartsWith(TEXT("https://")) || Host.IsEmpty() || Token.IsEmpty()
+				|| Host.Contains(TEXT("/")) || Host.Contains(TEXT("@")) || Host.Contains(TEXT("?"))
+				|| Host.Contains(TEXT("#")) || Host.Contains(TEXT(" ")) || Host.Contains(TEXT("\t"))
+				|| Host.Contains(TEXT("\r")) || Host.Contains(TEXT("\n")))
+			{
+				return {};
+			}
+			return {Url, Token};
+		}
+		return {TEXT("https://api.openai.com"), JamSecret(TEXT("OPENAI_API_KEY"), TEXT("OpenAIApiKey")).TrimStartAndEnd()};
+	}
+
 	/**
 	 * POST a la Decisions API de OpenAI con el corte del proveedor. Done(b200, codigo HTTP (0 = sin respuesta / corte), contenido, ms)
 	 * en el hilo del juego. Nunca escribe en el log la clave ni el cuerpo de un error.
@@ -69,7 +96,8 @@ namespace
 	{
 		const double T0 = FPlatformTime::Seconds();
 		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
-		Req->SetURL(OpenAIEndpoint);
+		Req->SetURL(FJamDecisionClient::GetOpenAIEndpoint(TEXT("/v1/decisions")));
+		Req->SetHeader(TEXT("User-Agent"), TEXT("PromptAndConquer/1.0"));
 		Req->SetVerb(TEXT("POST"));
 		Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
 		Req->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *Key));
@@ -101,9 +129,15 @@ FString FJamDecisionClient::GetFalKey()
 	return JamSecret(TEXT("FAL_KEY"), TEXT("FalApiKey"));
 }
 
-FString FJamDecisionClient::GetOpenAIKey()
+FString FJamDecisionClient::GetOpenAIAuthToken()
 {
-	return JamSecret(TEXT("OPENAI_API_KEY"), TEXT("OpenAIApiKey")).TrimStartAndEnd();
+	return OpenAIConnection().Token;
+}
+
+FString FJamDecisionClient::GetOpenAIEndpoint(const TCHAR* Path)
+{
+	const FOpenAIConnection Connection = OpenAIConnection();
+	return Connection.BaseUrl.IsEmpty() ? FString() : Connection.BaseUrl + Path;
 }
 
 float FJamDecisionClient::GetTimeout(const TCHAR* Provider, float Default)
@@ -663,10 +697,10 @@ void FJamDecisionClient::RequestPlan(const FString& Prompt, TFunction<void(bool,
 
 void FJamDecisionClient::RequestOpenAIChoice(const FString& Prompt, TFunction<void(bool, const FJamBuildChoice&, const FString&)> Done)
 {
-	const FString Key = GetOpenAIKey();
+	const FString Key = GetOpenAIAuthToken();
 	if (Key.IsEmpty())
 	{
-		Done(false, FJamBuildChoice(), FString(OpenAIBackend) + TEXT(" no OPENAI_API_KEY"));
+		Done(false, FJamBuildChoice(), FString(OpenAIBackend) + TEXT(" no configured connection"));
 		return;
 	}
 	JamPostOpenAI(Key, BuildOpenAIRequestBody(Prompt), [Done, Prompt](bool bHttpOk, int32 Code, const FString& Content, int32 Ms)
@@ -687,7 +721,7 @@ void FJamDecisionClient::RequestOpenAIChoice(const FString& Prompt, TFunction<vo
 
 void FJamDecisionClient::RequestGunChoice(const FString& Phrase, TFunction<void(bool, const FString&, const FString&, const TArray<FString>&)> Done)
 {
-	const FString Key = GetOpenAIKey();
+	const FString Key = GetOpenAIAuthToken();
 	if (Key.IsEmpty())
 	{
 		Done(false, FString(), FString(), TArray<FString>());
@@ -712,7 +746,7 @@ void FJamDecisionClient::RequestChoice(const FString& Prompt, TFunction<void(boo
 	const FString TsKey = GetTypeSafeKey();
 	const bool bDirect = !TsKey.IsEmpty();
 	const FString Key = bDirect ? TsKey : GetApiKey();
-	const bool bOpenAI = !GetOpenAIKey().IsEmpty();
+	const bool bOpenAI = !GetOpenAIAuthToken().IsEmpty();
 	if (Key.IsEmpty())
 	{
 		if (bOpenAI)

@@ -38,6 +38,14 @@ Los jueces premian el **proceso**. Al terminar algo, deja en una entrada:
 
 ---
 
+## 15 nov (noche) — IA y voz mediante un intermediario con cuotas (Javier + Codex)
+
+- **Prompt clave de Javier:** auditar el ZIP sin quitar la IA a los jueces y delegar la compilación para llegar al deadline. Codex encontró una credencial de proveedor dentro del PAK: excluir el INI suelto del ZIP no la eliminaba.
+- Se cambió el cliente de decisiones, armas y Whisper para reconocer un proxy HTTPS como conexión configurada. Su token tiene prioridad sobre la clave directa; configuración incompleta o URL inválida conserva el respaldo local y no envía una clave a otro servidor. Se mantienen los modelos, preguntas, recetas y formato de audio.
+- El paquete lleva solo el permiso limitado del proxy. La clave OpenAI queda en un secreto del servidor; las otras credenciales se vacían antes del staging. El servidor limita rutas, modelos, cuerpos y consumo. El permiso distribuido sigue siendo extraíble: las cuotas reducen su abuso, no identifican al jugador.
+- **Qué falló:** el primer ensayo de red con un identificador genérico recibió 403. Ambas llamadas del juego ahora identifican la aplicación con su propio User-Agent. El backend se comprobó contra decisiones y Whisper reales, además de diez pruebas automatizadas. La integración nativa y el ZIP se validan durante el empaquetado de entrega.
+- El cambio de header requiere recompilar. Integración en Building y Combat autorizada por Javier para esta entrega; no cambia contratos de recetas ni añade funciones de juego.
+
 ## 15 nov (tarde) — Motores más suaves después de la prueba de Javier (Javier + Codex)
 
 - Javier probó el paquete con Whisper, confirmó que funcionaba y pidió como último ajuste bajar el ruido continuo de motores y mecanismos.

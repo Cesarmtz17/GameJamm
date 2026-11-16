@@ -243,7 +243,7 @@ void AJamBuildSpawner::BuildNow()
 		return;
 	}
 	if (bUseDecisionModel && (!FJamDecisionClient::GetTypeSafeKey().IsEmpty() || !FJamDecisionClient::GetApiKey().IsEmpty()
-		|| !FJamDecisionClient::GetOpenAIKey().IsEmpty() || !FJamDecisionClient::GetFalKey().IsEmpty()))
+		|| !FJamDecisionClient::GetOpenAIAuthToken().IsEmpty() || !FJamDecisionClient::GetFalKey().IsEmpty()))
 	{
 		LastStatus = TEXT("waiting for decision model...");
 		Announce(FString::Printf(TEXT("Jam: \"%s\" -> preguntando al modelo de decision (Jev / OpenAI)..."), *Prompt), true);
